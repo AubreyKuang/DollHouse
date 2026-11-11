@@ -33,6 +33,7 @@ function rel(a, b) {
 const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
+  if (r.secret) return '🤫 偷偷暧昧';
   const love = levelOf(r.l, LOVE_LEVELS);
   return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '');
 }
@@ -58,47 +59,80 @@ function weighted(list) {
 
 // 挑一个想去找的人：越熟、越喜欢越容易被挑中
 function pickPartner(d, others) {
-  return weighted(others.map(o => { const r = rel(d, o); return [o, 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0)]; }));
+  const lv = loverOf(d), lvAway = lv && (lv.state === 'away' || lying(lv));
+  return weighted(others.map(o => {
+    const r = rel(d, o);
+    let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
+    if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
+    return [o, w];
+  }));
 }
 
 function chooseKind(d, p) {
   const r = rel(d, p), cranky = d.needs.fun < 25 || p.needs.fun < 25 || d.needs.hunger < 15;
-  const single = !loverOf(d) && !loverOf(p);
+  // 有对象的人只有“花心”才会去撩别人；对方有对象也只有花心的才会接招
+  const ld = loverOf(d), lp = loverOf(p);
+  const free_ = (x, l, other) => !l || l === other || x.heart === 'fickle';
+  const canFlirt = !r.lovers && r.f >= 45 && r.l >= 15 && free_(d, ld, p) && (free_(p, lp, d) || p.heart !== 'loyal');
+  const sneaky = ld && ld !== p && d.heart === 'fickle';
   return weighted([
     ['chat', 34],
     ['joke', 14 + (d.persona === 'genki' ? 12 : 0) + (r.f > 40 ? 8 : 0)],
     ['hug', r.f >= 55 ? 16 + (d.persona === 'social' ? 8 : 0) : 0],
-    ['flirt', r.f >= 45 && single && r.l >= 15 ? 6 + r.l * 0.7 : 0],
-    ['kiss', r.lovers ? 26 : 0],
+    ['flirt', canFlirt ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
+    ['kiss', r.lovers ? 26 : r.secret ? 18 : 0],
     ['argue', (r.f < 15 ? 10 : 1) + (cranky ? 7 : 0)],
   ]);
 }
 
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p) {
-  const kind = chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
+  const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
+  const kind = (d.act && d.act.kind) || chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
   const t = 5 + Math.random() * 3;
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
   face(d, p.x, p.y); face(p, d.x, d.y);
-  say(d, pick(S.a));
-  let reply = pick(S.b.length ? S.b : ['……']);
+  const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
+  d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
+  // 普通聊天用各自性格的台词，一听就知道是谁
+  say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
+  let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
   const spark = r.f >= 45 ? 1 : 0;   // 足够熟了，日常相处也会慢慢心动
   if (kind === 'chat') bump(d, p, 5, 1.5 * spark);
   if (kind === 'joke') { bump(d, p, 6, 1.2 * spark); d.needs.fun = Math.min(100, d.needs.fun + 8); p.needs.fun = Math.min(100, p.needs.fun + 8); }
   if (kind === 'hug') { bump(d, p, 5, 3 + 3 * spark); spawnHeart(d); spawnHeart(p); }
-  if (kind === 'kiss') { bump(d, p, 2, 6); for (let i = 0; i < 3; i++) spawnHeart(i % 2 ? d : p, '💕'); d.happy = p.happy = 4; }
+  if (kind === 'kiss') { bump(d, p, 2, r.secret ? 8 : 6); for (let i = 0; i < 3; i++) spawnHeart(i % 2 ? d : p, '💕'); d.happy = p.happy = 4; }
   if (kind === 'argue') {
     bump(d, p, -9, -5); d.needs.fun = Math.max(0, d.needs.fun - 6); p.needs.fun = Math.max(0, p.needs.fun - 6);
     d.act.gain = p.act.gain = { social: 6 }; spawnHeart(d, '💢'); spawnHeart(p, '💢'); SFX.play('deny');
   }
+  let flirtOk = false;
   if (kind === 'flirt') {
-    const chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
-    if (Math.random() < chance) {
-      bump(d, p, 3, 14); reply = pick(['嗯……我也是 💕', '其实我也注意你很久了', '好呀 ❤']);
+    const lp = loverOf(p), ld = loverOf(d);
+    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
+    if (lp && lp !== d) chance = p.heart === 'fickle' ? chance : p.heart === 'loyal' ? 0 : chance * 0.4;
+    if (lp && lp !== d && p.heart === 'loyal') {
+      bump(d, p, -6, -8); reply = pick(['我已经有对象了！', `我心里只有${lp.name}`, '请你自重一点']);
+      spawnHeart(p, '💢');
+    } else if (Math.random() < chance) {
+      bump(d, p, 3, 14); reply = pick(['嗯……我也是 💕', '其实我也注意你很久了', '好呀 ❤']); flirtOk = true;
       d.happy = p.happy = 4; for (let i = 0; i < 4; i++) spawnHeart(i % 2 ? d : p, '💗');
-      if (r.l >= 70 && !r.lovers) { r.lovers = true; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); SFX.play('newday'); }
+      if (ld && ld !== p || lp && lp !== d) {
+        // 背着对象暧昧：变成“地下情”，玩家能看到，但当事人的恋人不知道……除非被撞见
+        if (!r.secret) HOOK.toast(`🤫 ${d.name} 和 ${p.name} 背着别人偷偷暧昧……`);
+        r.secret = true; SFX.play('love');
+        // 新欢比旧爱更喜欢了：花心的一方干脆变心
+        for (const [x, old] of [[d, ld], [p, lp]]) {
+          if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
+            const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
+            HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
+            say(old, '……怎么会这样'); spawnHeart(old, '💔');
+          }
+        }
+        if (r.l >= 70 && !loverOf(d) && !loverOf(p)) { r.lovers = true; r.secret = false; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); }
+      } else if (r.l >= 70 && !r.lovers) { r.lovers = true; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); SFX.play('newday'); }
       else SFX.play('love');
     } else {
       bump(d, p, -2, -4); reply = pick(['诶？我们还是做朋友吧', '让我想想……', '你、你在说什么呀']);
@@ -106,8 +140,89 @@ function startSocial(d, p) {
       setTimeout(() => d.act && d.act.kind === 'flirt' && say(d, '呜……'), 2600);
     }
   }
+  // 恋人看到另一半和别人亲密：抱一抱会吃醋；亲亲或地下情就是当场撞破
+  if (jealousTalk) say(d, pick(['刚才那是怎么回事？', '😤 你给我解释清楚', '你是不是喜欢上别人了？']));
+  const LOGK = { hug: `🤗 ${d.name} 抱了抱 ${p.name}`, kiss: `💋 ${d.name} 亲了 ${p.name}`, argue: `💢 ${d.name} 和 ${p.name} 吵了一架` };
+  // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
+  const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
+  if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
+  if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
+  if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
+  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
   setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
+}
+
+// 有人背着恋人和别人亲密时，看看恋人在不在附近——在的话就被撞见了
+function witness(a, b, how = 'caught') {
+  for (const [cheater, third] of [[a, b], [b, a]]) {
+    const L = loverOf(cheater);
+    if (!L || L === third || L.state === 'away' || L.state === 'lift' || lying(L)) continue;
+    if (Math.abs(L.tx - cheater.tx) + Math.abs(L.ty - cheater.ty) > 6) continue;
+    if (how === 'jealous') jealous(L, cheater, third); else caught(L, cheater, third);
+    return;
+  }
+}
+
+function jealous(L, cheater, third) {
+  const r = rel(L, cheater);
+  r.l = Math.max(0, r.l - 6); r.f = Math.max(-100, r.f - 3);
+  const t = rel(L, third); t.f = Math.max(-100, t.f - 10);
+  L.needs.fun = Math.max(0, L.needs.fun - 15);
+  face(L, cheater.x, cheater.y);
+  say(L, pick(['😤 哼！抱那么久干嘛', '……我吃醋了', `你和${third.name}关系很好嘛？`]), 3);
+  spawnHeart(L, '😤');
+  // 记下来：等这次互动结束，就去找恋人算账
+  L.jealousOf = { who: cheater, until: absNow() + 240 };
+  if (L.state === 'idle' || (L.act && !L.act.onFurn && L.act.type !== 'chat')) { if (L.act) endAct(L); L.state = 'idle'; L.think = 0.5; }
+  HOOK.toast(`😤 ${L.name} 看到 ${cheater.name} 和 ${third.name} 很亲密，吃醋了`);
+}
+
+function caught(L, cheater, third) {
+  const r = rel(L, cheater), r3 = rel(cheater, third);
+  r.f = Math.max(-100, r.f - 35); r.l = Math.max(0, r.l - 45);
+  const t3 = rel(L, third); t3.f = Math.max(-100, t3.f - 40); t3.l = 0;
+  r3.secret = false;
+  L.needs.fun = Math.max(0, L.needs.fun - 40);
+  face(L, cheater.x, cheater.y);
+  say(L, pick(['💢 你们在干什么！', `${cheater.name}！你太过分了！`, '我都看见了！']), 3);
+  spawnHeart(L, '💔'); spawnHeart(L, '💢');
+  setTimeout(() => say(cheater, pick(['我、我可以解释！', '不是你想的那样……', '……'])), 1200);
+  setTimeout(() => say(third, pick(['……', '对不起……', '我先走了'])), 2200);
+  SFX.play('deny');
+  if (r.l < 30 && r.lovers) {
+    r.lovers = false;
+    HOOK.toast(`💔 ${L.name} 撞见 ${cheater.name} 和 ${third.name}，两人分手了！`);
+  } else HOOK.toast(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 在一起！`);
+}
+
+// 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
+const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
+  (x.state === 'act' && x.act && !x.act.onFurn && x.act.type !== 'chat' && x.act.type !== 'leave');
+
+// 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
+function socialTick(dt) {
+  // 吃醋的人：等双方都有空，就立刻去找恋人算账
+  for (const d of G.dolls) {
+    const j = d.jealousOf;
+    if (!j) continue;
+    if (j.until < absNow() || !G.dolls.includes(j.who)) { d.jealousOf = null; continue; }
+    if (!interruptible(d) || !interruptible(j.who)) continue;
+    if (d.act) endAct(d);
+    d.state = 'idle'; d.path = [];
+    startAct(d, { type: 'chat', partner: j.who, kind: 'argue', jealous: true });
+  }
+  for (const k in G.rel) {
+    const r = G.rel[k];
+    if (!r.lovers && !r.secret) continue;
+    const [pa, pb] = k.split('|');
+    const a = G.dolls.find(d => d.pid === pa), b = G.dolls.find(d => d.pid === pb);
+    if (!a || !b) continue;
+    const fickle = (a.heart === 'fickle') + (b.heart === 'fickle');
+    if (r.lovers && fickle) r.l = Math.max(0, r.l - 0.05 * fickle * dt);
+    if (r.lovers && !fickle && a.heart === 'loyal' && b.heart === 'loyal') r.l = Math.min(100, r.l + 0.02 * dt);
+    if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); }
+  }
 }
 
 // 互动进行中：偶尔再说一句、冒爱心
@@ -178,6 +293,7 @@ function arriveJoin(d) {
   bump(d, o, 3, rel(d, o).f >= 45 ? 1.5 : 0);
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
+  if (a.what === 'piano' && !o.act.logged) { o.act.logged = true; addLog(`🎵 ${o.name} 弹起了钢琴，${d.name} 过来听`); }
 }
 
 function tickJoin(d, dt) {

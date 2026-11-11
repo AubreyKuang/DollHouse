@@ -24,6 +24,7 @@ const FURNITURE = {
   catbed:   { name: '猫窝',   w: 1, h: 1, use: 'cat',   mode: 'front', need: { fun: 12, social: 10 } },
   rug:      { name: '圆地毯', w: 3, h: 2, use: null, layer: 'floor' },
   rug2:     { name: '条纹毯', w: 2, h: 2, use: null, layer: 'floor' },
+  door:     { name: '大门',   w: 1, h: 2, use: null, layer: 'wall', fixed: true },
   window:   { name: '窗户',   w: 2, h: 2, use: null, layer: 'wall' },
   painting: { name: '挂画',   w: 1, h: 1, use: null, layer: 'wall' },
   clock:    { name: '挂钟',   w: 1, h: 1, use: null, layer: 'wall' },
@@ -42,33 +43,50 @@ const PERSONAS = {
   genki: {
     name: '元气', icon: '⚡', desc: '停不下来，喜欢游戏和跳舞',
     speed: 3.2, decay: { energy: 5, hunger: 4, fun: 7, social: 3 },
-    like: { game: 30, dance: 35, piano: 15, wander: 15 },
+    like: { game: 40, dance: 45, piano: 15, wander: 20, chat: 5, sleep: -15 },
+    dur: { sit: 0.5, read: 0.5, sleep: 0.8, dance: 1.4, game: 1.3 },
+    chat: ['我们去跳舞吧！', '比赛谁先跑到门口！', '今天也超——有精神！', '好无聊，来玩嘛！'],
     lines: ['冲呀！', '今天也好有精神～', '来跳舞吧！', '嘿嘿嘿', '好无聊，想玩！'],
   },
   lazy: {
     name: '懒懒', icon: '💤', desc: '能躺着绝不坐着',
     speed: 1.5, decay: { energy: 7, hunger: 3, fun: 3, social: 2 },
-    like: { sleep: 30, sit: 30, tv: 25, bath: 15 },
+    like: { sleep: 40, sit: 40, tv: 30, bath: 20, chat: -5, dance: -25, game: -10 },
+    dur: { sit: 2.2, sleep: 1.5, tv: 1.8, bath: 1.6 },
+    chat: ['嗯……（打哈欠）', '聊天好累哦', '你说，我听着……zzz', '要不我们躺着聊？'],
     lines: ['好困……', '再睡五分钟', '沙发是我的', '哈啊～', '不想动'],
   },
   nerd: {
     name: '书虫', icon: '📚', desc: '书架是 TA 的宝藏',
     speed: 2.2, decay: { energy: 4, hunger: 3, fun: 5, social: 1.5 },
-    like: { read: 40, piano: 15, water: 10 },
+    like: { read: 50, piano: 20, water: 15, chat: -15, dance: -20 },
+    dur: { read: 2.2, piano: 1.4 },
+    chat: ['你知道吗，章鱼有三颗心脏', '根据统计学……', '这本书的作者其实……', '嗯，有道理。'],
     lines: ['这本书好有意思', '嗯……原来如此', '知识就是力量！', '安静一点嘛'],
   },
   foodie: {
     name: '吃货', icon: '🍙', desc: '满脑子都是下一顿',
     speed: 2.4, decay: { energy: 4, hunger: 8, fun: 4, social: 2.5 },
-    like: { snack: 35, cook: 35, sit: 8 },
+    like: { snack: 45, cook: 45, sit: 8 },
+    dur: { snack: 1.6, cook: 1.5 },
+    chat: ['你吃过巷口那家烤肠吗？', '晚饭吃什么呀？', '我刚做了布丁，分你一半！', '说到吃的……'],
     lines: ['好饿呀', '冰箱里有布丁吗？', '闻到香味了！', '吃饱了才有力气'],
   },
   social: {
     name: '社牛', icon: '💬', desc: '谁都想去搭话',
     speed: 2.6, decay: { energy: 4, hunger: 3, fun: 4, social: 8 },
-    like: { chat: 40, cat: 15, dance: 10 },
+    like: { chat: 50, cat: 15, dance: 12, read: -15 },
+    dur: { chat: 1.5, read: 0.5 },
+    chat: ['我跟你说个八卦！', '你今天发型好好看！', '周末一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
   },
+};
+
+const GENDERS = { f: '♀ 女生', m: '♂ 男生' };
+const HEARTS = {
+  loyal:  { name: '专一', icon: '💍', desc: '认定一个人就不会变' },
+  normal: { name: '普通', icon: '🙂', desc: '顺其自然' },
+  fickle: { name: '花心', icon: '🦋', desc: '容易变心，有对象也会偷偷撩别人' },
 };
 
 const ACT_LINES = {
@@ -138,15 +156,26 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 11, y: 6 }, { id: 'sofa', x: 12, y: 9 },
     { id: 'table', x: 7, y: 7 }, { id: 'chair', x: 6, y: 7 }, { id: 'chair', x: 9, y: 7 },
     { id: 'piano', x: 0, y: 10 }, { id: 'bath', x: 3, y: 10 }, { id: 'catbed', x: 15, y: 10 },
-    { id: 'bigbed', x: 6, y: 10 },
+    { id: 'bigbed', x: 6, y: 10 }, { id: 'door', x: 6, y: 1 },
     { id: 'rug2', x: 1, y: 6 },
   ],
   dolls: [
-    { name: '小桃', persona: 'genki',  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { name: '阿懒', persona: 'lazy',   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { name: '眼镜君', persona: 'nerd', look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { name: '团子', persona: 'foodie', look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'student', money: 320,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
+};
+
+// 开局的人际关系：团子和阿懒是一对（但阿懒是个花心的），阿懒对小桃也有点意思，眼镜君暗恋小桃
+const _rk = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+DEFAULT_SAVE.rel = {
+  [_rk('p-tuan', 'p-lan')]:  { f: 80, l: 82, chem: 1.2, lovers: true },
+  [_rk('p-lan', 'p-tao')]:   { f: 50, l: 30, chem: 1.3, lovers: false },
+  [_rk('p-jing', 'p-tao')]:  { f: 55, l: 35, chem: 1.1, lovers: false },
+  [_rk('p-tuan', 'p-tao')]:  { f: 65, l: 0, chem: 1.0, lovers: false },
+  [_rk('p-jing', 'p-lan')]:  { f: 30, l: 0, chem: 0.9, lovers: false },
+  [_rk('p-jing', 'p-tuan')]: { f: 40, l: 0, chem: 1.0, lovers: false },
 };
 
 const NAMES = ['小葵', '米米', '阿豆', '糖糖', '小满', '布丁', '十一', '栗子', '阿星', '可可', '小鱼', '年糕'];

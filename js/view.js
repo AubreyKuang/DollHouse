@@ -52,7 +52,7 @@ function render() {
     list.push({ y: (f.y + F.h) * T, draw: () => DRAW[f.id](c, f.x * T, f.y * T, f, t) });
   }
   for (const d of G.dolls) {
-    if (d.state === 'lift') continue;
+    if (d.state === 'lift' || d.state === 'away') continue;
     if (lying(d)) continue;
     const y = d.state === 'act' && d.act && d.act.onFurn ? (d.act.furn.y + 1) * T + 0.5 : d.y;
     list.push({ y, draw: () => drawDollObj(c, d) });
@@ -89,7 +89,7 @@ function render() {
 
   // 选中的小人头上跳动的小箭头
   const sel = G.dolls.find(d => d.uid === G.sel);
-  if (sel && sel.state !== 'lift' && G.mode === 'live') {
+  if (sel && sel.state !== 'lift' && sel.state !== 'away' && G.mode === 'live') {
     let ax = sel.x, ay = sel.y - 30 + Math.round(Math.sin(t * 6));
     if (lying(sel)) { const h = headPos(sel); ax = h.x; ay = h.y - 6; }
     R(c, ax - 3, ay, 7, 1, INK); R(c, ax - 2, ay + 1, 5, 1, INK); R(c, ax - 1, ay + 2, 3, 1, INK); R(c, ax, ay + 3, 1, 1, INK);
@@ -140,11 +140,11 @@ function updateOverlay() {
     let hx = d.x, hy = d.y - 24;
     if (lying(d)) { const h = headPos(d); hx = h.x; hy = h.y - 2; }
     else if (d.state === 'act' && d.act && d.act.onFurn) hy = d.y - 22;
-    if (d.bubble) {
+    if (d.bubble && d.state !== 'away') {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
     } else el.b.style.display = 'none';
-    const showName = d.uid === G.sel || d.uid === hoverDoll;
+    const showName = d.state !== 'away' && (d.uid === G.sel || d.uid === hoverDoll);
     el.n.style.display = showName ? '' : 'none';
     if (showName) {
       const np = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 17 } : d;
@@ -167,6 +167,7 @@ function toWorld(e) {
 function dollAt(p) {
   let best = null;
   for (const d of G.dolls) {
+    if (d.state === 'away') continue;
     let x = d.x, y = d.y;
     if (lying(d)) { const h = headPos(d); x = h.x; y = h.y + 14; }
     if (p.x >= x - 7 && p.x <= x + 7 && p.y >= y - 22 && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
@@ -211,6 +212,7 @@ cv.addEventListener('pointerdown', e => {
   }
   const f = furnAt(p);
   if (!f) return;
+  if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置'); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); rebuild(); SFX.play('trash'); save(); HOOK.toast(`已移除「${FURNITURE[f.id].name}」`); }
   else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = ghostTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });

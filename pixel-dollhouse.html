@@ -101,6 +101,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .doll-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:var(--panel);
   border:2px solid var(--line);border-radius:6px;cursor:pointer;text-align:left;width:100%}
 .doll-row.sel{background:var(--sel);color:#3b2a2f}
+.doll-row.away canvas{opacity:.35}
+.g-m{color:#4a8fd8}.g-f{color:#e26d7d}
+.doll-row.sel .g-m,.doll-row.sel .g-f{color:inherit}
+.doll-row.away .meta b::after{content:" · 外出";font-weight:400;font-size:12px;opacity:.7}
 .doll-row canvas{width:30px;height:36px;image-rendering:pixelated;flex:none}
 .doll-row .meta{display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .doll-row .meta b{font-weight:600}
@@ -113,6 +117,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .bar i{display:block;height:100%;transition:width .3s}
 .card .actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .card .doing{font-size:13px;margin:6px 0 2px}
+.card .money{font-size:13px;margin:-2px 0 8px}
+.card .money b{font-family:var(--font-pixel);color:#4f9a4a}
+.card .money b.neg{color:var(--bad)}
 .rels{margin-top:10px;border-top:2px dashed var(--panel-2);padding-top:8px}
 .rels h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
 .rel{margin:0 0 8px}
@@ -121,6 +128,14 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .rel-bars{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px;align-items:center;font-size:11px;margin-top:2px}
 .rel-bars .bar{height:8px}
 
+.log-card{padding:10px 12px}
+.log-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.log-head h3{margin:0}
+.log-list{max-height:300px;overflow-y:auto;font-size:13px;line-height:1.4;padding-right:4px}
+.log-day{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:12px;font-weight:600;padding:6px 0 3px;border-bottom:2px solid var(--panel-2)}
+.log-item{display:grid;grid-template-columns:40px 1fr;gap:6px;padding:4px 0;border-bottom:1px dashed var(--panel-2)}
+.log-item time{font-family:var(--font-pixel);color:var(--muted);font-size:12px}
+.log-empty{color:var(--muted);font-size:13px;padding:8px 0}
 #buildBar{background:var(--panel);border-top:3px solid var(--line);padding:10px 16px 12px;position:sticky;bottom:0}
 .tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .tabs .spacer{flex:1}
@@ -206,6 +221,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <div id="dollList"></div>
     <div id="dollInfo" class="card" hidden></div>
     <button id="btnAddDoll" class="btn ghost">＋ 邀请新住户</button>
+    <div class="card log-card">
+      <div class="log-head"><h3>📜 生活日志</h3><button id="btnLogClear" class="btn small ghost">清空</button></div>
+      <div id="logList" class="log-list"></div>
+    </div>
   </aside>
 </main>
 
@@ -276,6 +295,7 @@ const FURNITURE = {
   catbed:   { name: '猫窝',   w: 1, h: 1, use: 'cat',   mode: 'front', need: { fun: 12, social: 10 } },
   rug:      { name: '圆地毯', w: 3, h: 2, use: null, layer: 'floor' },
   rug2:     { name: '条纹毯', w: 2, h: 2, use: null, layer: 'floor' },
+  door:     { name: '大门',   w: 1, h: 2, use: null, layer: 'wall', fixed: true },
   window:   { name: '窗户',   w: 2, h: 2, use: null, layer: 'wall' },
   painting: { name: '挂画',   w: 1, h: 1, use: null, layer: 'wall' },
   clock:    { name: '挂钟',   w: 1, h: 1, use: null, layer: 'wall' },
@@ -294,33 +314,50 @@ const PERSONAS = {
   genki: {
     name: '元气', icon: '⚡', desc: '停不下来，喜欢游戏和跳舞',
     speed: 3.2, decay: { energy: 5, hunger: 4, fun: 7, social: 3 },
-    like: { game: 30, dance: 35, piano: 15, wander: 15 },
+    like: { game: 40, dance: 45, piano: 15, wander: 20, chat: 5, sleep: -15 },
+    dur: { sit: 0.5, read: 0.5, sleep: 0.8, dance: 1.4, game: 1.3 },
+    chat: ['我们去跳舞吧！', '比赛谁先跑到门口！', '今天也超——有精神！', '好无聊，来玩嘛！'],
     lines: ['冲呀！', '今天也好有精神～', '来跳舞吧！', '嘿嘿嘿', '好无聊，想玩！'],
   },
   lazy: {
     name: '懒懒', icon: '💤', desc: '能躺着绝不坐着',
     speed: 1.5, decay: { energy: 7, hunger: 3, fun: 3, social: 2 },
-    like: { sleep: 30, sit: 30, tv: 25, bath: 15 },
+    like: { sleep: 40, sit: 40, tv: 30, bath: 20, chat: -5, dance: -25, game: -10 },
+    dur: { sit: 2.2, sleep: 1.5, tv: 1.8, bath: 1.6 },
+    chat: ['嗯……（打哈欠）', '聊天好累哦', '你说，我听着……zzz', '要不我们躺着聊？'],
     lines: ['好困……', '再睡五分钟', '沙发是我的', '哈啊～', '不想动'],
   },
   nerd: {
     name: '书虫', icon: '📚', desc: '书架是 TA 的宝藏',
     speed: 2.2, decay: { energy: 4, hunger: 3, fun: 5, social: 1.5 },
-    like: { read: 40, piano: 15, water: 10 },
+    like: { read: 50, piano: 20, water: 15, chat: -15, dance: -20 },
+    dur: { read: 2.2, piano: 1.4 },
+    chat: ['你知道吗，章鱼有三颗心脏', '根据统计学……', '这本书的作者其实……', '嗯，有道理。'],
     lines: ['这本书好有意思', '嗯……原来如此', '知识就是力量！', '安静一点嘛'],
   },
   foodie: {
     name: '吃货', icon: '🍙', desc: '满脑子都是下一顿',
     speed: 2.4, decay: { energy: 4, hunger: 8, fun: 4, social: 2.5 },
-    like: { snack: 35, cook: 35, sit: 8 },
+    like: { snack: 45, cook: 45, sit: 8 },
+    dur: { snack: 1.6, cook: 1.5 },
+    chat: ['你吃过巷口那家烤肠吗？', '晚饭吃什么呀？', '我刚做了布丁，分你一半！', '说到吃的……'],
     lines: ['好饿呀', '冰箱里有布丁吗？', '闻到香味了！', '吃饱了才有力气'],
   },
   social: {
     name: '社牛', icon: '💬', desc: '谁都想去搭话',
     speed: 2.6, decay: { energy: 4, hunger: 3, fun: 4, social: 8 },
-    like: { chat: 40, cat: 15, dance: 10 },
+    like: { chat: 50, cat: 15, dance: 12, read: -15 },
+    dur: { chat: 1.5, read: 0.5 },
+    chat: ['我跟你说个八卦！', '你今天发型好好看！', '周末一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
   },
+};
+
+const GENDERS = { f: '♀ 女生', m: '♂ 男生' };
+const HEARTS = {
+  loyal:  { name: '专一', icon: '💍', desc: '认定一个人就不会变' },
+  normal: { name: '普通', icon: '🙂', desc: '顺其自然' },
+  fickle: { name: '花心', icon: '🦋', desc: '容易变心，有对象也会偷偷撩别人' },
 };
 
 const ACT_LINES = {
@@ -390,15 +427,26 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 11, y: 6 }, { id: 'sofa', x: 12, y: 9 },
     { id: 'table', x: 7, y: 7 }, { id: 'chair', x: 6, y: 7 }, { id: 'chair', x: 9, y: 7 },
     { id: 'piano', x: 0, y: 10 }, { id: 'bath', x: 3, y: 10 }, { id: 'catbed', x: 15, y: 10 },
-    { id: 'bigbed', x: 6, y: 10 },
+    { id: 'bigbed', x: 6, y: 10 }, { id: 'door', x: 6, y: 1 },
     { id: 'rug2', x: 1, y: 6 },
   ],
   dolls: [
-    { name: '小桃', persona: 'genki',  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { name: '阿懒', persona: 'lazy',   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { name: '眼镜君', persona: 'nerd', look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { name: '团子', persona: 'foodie', look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'student', money: 320,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
+};
+
+// 开局的人际关系：团子和阿懒是一对（但阿懒是个花心的），阿懒对小桃也有点意思，眼镜君暗恋小桃
+const _rk = (a, b) => (a < b ? a + '|' + b : b + '|' + a);
+DEFAULT_SAVE.rel = {
+  [_rk('p-tuan', 'p-lan')]:  { f: 80, l: 82, chem: 1.2, lovers: true },
+  [_rk('p-lan', 'p-tao')]:   { f: 50, l: 30, chem: 1.3, lovers: false },
+  [_rk('p-jing', 'p-tao')]:  { f: 55, l: 35, chem: 1.1, lovers: false },
+  [_rk('p-tuan', 'p-tao')]:  { f: 65, l: 0, chem: 1.0, lovers: false },
+  [_rk('p-jing', 'p-lan')]:  { f: 30, l: 0, chem: 0.9, lovers: false },
+  [_rk('p-jing', 'p-tuan')]: { f: 40, l: 0, chem: 1.0, lovers: false },
 };
 
 const NAMES = ['小葵', '米米', '阿豆', '糖糖', '小满', '布丁', '十一', '栗子', '阿星', '可可', '小鱼', '年糕'];
@@ -596,6 +644,19 @@ const DRAW = {
     box(c, x + 1, y + 1, 30, 30, '#f6ead6');
     for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, ['#6aa9ec', '#f2d16b', '#7cc576', '#e26d7d', '#8a7fe0'][i]);
     for (let i = 0; i < 7; i++) { R(c, x + 3 + i * 4, y - 1, 1, 2, '#cbbfae'); R(c, x + 3 + i * 4, y + 31, 1, 2, '#cbbfae'); }
+  },
+  door(c, x, y, f) {
+    box(c, x + 1, y + 2, 14, 30, WOOD_D);
+    if (f && f.openT > 0) {
+      R(c, x + 2, y + 3, 12, 29, '#2a2230'); R(c, x + 2, y + 3, 12, 6, G.sky || '#9fd3f0');   // 打开时看到外面
+      R(c, x + 2, y + 3, 3, 29, WOOD);                                                         // 往里开的门板
+    } else {
+      R(c, x + 2, y + 3, 12, 29, WOOD); R(c, x + 3, y + 4, 10, 1, WOOD_L);
+      box(c, x + 4, y + 6, 8, 7, G.sky || '#9fd3f0', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
+      R(c, x + 4, y + 16, 8, 6, shade(WOOD, -0.08)); R(c, x + 4, y + 24, 8, 6, shade(WOOD, -0.08));
+      R(c, x + 11, y + 19, 2, 2, '#f2c33a');
+    }
+    R(c, x, y + 33, 16, 3, '#c8735a'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
   },
   window(c, x, y) {
     box(c, x + 2, y + 4, 28, 24, '#ffffff');
@@ -933,7 +994,14 @@ const SFX = (() => {
 // 游戏状态、房间格子、寻路、小人 AI、时间流逝
 const SAVE_KEY = 'pixel-dollhouse-v1';
 const MIN_PER_SEC = 4;               // 现实 1 秒 = 游戏 4 分钟，一天约 6 分钟
-const HOOK = { refresh() {}, select() {}, toast() {} };
+const HOOK = { refresh() {}, select() {}, toast() {}, logged() {} };
+
+// 像模拟人生那样的生活日志：每条记下第几天、几点、发生了什么
+function addLog(text) {
+  G.log.push({ d: G.day, t: Math.floor(G.time), text });
+  if (G.log.length > 300) G.log.shift();
+  HOOK.logged();
+}
 
 // 躺下的家具：人藏起来，只在枕头上画个头
 const LIE = { bed: 1, bigbed: 1, bath: 1 };
@@ -947,7 +1015,7 @@ function headPos(d) {
 const G = {
   wall: 'cream', floor: 'oak', time: 480, day: 1, speed: 1, mode: 'live',
   furniture: [], dolls: [], sel: null, sky: '#9fd3f0', night: false, dark: 0,
-  build: { placing: null, trash: false, hover: null }, rel: {},
+  build: { placing: null, trash: false, hover: null }, rel: {}, log: [],
   t: 0, uid: 1,
 };
 
@@ -957,8 +1025,9 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, persona: d.persona, look: d.look, needs: d.needs })),
-      rel: G.rel,
+      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+        away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
+      rel: G.rel, log: G.log,
     }));
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
@@ -969,8 +1038,9 @@ function load() {
 }
 function applySave(s) {
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
-  G.furniture = []; G.dolls = []; G.rel = s.rel || {};
+  G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
   G.sel = null;
 }
@@ -986,7 +1056,7 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
   if (x < 0 || x + d.w > COLS) return false;
-  if (L === 'wall') { if (y < 0 || y + d.h > WALL_ROWS) return false; }
+  if (L === 'wall') { if (y < 0 || y + d.h > WALL_ROWS) return false; if (id === 'door' && y !== WALL_ROWS - 2) return false; }
   else if (y < WALL_ROWS || y + d.h > ROWS) return false;
   for (const f of G.furniture) {
     if (f === ignore || layerOf(f.id) !== L) continue;
@@ -1012,7 +1082,7 @@ function rebuild() {
   BLOCK = blockedMap();
   // 被家具压住的小人挪到最近的空地
   for (const d of G.dolls) {
-    if (d.state === 'act' && d.act.onFurn) continue;
+    if (d.state === 'away' || (d.state === 'act' && d.act.onFurn)) continue;
     if (BLOCK[d.tx] && BLOCK[d.tx][d.ty]) { const p = nearestFree(d.tx, d.ty); if (p) placeDollAt(d, p.x, p.y); }
     d.path = []; if (d.state === 'walk') d.state = 'idle';
   }
@@ -1071,11 +1141,14 @@ function addDoll(src) {
     needs: src.needs ? { ...src.needs } : { energy: 60 + Math.random() * 40, hunger: 50 + Math.random() * 40, fun: 50 + Math.random() * 40, social: 50 + Math.random() * 40 },
     x: 0, y: 0, tx: 0, ty: 0, dir: 'down', frame: 0, ft: 0, state: 'idle', path: [], act: null,
     think: Math.random() * 2, bubble: null, blink: 0, blinkT: 2 + Math.random() * 3, hop: 0, happy: 0,
+    gender: src.gender || (Math.random() < 0.5 ? 'f' : 'm'), heart: src.heart || 'normal',
+    job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
   };
   G.dolls.push(d);
   if (!BLOCK) BLOCK = blockedMap();
   const p = nearestFree(2 + ((Math.random() * (COLS - 4)) | 0), WALL_ROWS + 1 + ((Math.random() * (ROWS - WALL_ROWS - 2)) | 0));
   if (p) placeDollAt(d, p.x, p.y);
+  if (src.away) d.state = 'away';
   return d;
 }
 function placeDollAt(d, x, y) { d.tx = x; d.ty = y; d.x = x * T + 8; d.y = y * T + 14; }
@@ -1102,6 +1175,7 @@ function decide(d) {
     if (!F.use) continue;
     const cap = f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1;
     if (f.users.length >= cap) continue;
+    if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
@@ -1118,6 +1192,14 @@ function decide(d) {
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + Math.random() * 25 + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
+  }
+  // 恋人在家就想黏在一起；花心的人会去找暧昧对象，对象不在家时更大胆
+  const lover = loverOf(d), lvBusy = lover && (lover.state === 'away' || lying(lover));
+  if (d.jealousOf && d.jealousOf.until > absNow() && others.includes(d.jealousOf.who)) opts.push({ s: 999, type: 'chat', partner: d.jealousOf.who, kind: 'argue', jealous: true });
+  if (lover && others.includes(lover)) opts.push({ s: want({ social: 30 }) + 28 + rel(d, lover).l * 0.25 + Math.random() * 20, type: 'chat', partner: lover });
+  if (d.heart === 'fickle') {
+    const crush = others.filter(o => o !== lover && rel(d, o).l >= 15).sort((a, b) => rel(d, b).l - rel(d, a).l)[0];
+    if (crush) opts.push({ s: 18 + rel(d, crush).l * 0.5 + (lvBusy ? 30 : lover ? 0 : 10) + Math.random() * 20, type: 'chat', partner: crush });
   }
   for (const o of G.dolls) {
     if (o === d || !joinable(o)) continue;
@@ -1148,7 +1230,8 @@ function startAct(d, o) {
     const p = o.partner, side = [[1, 0], [-1, 0]].map(([a, b]) => ({ x: p.tx + a, y: p.ty + b }));
     const path = findPath(d.tx, d.ty, side) || findPath(d.tx, d.ty, [[0, 1], [0, -1]].map(([a, b]) => ({ x: p.tx + a, y: p.ty + b })));
     if (!path) return false;
-    d.path = path; d.state = 'walk'; d.act = { type: 'chat', partner: p, pending: true };
+    d.path = path; d.state = 'walk'; d.act = { type: 'chat', partner: p, pending: true, kind: o.kind, jealous: o.jealous };
+    if (o.jealous) { d.jealousOf = null; say(d, `${p.name}，你过来一下！`); }
     if (p.state === 'idle' || (p.state === 'walk' && p.act && p.act.type === 'wander')) { p.path = []; p.act = null; p.state = 'wait'; p.waitT = 8; }
     return true;
   }
@@ -1166,6 +1249,7 @@ function startAct(d, o) {
 function arrive(d) {
   const a = d.act;
   if (a && a.type === 'join') { arriveJoin(d); return; }
+  if (a && a.type === 'leave') { exitHome(d); return; }
   if (!a || a.type === 'wander') { d.act = null; d.state = 'idle'; d.think = 0.5 + Math.random() * 2; return; }
   if (a.type === 'chat') {
     const p = a.partner;
@@ -1177,9 +1261,11 @@ function arrive(d) {
   }
   const f = a.furn, F = FURNITURE[f.id];
   if (!G.furniture.includes(f)) { endAct(d); return; }
+  if (PRICES[a.type] && !pay(d, PRICES[a.type], PRICE_NAME[a.type])) { say(d, '钱不够了……'); endAct(d); d.think = 4; return; }
   d.state = 'act';
   a.t = a.type === 'sleep' ? 28 + Math.random() * 10 : 7 + Math.random() * 5;
   if (JOIN[a.type] && a.type !== 'read') { a.t = 16 + Math.random() * 8; nudgeAudience(d); }
+  const PDur = PERSONAS[d.persona].dur; if (PDur && PDur[a.type]) a.t *= PDur[a.type];
   a.back = { x: d.tx, y: d.ty };
   f.active = true;
   if (F.mode === 'on') {
@@ -1198,6 +1284,7 @@ function arrive(d) {
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
+  if (mate && !(f.coupleLogAt > absNow() - 600)) { f.coupleLogAt = absNow(); addLog(`🛏 ${mate.name} 和 ${d.name} 一起睡了`); }   // 一晚只记一次
   const snd = { snack: 'eat', cook: 'cook', piano: 'piano', game: 'game', bath: 'splash', cat: 'meow', water: 'splash' }[a.type];
   if (snd) SFX.play(snd);
 }
@@ -1216,6 +1303,7 @@ function updateDoll(d, dt) {
   if (d.happy > 0) d.happy -= dt;
   if (d.bubble) { d.bubble.t -= dt; if (d.bubble.t <= 0) d.bubble = null; }
   if (d.state === 'lift') { d.ft += dt; if (d.ft > 0.2) { d.ft = 0; d.frame = (d.frame + 1) % 2; } return; }
+  if (workTick(d, dt)) return;
 
   if (d.state === 'wait') { d.waitT -= dt; if (d.waitT <= 0) d.state = 'idle'; return; }
   if (d.state === 'arrive') { arrive(d); return; }
@@ -1257,6 +1345,8 @@ function updateDoll(d, dt) {
 
   // 发呆中：偶尔自言自语，到时间就决定下一件事
   d.think -= dt;
+  // 懒懒会站着打盹
+  if (d.persona === 'lazy' && Math.random() < dt * 0.04) { d.blink = 3; d.think += 3; say(d, pick(['💤 呼……', '（站着睡着了）', 'zzz'])); }
   if (Math.random() < dt * 0.04) {
     const low = Object.entries(N).sort((a, b) => a[1] - b[1])[0];
     const sad = { energy: '好困……', hunger: '肚子咕咕叫', fun: '好无聊～', social: '有点寂寞' };
@@ -1272,10 +1362,11 @@ function spawnHeart(d, txt = '❤') {
 }
 
 function petDoll(d) {
-  if (d.state === 'lift') return;
+  if (d.state === 'lift' || d.state === 'away') return;
   if (d.act && d.act.type === 'sleep') { say(d, '唔……别吵'); return; }
   d.needs.fun = Math.min(100, d.needs.fun + 12); d.needs.social = Math.min(100, d.needs.social + 15);
   d.happy = 2; say(d, pick(ACT_LINES.pet)); spawnHeart(d); spawnHeart(d); SFX.play('love');
+  addLog(`🤚 你摸了摸 ${d.name} 的头`);
 }
 
 // 选中的小人被点到的家具上去
@@ -1312,12 +1403,14 @@ function update(realDt) {
   G.t += realDt;
   if (dt > 0) {
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); SFX.play('newday'); }
+    if (G.time >= 1440) { G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); SFX.play('newday'); }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
     for (const d of G.dolls) updateDoll(d, dt);
   }
+  updateDoors(realDt);
+  if (dt > 0) socialTick(dt);
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }
@@ -1358,6 +1451,7 @@ function rel(a, b) {
 const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
+  if (r.secret) return '🤫 偷偷暧昧';
   const love = levelOf(r.l, LOVE_LEVELS);
   return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '');
 }
@@ -1383,47 +1477,80 @@ function weighted(list) {
 
 // 挑一个想去找的人：越熟、越喜欢越容易被挑中
 function pickPartner(d, others) {
-  return weighted(others.map(o => { const r = rel(d, o); return [o, 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0)]; }));
+  const lv = loverOf(d), lvAway = lv && (lv.state === 'away' || lying(lv));
+  return weighted(others.map(o => {
+    const r = rel(d, o);
+    let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
+    if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
+    return [o, w];
+  }));
 }
 
 function chooseKind(d, p) {
   const r = rel(d, p), cranky = d.needs.fun < 25 || p.needs.fun < 25 || d.needs.hunger < 15;
-  const single = !loverOf(d) && !loverOf(p);
+  // 有对象的人只有“花心”才会去撩别人；对方有对象也只有花心的才会接招
+  const ld = loverOf(d), lp = loverOf(p);
+  const free_ = (x, l, other) => !l || l === other || x.heart === 'fickle';
+  const canFlirt = !r.lovers && r.f >= 45 && r.l >= 15 && free_(d, ld, p) && (free_(p, lp, d) || p.heart !== 'loyal');
+  const sneaky = ld && ld !== p && d.heart === 'fickle';
   return weighted([
     ['chat', 34],
     ['joke', 14 + (d.persona === 'genki' ? 12 : 0) + (r.f > 40 ? 8 : 0)],
     ['hug', r.f >= 55 ? 16 + (d.persona === 'social' ? 8 : 0) : 0],
-    ['flirt', r.f >= 45 && single && r.l >= 15 ? 6 + r.l * 0.7 : 0],
-    ['kiss', r.lovers ? 26 : 0],
+    ['flirt', canFlirt ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
+    ['kiss', r.lovers ? 26 : r.secret ? 18 : 0],
     ['argue', (r.f < 15 ? 10 : 1) + (cranky ? 7 : 0)],
   ]);
 }
 
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p) {
-  const kind = chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
+  const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
+  const kind = (d.act && d.act.kind) || chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
   const t = 5 + Math.random() * 3;
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
   face(d, p.x, p.y); face(p, d.x, d.y);
-  say(d, pick(S.a));
-  let reply = pick(S.b.length ? S.b : ['……']);
+  const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
+  d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
+  // 普通聊天用各自性格的台词，一听就知道是谁
+  say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
+  let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
   const spark = r.f >= 45 ? 1 : 0;   // 足够熟了，日常相处也会慢慢心动
   if (kind === 'chat') bump(d, p, 5, 1.5 * spark);
   if (kind === 'joke') { bump(d, p, 6, 1.2 * spark); d.needs.fun = Math.min(100, d.needs.fun + 8); p.needs.fun = Math.min(100, p.needs.fun + 8); }
   if (kind === 'hug') { bump(d, p, 5, 3 + 3 * spark); spawnHeart(d); spawnHeart(p); }
-  if (kind === 'kiss') { bump(d, p, 2, 6); for (let i = 0; i < 3; i++) spawnHeart(i % 2 ? d : p, '💕'); d.happy = p.happy = 4; }
+  if (kind === 'kiss') { bump(d, p, 2, r.secret ? 8 : 6); for (let i = 0; i < 3; i++) spawnHeart(i % 2 ? d : p, '💕'); d.happy = p.happy = 4; }
   if (kind === 'argue') {
     bump(d, p, -9, -5); d.needs.fun = Math.max(0, d.needs.fun - 6); p.needs.fun = Math.max(0, p.needs.fun - 6);
     d.act.gain = p.act.gain = { social: 6 }; spawnHeart(d, '💢'); spawnHeart(p, '💢'); SFX.play('deny');
   }
+  let flirtOk = false;
   if (kind === 'flirt') {
-    const chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
-    if (Math.random() < chance) {
-      bump(d, p, 3, 14); reply = pick(['嗯……我也是 💕', '其实我也注意你很久了', '好呀 ❤']);
+    const lp = loverOf(p), ld = loverOf(d);
+    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
+    if (lp && lp !== d) chance = p.heart === 'fickle' ? chance : p.heart === 'loyal' ? 0 : chance * 0.4;
+    if (lp && lp !== d && p.heart === 'loyal') {
+      bump(d, p, -6, -8); reply = pick(['我已经有对象了！', `我心里只有${lp.name}`, '请你自重一点']);
+      spawnHeart(p, '💢');
+    } else if (Math.random() < chance) {
+      bump(d, p, 3, 14); reply = pick(['嗯……我也是 💕', '其实我也注意你很久了', '好呀 ❤']); flirtOk = true;
       d.happy = p.happy = 4; for (let i = 0; i < 4; i++) spawnHeart(i % 2 ? d : p, '💗');
-      if (r.l >= 70 && !r.lovers) { r.lovers = true; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); SFX.play('newday'); }
+      if (ld && ld !== p || lp && lp !== d) {
+        // 背着对象暧昧：变成“地下情”，玩家能看到，但当事人的恋人不知道……除非被撞见
+        if (!r.secret) HOOK.toast(`🤫 ${d.name} 和 ${p.name} 背着别人偷偷暧昧……`);
+        r.secret = true; SFX.play('love');
+        // 新欢比旧爱更喜欢了：花心的一方干脆变心
+        for (const [x, old] of [[d, ld], [p, lp]]) {
+          if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
+            const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
+            HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
+            say(old, '……怎么会这样'); spawnHeart(old, '💔');
+          }
+        }
+        if (r.l >= 70 && !loverOf(d) && !loverOf(p)) { r.lovers = true; r.secret = false; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); }
+      } else if (r.l >= 70 && !r.lovers) { r.lovers = true; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); SFX.play('newday'); }
       else SFX.play('love');
     } else {
       bump(d, p, -2, -4); reply = pick(['诶？我们还是做朋友吧', '让我想想……', '你、你在说什么呀']);
@@ -1431,8 +1558,89 @@ function startSocial(d, p) {
       setTimeout(() => d.act && d.act.kind === 'flirt' && say(d, '呜……'), 2600);
     }
   }
+  // 恋人看到另一半和别人亲密：抱一抱会吃醋；亲亲或地下情就是当场撞破
+  if (jealousTalk) say(d, pick(['刚才那是怎么回事？', '😤 你给我解释清楚', '你是不是喜欢上别人了？']));
+  const LOGK = { hug: `🤗 ${d.name} 抱了抱 ${p.name}`, kiss: `💋 ${d.name} 亲了 ${p.name}`, argue: `💢 ${d.name} 和 ${p.name} 吵了一架` };
+  // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
+  const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
+  if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
+  if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
+  if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
+  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
   setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
+}
+
+// 有人背着恋人和别人亲密时，看看恋人在不在附近——在的话就被撞见了
+function witness(a, b, how = 'caught') {
+  for (const [cheater, third] of [[a, b], [b, a]]) {
+    const L = loverOf(cheater);
+    if (!L || L === third || L.state === 'away' || L.state === 'lift' || lying(L)) continue;
+    if (Math.abs(L.tx - cheater.tx) + Math.abs(L.ty - cheater.ty) > 6) continue;
+    if (how === 'jealous') jealous(L, cheater, third); else caught(L, cheater, third);
+    return;
+  }
+}
+
+function jealous(L, cheater, third) {
+  const r = rel(L, cheater);
+  r.l = Math.max(0, r.l - 6); r.f = Math.max(-100, r.f - 3);
+  const t = rel(L, third); t.f = Math.max(-100, t.f - 10);
+  L.needs.fun = Math.max(0, L.needs.fun - 15);
+  face(L, cheater.x, cheater.y);
+  say(L, pick(['😤 哼！抱那么久干嘛', '……我吃醋了', `你和${third.name}关系很好嘛？`]), 3);
+  spawnHeart(L, '😤');
+  // 记下来：等这次互动结束，就去找恋人算账
+  L.jealousOf = { who: cheater, until: absNow() + 240 };
+  if (L.state === 'idle' || (L.act && !L.act.onFurn && L.act.type !== 'chat')) { if (L.act) endAct(L); L.state = 'idle'; L.think = 0.5; }
+  HOOK.toast(`😤 ${L.name} 看到 ${cheater.name} 和 ${third.name} 很亲密，吃醋了`);
+}
+
+function caught(L, cheater, third) {
+  const r = rel(L, cheater), r3 = rel(cheater, third);
+  r.f = Math.max(-100, r.f - 35); r.l = Math.max(0, r.l - 45);
+  const t3 = rel(L, third); t3.f = Math.max(-100, t3.f - 40); t3.l = 0;
+  r3.secret = false;
+  L.needs.fun = Math.max(0, L.needs.fun - 40);
+  face(L, cheater.x, cheater.y);
+  say(L, pick(['💢 你们在干什么！', `${cheater.name}！你太过分了！`, '我都看见了！']), 3);
+  spawnHeart(L, '💔'); spawnHeart(L, '💢');
+  setTimeout(() => say(cheater, pick(['我、我可以解释！', '不是你想的那样……', '……'])), 1200);
+  setTimeout(() => say(third, pick(['……', '对不起……', '我先走了'])), 2200);
+  SFX.play('deny');
+  if (r.l < 30 && r.lovers) {
+    r.lovers = false;
+    HOOK.toast(`💔 ${L.name} 撞见 ${cheater.name} 和 ${third.name}，两人分手了！`);
+  } else HOOK.toast(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 在一起！`);
+}
+
+// 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
+const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
+  (x.state === 'act' && x.act && !x.act.onFurn && x.act.type !== 'chat' && x.act.type !== 'leave');
+
+// 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
+function socialTick(dt) {
+  // 吃醋的人：等双方都有空，就立刻去找恋人算账
+  for (const d of G.dolls) {
+    const j = d.jealousOf;
+    if (!j) continue;
+    if (j.until < absNow() || !G.dolls.includes(j.who)) { d.jealousOf = null; continue; }
+    if (!interruptible(d) || !interruptible(j.who)) continue;
+    if (d.act) endAct(d);
+    d.state = 'idle'; d.path = [];
+    startAct(d, { type: 'chat', partner: j.who, kind: 'argue', jealous: true });
+  }
+  for (const k in G.rel) {
+    const r = G.rel[k];
+    if (!r.lovers && !r.secret) continue;
+    const [pa, pb] = k.split('|');
+    const a = G.dolls.find(d => d.pid === pa), b = G.dolls.find(d => d.pid === pb);
+    if (!a || !b) continue;
+    const fickle = (a.heart === 'fickle') + (b.heart === 'fickle');
+    if (r.lovers && fickle) r.l = Math.max(0, r.l - 0.05 * fickle * dt);
+    if (r.lovers && !fickle && a.heart === 'loyal' && b.heart === 'loyal') r.l = Math.min(100, r.l + 0.02 * dt);
+    if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); }
+  }
 }
 
 // 互动进行中：偶尔再说一句、冒爱心
@@ -1503,6 +1711,7 @@ function arriveJoin(d) {
   bump(d, o, 3, rel(d, o).f >= 45 ? 1.5 : 0);
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
+  if (a.what === 'piano' && !o.act.logged) { o.act.logged = true; addLog(`🎵 ${o.name} 弹起了钢琴，${d.name} 过来听`); }
 }
 
 function tickJoin(d, dt) {
@@ -1525,6 +1734,193 @@ function socialDoing(d) {
     return (SOCIAL[a.kind] || SOCIAL.chat).verb.replace('{n}', a.partner.name);
   }
   return null;
+}
+</script>
+<script>
+// 职业与作息：到点从大门出门，在外面待一段时间，每天回家的时间都不太一样
+// 时间用“绝对分钟” abs = (第几天-1)*1440 + 当天分钟，这样夜班跨过午夜也好算
+
+const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
+const weekday = day => (day - 1) % 7;               // 第 1 天是周一
+const absNow = () => (G.day - 1) * 1440 + G.time;
+const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+
+// start/end 是当天分钟；end < start 表示下班在第二天（夜班）；off 是休息的星期几
+const JOBS = {
+  student: { name: '学生', icon: '🎒', start: 480, end: 960, off: [5, 6], verb: '上学', wage: 40, wageName: '拿到零花钱',
+    go: ['去上学啦！', '书包带了吗……带了！', '要迟到啦！'], back: ['放学啦～', '今天学了好多', '作业好多……'], tired: '今天考试……' },
+  office: { name: '上班族', icon: '💼', start: 540, end: 1080, off: [5, 6], verb: '上班', wage: 320,
+    go: ['上班去了……', '又是元气满满的一天（假的）', '挤地铁去咯'], back: ['终于下班了！', '我回来啦', '今天开了好多会'], tired: '加班好累……' },
+  baker: { name: '面包师', icon: '🥐', start: 330, end: 780, off: [0], verb: '烤面包', wage: 240,
+    go: ['去烤面包！', '面团在等我', '早起的面包师有面包吃'], back: ['带了面包回来～', '香喷喷地回来啦', '今天的可颂很成功'], tired: '今天订单好多' },
+  barista: { name: '咖啡师', icon: '☕', start: 600, end: 1140, off: [2], verb: '做咖啡', wage: 210,
+    go: ['去咖啡店啦', '今天也要好好拉花', '出门咯～'], back: ['今天拉花很成功！', '一身咖啡香地回来了', '我回来啦～'], tired: '客人好多……' },
+  night: { name: '夜班店员', icon: '🌙', start: 1320, end: 360, off: [6], verb: '值夜班', wage: 280,
+    go: ['值夜班去了', '晚上见……不对，早上见', '出门啦'], back: ['困死了……', '天亮了，我回来了', '要去补觉了'], tired: '今晚好多客人' },
+  artist: { name: '自由画家', icon: '🎨', start: null, verb: '在家画画' },
+  none: { name: '宅在家', icon: '🏠', start: null, verb: '宅家' },
+};
+
+const isWorkday = (job, day) => job.start != null && !job.off.includes(weekday(day));
+const doorOf = () => G.furniture.find(f => f.id === 'door');
+function doorTile() {
+  const d = doorOf();
+  return d ? { x: d.x, y: WALL_ROWS } : { x: Math.floor(COLS / 2), y: WALL_ROWS };
+}
+
+// 老存档没有门：找一块墙边空位装上
+function ensureDoor() {
+  if (doorOf()) return;
+  const b = blockedMap();
+  for (const x of [6, 3, 7, 11, 12, 10, 1, 14, 0, 15, 2, 4, 5, 8, 9, 13])
+    if (canPlace('door', x, 1, null) && !b[x][WALL_ROWS]) { addFurniture('door', x, 1); return; }
+  for (let x = 0; x < COLS; x++) if (canPlace('door', x, 1, null)) { addFurniture('door', x, 1); return; }
+}
+
+// 今天应该出门的时间（绝对分钟），不用上班返回 null
+function leaveAbs(d) {
+  const J = JOBS[d.job] || JOBS.none;
+  if (!isWorkday(J, G.day) || d.lastWorkDay === G.day) return null;
+  return (G.day - 1) * 1440 + J.start - 30 + (d.leaveJitter || 0);
+}
+
+function startLeave(d) {
+  const J = JOBS[d.job];
+  if (d.act) endAct(d);
+  d.path = [];
+  const t = doorTile();
+  const goals = [t, { x: t.x - 1, y: t.y }, { x: t.x + 1, y: t.y }, { x: t.x, y: t.y + 1 }];
+  const path = (d.tx === t.x && d.ty === t.y) ? [] : findPath(d.tx, d.ty, goals);
+  if (!path) { d.state = 'idle'; d.think = 3; return; }
+  d.path = path; d.state = path.length ? 'walk' : 'arrive';
+  d.act = { type: 'leave' };
+  say(d, pick(J.go));
+}
+
+function exitHome(d) {
+  const J = JOBS[d.job], door = doorOf();
+  d.act = null; d.path = []; d.bubble = null;
+  d.state = 'away'; d.lastWorkDay = G.day;
+  if (door) door.openT = 0.8;
+  // 回家时间：正常下班后 0~80 分钟到家，偶尔早退，15% 概率加班
+  const startAbs = (G.day - 1) * 1440 + J.start;
+  let len = (J.end - J.start + 1440) % 1440;
+  let back = startAbs + len + 15 + Math.random() * 65;
+  d.overtime = Math.random() < 0.15;
+  if (d.overtime) back += 120 + Math.random() * 60;
+  else if (Math.random() < 0.15) back -= 60 + Math.random() * 40;
+  d.awayUntil = Math.round(back);
+  d.leaveJitter = Math.round(Math.random() * 40 - 15);  // 明天出门时间也稍微变一变
+  SFX.play('open');
+  HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${hhmm(d.awayUntil)} 回家`);
+  if (G.sel === d.uid) HOOK.select();
+}
+
+function comeHome(d) {
+  const J = JOBS[d.job], door = doorOf(), t = doorTile();
+  const p = free(t.x, t.y) ? t : nearestFree(t.x, t.y);
+  if (p) placeDollAt(d, p.x, p.y);
+  d.state = 'idle'; d.dir = 'down'; d.think = 2 + Math.random() * 2; d.away = false;
+  if (door) door.openT = 0.8;
+  say(d, d.overtime ? J.tired : pick(J.back));
+  payday(d);
+  SFX.play('newday');
+  HOOK.toast(`🏠 ${d.name} 回家了`);
+  // 在家的人打招呼；恋人会过来抱抱
+  const lover = loverOf(d);
+  for (const o of G.dolls) {
+    if (o === d || o.state === 'away' || lying(o) || o.state === 'lift') continue;
+    if (o === lover && (o.state === 'idle' || (o.act && !o.act.onFurn && o.act.type !== 'chat'))) {
+      if (o.act) endAct(o);
+      o.state = 'idle';
+      if (startAct(o, { type: 'chat', partner: d })) { o.act.kind = 'hug'; say(o, '欢迎回家 💕'); d.path = []; d.state = 'wait'; d.waitT = 8; }
+    } else if (rel(d, o).f >= 40 && Math.random() < 0.6) {
+      setTimeout(() => o.state !== 'away' && say(o, pick(['欢迎回来～', '回来啦！', `${d.name}辛苦啦`])), 600 + Math.random() * 900);
+    }
+  }
+  if (G.sel === d.uid) HOOK.select();
+}
+
+// 每帧在 updateDoll 里调用；返回 true 表示这帧不用再做别的
+function workTick(d, dt) {
+  const N = d.needs;
+  if (d.state === 'away') {
+    // 在外面：会累、会饿，但和同事也算有社交
+    N.energy = Math.max(0, N.energy - 3 * MIN_PER_SEC / 60 * dt);
+    N.hunger = Math.max(0, N.hunger - 1.5 * MIN_PER_SEC / 60 * dt);
+    N.social = Math.min(100, N.social + 6 * MIN_PER_SEC / 60 * dt);
+    if (absNow() >= d.awayUntil) comeHome(d);
+    return true;
+  }
+  if (d.state === 'lift' || (d.act && d.act.type === 'leave')) return false;
+  const la = leaveAbs(d), now = absNow();
+  if (la != null && now >= la && now < la + 180) {
+    if (lying(d)) say(d, '要迟到啦！');
+    startLeave(d);
+    return true;
+  }
+  return false;
+}
+
+function updateDoors(dt) { for (const f of G.furniture) if (f.openT > 0) f.openT -= dt; }
+
+// 状态卡里的作息说明
+function jobLine(d) {
+  const J = JOBS[d.job] || JOBS.none;
+  if (J.start == null) return `${J.icon} ${J.name}`;
+  const off = J.off.map(i => WEEKDAYS[i]).join('、');
+  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '日薪'} ${yuan(J.wage)}`;
+}
+function awayText(d) {
+  const J = JOBS[d.job] || JOBS.none;
+  return `${J.verb}中，约 ${hhmm(d.awayUntil)} 回家`;
+}
+
+/* ---------------- 收入与储蓄 ----------------
+   上班的人每天下班领日薪（加班多拿 50%），学生有零花钱，自由画家偶尔卖画；
+   吃零食、买菜要花钱，每晚 0 点每人交房租水电。钱不够时，恋人或好朋友会帮忙付。 */
+const PRICES = { snack: 12, cook: 25 };
+const PRICE_NAME = { snack: '零食钱', cook: '买菜钱' };
+const RENT = 50;
+const START_MONEY = { office: 4000, baker: 2500, barista: 2000, night: 2500, student: 300, artist: 1500, none: 600 };
+const yuan = n => (n < 0 ? '-¥' : '¥') + Math.abs(Math.round(n)).toLocaleString('en-US');
+
+function helperFor(d, amount) {
+  return G.dolls
+    .filter(o => o !== d && o.state !== 'away' && o.money >= amount && (rel(d, o).lovers || rel(d, o).f >= 50))
+    .sort((a, b) => (rel(d, b).lovers - rel(d, a).lovers) || (rel(d, b).f - rel(d, a).f))[0];
+}
+const canAfford = (d, amount) => d.money >= amount || !!helperFor(d, amount);
+
+function pay(d, amount, what) {
+  if (d.money >= amount) { d.money -= amount; return true; }
+  const h = helperFor(d, amount);
+  if (!h) return false;
+  h.money -= amount; bump(d, h, 3);
+  setTimeout(() => say(h, pick(['我来付吧', '这顿我请～', '拿去用，不用还'])), 400);
+  addLog(`💸 ${d.name} 钱不够，${h.name} 帮忙付了${what} ${yuan(amount)}`);
+  return true;
+}
+
+function payday(d) {
+  const J = JOBS[d.job];
+  if (!J.wage) return;
+  const w = Math.round(J.wage * (d.overtime ? 1.5 : 1));
+  d.money += w;
+  addLog(`💰 ${d.name} ${J.wageName || '领到工资'} ${yuan(w)}${d.overtime ? '（含加班费）' : ''}，存款 ${yuan(d.money)}`);
+}
+
+function nightlyBills() {
+  const payers = G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
+  for (const d of payers) d.money -= RENT;
+  if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
+  for (const d of G.dolls) if (d.job === 'artist' && Math.random() < 0.35) {
+    const v = 200 + Math.round(Math.random() * 6) * 100;
+    d.money += v; addLog(`🎨 ${d.name} 的画卖出去了，收入 ${yuan(v)}`);
+  }
+  const broke = G.dolls.filter(d => d.money < 0);
+  for (const d of broke) d.needs.fun = Math.max(0, d.needs.fun - 20);
+  if (broke.length) addLog(`😰 ${broke.map(d => d.name).join('、')} 的存款见底了`);
 }
 </script>
 <script>
@@ -1582,7 +1978,7 @@ function render() {
     list.push({ y: (f.y + F.h) * T, draw: () => DRAW[f.id](c, f.x * T, f.y * T, f, t) });
   }
   for (const d of G.dolls) {
-    if (d.state === 'lift') continue;
+    if (d.state === 'lift' || d.state === 'away') continue;
     if (lying(d)) continue;
     const y = d.state === 'act' && d.act && d.act.onFurn ? (d.act.furn.y + 1) * T + 0.5 : d.y;
     list.push({ y, draw: () => drawDollObj(c, d) });
@@ -1619,7 +2015,7 @@ function render() {
 
   // 选中的小人头上跳动的小箭头
   const sel = G.dolls.find(d => d.uid === G.sel);
-  if (sel && sel.state !== 'lift' && G.mode === 'live') {
+  if (sel && sel.state !== 'lift' && sel.state !== 'away' && G.mode === 'live') {
     let ax = sel.x, ay = sel.y - 30 + Math.round(Math.sin(t * 6));
     if (lying(sel)) { const h = headPos(sel); ax = h.x; ay = h.y - 6; }
     R(c, ax - 3, ay, 7, 1, INK); R(c, ax - 2, ay + 1, 5, 1, INK); R(c, ax - 1, ay + 2, 3, 1, INK); R(c, ax, ay + 3, 1, 1, INK);
@@ -1670,11 +2066,11 @@ function updateOverlay() {
     let hx = d.x, hy = d.y - 24;
     if (lying(d)) { const h = headPos(d); hx = h.x; hy = h.y - 2; }
     else if (d.state === 'act' && d.act && d.act.onFurn) hy = d.y - 22;
-    if (d.bubble) {
+    if (d.bubble && d.state !== 'away') {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
     } else el.b.style.display = 'none';
-    const showName = d.uid === G.sel || d.uid === hoverDoll;
+    const showName = d.state !== 'away' && (d.uid === G.sel || d.uid === hoverDoll);
     el.n.style.display = showName ? '' : 'none';
     if (showName) {
       const np = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 17 } : d;
@@ -1697,6 +2093,7 @@ function toWorld(e) {
 function dollAt(p) {
   let best = null;
   for (const d of G.dolls) {
+    if (d.state === 'away') continue;
     let x = d.x, y = d.y;
     if (lying(d)) { const h = headPos(d); x = h.x; y = h.y + 14; }
     if (p.x >= x - 7 && p.x <= x + 7 && p.y >= y - 22 && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
@@ -1741,6 +2138,7 @@ cv.addEventListener('pointerdown', e => {
   }
   const f = furnAt(p);
   if (!f) return;
+  if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置'); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); rebuild(); SFX.play('trash'); save(); HOOK.toast(`已移除「${FURNITURE[f.id].name}」`); }
   else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = ghostTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
@@ -1800,12 +2198,16 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 
 /* ---------- 提示 ---------- */
 let toastTimer = 0;
-HOOK.toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); };
+HOOK.toast = msg => {
+  if (!msg.startsWith('☀️')) addLog(msg);          // 新的一天用日志里的日期分隔，不重复记
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); };
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
   if (d.state === 'lift') return '被你拎在手里';
   if (d.state === 'wait') return '在等人过来';
+  if (d.state === 'away') return awayText(d);
+  if (d.act && d.act.type === 'leave') return `出门${JOBS[d.job].verb}`;
   if (!d.act) return ACT_NAMES.idle;
   if (d.state === 'walk' && d.act.type === 'join') return `去找${d.act.target.name}凑热闹`;
   if (d.state === 'walk' && d.act.type === 'chat' && d.act.partner) return `去找${d.act.partner.name}`;
@@ -1820,10 +2222,10 @@ function doingText(d) {
 function renderDollList() {
   const box = $('#dollList'); box.innerHTML = '';
   for (const d of G.dolls) {
-    const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : ''));
+    const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : '') + (d.state === 'away' ? ' away' : ''));
     const c = el('canvas'); c.width = 20; c.height = 24; dollPortrait(c, d.look);
     const P = PERSONAS[d.persona];
-    const m = el('div', 'meta', `<b>${esc(d.name)} ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
+    const m = el('div', 'meta', `<b>${esc(d.name)} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
     b.append(c, m);
     b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
     box.append(b);
@@ -1838,6 +2240,9 @@ function renderInfo() {
   card.hidden = false;
   card.innerHTML = `<h3>${esc(d.name)}</h3>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
+    <div class="persona">${jobLine(d)}</div>
+    <div class="money">💰 存款 <b id="infoMoney"></b></div>
+    <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
@@ -1852,7 +2257,7 @@ function renderInfo() {
     </div>`;
   $('#btnPet').onclick = () => petDoll(d);
   $('#btnDress').onclick = () => openWardrobe(d.uid);
-  $('#btnWake').onclick = () => { if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
+  $('#btnWake').onclick = () => { if (d.state === 'away') { HOOK.toast(`${d.name} 不在家哦`); return; } if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
   tickInfo();
 }
 
@@ -1861,6 +2266,7 @@ function tickInfo() {
   if (d && !$('#dollInfo').hidden) {
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
+    const m = $('#infoMoney'); if (m) { m.textContent = yuan(d.money); m.classList.toggle('neg', d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
@@ -1876,6 +2282,20 @@ function tickInfo() {
 }
 
 HOOK.select = () => { renderDollList(); renderInfo(); };
+
+/* ---------- 生活日志 ---------- */
+function renderLog() {
+  const box = $('#logList'); box.innerHTML = '';
+  if (!G.log.length) { box.append(el('div', 'log-empty', '还没有发生什么事～')); return; }
+  let day = null;
+  for (let i = G.log.length - 1; i >= 0; i--) {
+    const e = G.log[i];
+    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', `第 ${e.d} 天 · ${WEEKDAYS[weekday(e.d)]}`)); }
+    box.append(el('div', 'log-item', `<time>${hhmm(e.t)}</time><span>${esc(e.text)}</span>`));
+  }
+}
+HOOK.logged = renderLog;
+$('#btnLogClear').onclick = () => { G.log = []; renderLog(); save(); };
 
 /* ---------- 顶栏 ---------- */
 function setMode(m) {
@@ -1899,7 +2319,7 @@ $('#btnWardrobe').onclick = () => openWardrobe(G.sel || (G.dolls[0] && G.dolls[0
 function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-  $('#dayLabel').textContent = `第 ${G.day} 天`;
+  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`;
   $('#timeIcon').textContent = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
 }
 
@@ -1918,9 +2338,10 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ name: d.name, persona: d.persona, look: d.look, needs: d.needs }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
-  applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认');
+  s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认');
 };
 
 const iconCache = {};
@@ -1930,6 +2351,7 @@ function renderPalette() {
   if (tab === 'furniture') {
     for (const id of Object.keys(FURNITURE)) {
       const F = FURNITURE[id];
+      if (F.fixed) continue;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
@@ -2037,6 +2459,28 @@ function renderWardrobe() {
     pers.append(b);
   }
   section('性格', pers);
+  const jobs = el('div', 'chips');
+  for (const [k, J] of Object.entries(JOBS)) {
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天`;
+    const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
+    b.onclick = () => { d.job = k; SFX.play('pop'); renderWardrobe(); };
+    jobs.append(b);
+  }
+  section('职业', jobs);
+  const gen = el('div', 'chips');
+  for (const [k, n] of Object.entries(GENDERS)) {
+    const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
+    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); };
+    gen.append(b);
+  }
+  section('性别', gen);
+  const hearts = el('div', 'chips');
+  for (const [k, H] of Object.entries(HEARTS)) {
+    const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
+    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); };
+    hearts.append(b);
+  }
+  section('感情观', hearts);
   section('肤色', swatches(OUTFIT.skin, 'skin'));
   section('发型', chips(OUTFIT.hair, 'hair'));
   section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
@@ -2055,13 +2499,13 @@ $('#btnAddDoll').onclick = () => {
   if (G.dolls.length >= 6) return;
   const used = new Set(G.dolls.map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || '新朋友';
-  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), look: randomLook() });
+  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
   G.sel = d.uid; say(d, '大家好，请多关照！'); spawnHeart(d); SFX.play('love');
   HOOK.select(); save(); HOOK.toast(`${name} 搬进来啦！`);
 };
 
 /* ---------- 主循环 ---------- */
-load(); rebuild(); HOOK.select(); updateClock();
+load(); rebuild(); HOOK.select(); updateClock(); renderLog();
 let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;

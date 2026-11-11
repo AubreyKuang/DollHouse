@@ -94,6 +94,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .doll-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:var(--panel);
   border:2px solid var(--line);border-radius:6px;cursor:pointer;text-align:left;width:100%}
 .doll-row.sel{background:var(--sel);color:#3b2a2f}
+.doll-row.away canvas{opacity:.35}
+.g-m{color:#4a8fd8}.g-f{color:#e26d7d}
+.doll-row.sel .g-m,.doll-row.sel .g-f{color:inherit}
+.doll-row.away .meta b::after{content:" · 外出";font-weight:400;font-size:12px;opacity:.7}
 .doll-row canvas{width:30px;height:36px;image-rendering:pixelated;flex:none}
 .doll-row .meta{display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .doll-row .meta b{font-weight:600}
@@ -106,6 +110,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .bar i{display:block;height:100%;transition:width .3s}
 .card .actions{display:flex;gap:6px;margin-top:10px;flex-wrap:wrap}
 .card .doing{font-size:13px;margin:6px 0 2px}
+.card .money{font-size:13px;margin:-2px 0 8px}
+.card .money b{font-family:var(--font-pixel);color:#4f9a4a}
+.card .money b.neg{color:var(--bad)}
 .rels{margin-top:10px;border-top:2px dashed var(--panel-2);padding-top:8px}
 .rels h4{margin:0 0 6px;font-size:13px;color:var(--muted);font-weight:600}
 .rel{margin:0 0 8px}
@@ -114,6 +121,14 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .rel-bars{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px;align-items:center;font-size:11px;margin-top:2px}
 .rel-bars .bar{height:8px}
 
+.log-card{padding:10px 12px}
+.log-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:4px}
+.log-head h3{margin:0}
+.log-list{max-height:300px;overflow-y:auto;font-size:13px;line-height:1.4;padding-right:4px}
+.log-day{position:sticky;top:0;background:var(--panel);color:var(--muted);font-size:12px;font-weight:600;padding:6px 0 3px;border-bottom:2px solid var(--panel-2)}
+.log-item{display:grid;grid-template-columns:40px 1fr;gap:6px;padding:4px 0;border-bottom:1px dashed var(--panel-2)}
+.log-item time{font-family:var(--font-pixel);color:var(--muted);font-size:12px}
+.log-empty{color:var(--muted);font-size:13px;padding:8px 0}
 #buildBar{background:var(--panel);border-top:3px solid var(--line);padding:10px 16px 12px;position:sticky;bottom:0}
 .tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .tabs .spacer{flex:1}

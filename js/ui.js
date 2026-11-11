@@ -5,12 +5,16 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 
 /* ---------- 提示 ---------- */
 let toastTimer = 0;
-HOOK.toast = msg => { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); };
+HOOK.toast = msg => {
+  if (!msg.startsWith('☀️')) addLog(msg);          // 新的一天用日志里的日期分隔，不重复记
+  const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); };
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
   if (d.state === 'lift') return '被你拎在手里';
   if (d.state === 'wait') return '在等人过来';
+  if (d.state === 'away') return awayText(d);
+  if (d.act && d.act.type === 'leave') return `出门${JOBS[d.job].verb}`;
   if (!d.act) return ACT_NAMES.idle;
   if (d.state === 'walk' && d.act.type === 'join') return `去找${d.act.target.name}凑热闹`;
   if (d.state === 'walk' && d.act.type === 'chat' && d.act.partner) return `去找${d.act.partner.name}`;
@@ -25,10 +29,10 @@ function doingText(d) {
 function renderDollList() {
   const box = $('#dollList'); box.innerHTML = '';
   for (const d of G.dolls) {
-    const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : ''));
+    const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : '') + (d.state === 'away' ? ' away' : ''));
     const c = el('canvas'); c.width = 20; c.height = 24; dollPortrait(c, d.look);
     const P = PERSONAS[d.persona];
-    const m = el('div', 'meta', `<b>${esc(d.name)} ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
+    const m = el('div', 'meta', `<b>${esc(d.name)} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
     b.append(c, m);
     b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
     box.append(b);
@@ -43,6 +47,9 @@ function renderInfo() {
   card.hidden = false;
   card.innerHTML = `<h3>${esc(d.name)}</h3>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
+    <div class="persona">${jobLine(d)}</div>
+    <div class="money">💰 存款 <b id="infoMoney"></b></div>
+    <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
@@ -57,7 +64,7 @@ function renderInfo() {
     </div>`;
   $('#btnPet').onclick = () => petDoll(d);
   $('#btnDress').onclick = () => openWardrobe(d.uid);
-  $('#btnWake').onclick = () => { if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
+  $('#btnWake').onclick = () => { if (d.state === 'away') { HOOK.toast(`${d.name} 不在家哦`); return; } if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
   tickInfo();
 }
 
@@ -66,6 +73,7 @@ function tickInfo() {
   if (d && !$('#dollInfo').hidden) {
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
+    const m = $('#infoMoney'); if (m) { m.textContent = yuan(d.money); m.classList.toggle('neg', d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
@@ -81,6 +89,20 @@ function tickInfo() {
 }
 
 HOOK.select = () => { renderDollList(); renderInfo(); };
+
+/* ---------- 生活日志 ---------- */
+function renderLog() {
+  const box = $('#logList'); box.innerHTML = '';
+  if (!G.log.length) { box.append(el('div', 'log-empty', '还没有发生什么事～')); return; }
+  let day = null;
+  for (let i = G.log.length - 1; i >= 0; i--) {
+    const e = G.log[i];
+    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', `第 ${e.d} 天 · ${WEEKDAYS[weekday(e.d)]}`)); }
+    box.append(el('div', 'log-item', `<time>${hhmm(e.t)}</time><span>${esc(e.text)}</span>`));
+  }
+}
+HOOK.logged = renderLog;
+$('#btnLogClear').onclick = () => { G.log = []; renderLog(); save(); };
 
 /* ---------- 顶栏 ---------- */
 function setMode(m) {
@@ -104,7 +126,7 @@ $('#btnWardrobe').onclick = () => openWardrobe(G.sel || (G.dolls[0] && G.dolls[0
 function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-  $('#dayLabel').textContent = `第 ${G.day} 天`;
+  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`;
   $('#timeIcon').textContent = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
 }
 
@@ -123,9 +145,10 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ name: d.name, persona: d.persona, look: d.look, needs: d.needs }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
-  applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认');
+  s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认');
 };
 
 const iconCache = {};
@@ -135,6 +158,7 @@ function renderPalette() {
   if (tab === 'furniture') {
     for (const id of Object.keys(FURNITURE)) {
       const F = FURNITURE[id];
+      if (F.fixed) continue;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
@@ -242,6 +266,28 @@ function renderWardrobe() {
     pers.append(b);
   }
   section('性格', pers);
+  const jobs = el('div', 'chips');
+  for (const [k, J] of Object.entries(JOBS)) {
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天`;
+    const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
+    b.onclick = () => { d.job = k; SFX.play('pop'); renderWardrobe(); };
+    jobs.append(b);
+  }
+  section('职业', jobs);
+  const gen = el('div', 'chips');
+  for (const [k, n] of Object.entries(GENDERS)) {
+    const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
+    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); };
+    gen.append(b);
+  }
+  section('性别', gen);
+  const hearts = el('div', 'chips');
+  for (const [k, H] of Object.entries(HEARTS)) {
+    const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
+    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); };
+    hearts.append(b);
+  }
+  section('感情观', hearts);
   section('肤色', swatches(OUTFIT.skin, 'skin'));
   section('发型', chips(OUTFIT.hair, 'hair'));
   section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
@@ -260,13 +306,13 @@ $('#btnAddDoll').onclick = () => {
   if (G.dolls.length >= 6) return;
   const used = new Set(G.dolls.map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || '新朋友';
-  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), look: randomLook() });
+  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
   G.sel = d.uid; say(d, '大家好，请多关照！'); spawnHeart(d); SFX.play('love');
   HOOK.select(); save(); HOOK.toast(`${name} 搬进来啦！`);
 };
 
 /* ---------- 主循环 ---------- */
-load(); rebuild(); HOOK.select(); updateClock();
+load(); rebuild(); HOOK.select(); updateClock(); renderLog();
 let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;

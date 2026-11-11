@@ -191,6 +191,19 @@ const DRAW = {
     for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, ['#6aa9ec', '#f2d16b', '#7cc576', '#e26d7d', '#8a7fe0'][i]);
     for (let i = 0; i < 7; i++) { R(c, x + 3 + i * 4, y - 1, 1, 2, '#cbbfae'); R(c, x + 3 + i * 4, y + 31, 1, 2, '#cbbfae'); }
   },
+  door(c, x, y, f) {
+    box(c, x + 1, y + 2, 14, 30, WOOD_D);
+    if (f && f.openT > 0) {
+      R(c, x + 2, y + 3, 12, 29, '#2a2230'); R(c, x + 2, y + 3, 12, 6, G.sky || '#9fd3f0');   // 打开时看到外面
+      R(c, x + 2, y + 3, 3, 29, WOOD);                                                         // 往里开的门板
+    } else {
+      R(c, x + 2, y + 3, 12, 29, WOOD); R(c, x + 3, y + 4, 10, 1, WOOD_L);
+      box(c, x + 4, y + 6, 8, 7, G.sky || '#9fd3f0', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
+      R(c, x + 4, y + 16, 8, 6, shade(WOOD, -0.08)); R(c, x + 4, y + 24, 8, 6, shade(WOOD, -0.08));
+      R(c, x + 11, y + 19, 2, 2, '#f2c33a');
+    }
+    R(c, x, y + 33, 16, 3, '#c8735a'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
+  },
   window(c, x, y) {
     box(c, x + 2, y + 4, 28, 24, '#ffffff');
     R(c, x + 4, y + 6, 24, 20, G.sky || '#9fd3f0');
