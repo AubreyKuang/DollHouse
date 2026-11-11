@@ -67,6 +67,7 @@ function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f
 function bedroomEmptyFor(a, b) { return !G.dolls.some(o => o !== a && o !== b && inBedroom(o)); }
 
 function canTryst(d, p) {
+  if (!canRomance(d, p)) return false;
   const r = rel(d, p);
   if (r.trystAt > absNow() - 480) return false;            // 一次之后要隔几个小时
   return d.heart === 'fickle' && !r.lovers && (r.secret || r.l >= 40) && r.f >= 30 &&

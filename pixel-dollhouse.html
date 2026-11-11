@@ -453,7 +453,7 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
   ],
   dolls: [
-    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'student', money: 320,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
     { pid: 'p-lan', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
     { pid: 'p-jing', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
     { pid: 'p-tuan', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
@@ -1066,7 +1066,7 @@ function save() {
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, weather: G.weather, wKey: G.wKey,
+      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     }));
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
@@ -1085,6 +1085,10 @@ function applySave(s) {
   if (!s.roomsV) migrateRooms();      // 老存档：给隔墙和门口腾地方
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
+  // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
+  if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
+    d.job = 'barista'; addLog(`🎓 ${d.name} 毕业了，现在是一名${JOBS.barista.name}`);
+  }
   G.sel = null;
 }
 
@@ -1515,7 +1519,17 @@ function relLabel(r) {
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
 // 改变关系值，跨过关键门槛时弹提示
+// 只要有一方是学生，就不进入任何恋爱剧情（表白、亲亲、暧昧、偷情、恋人、吃醋），只当朋友
+const isStudent = d => d.job === 'student';
+const canRomance = (a, b) => !isStudent(a) && !isStudent(b);
+function clearRomance(d) {
+  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; }
+  for (const o of G.dolls) if (o.jealousOf && o.jealousOf.who === d) o.jealousOf = null;
+  d.jealousOf = null;
+}
+
 function bump(a, b, df, dl = 0) {
+  if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
   r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem : df)));
   r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem : dl)));
@@ -1554,8 +1568,8 @@ function chooseKind(d, p) {
     ['chat', 34],
     ['joke', 14 + (d.persona === 'genki' ? 12 : 0) + (r.f > 40 ? 8 : 0)],
     ['hug', r.f >= 55 ? 16 + (d.persona === 'social' ? 8 : 0) : 0],
-    ['flirt', canFlirt ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
-    ['kiss', r.lovers ? 26 : r.secret ? 18 : 0],
+    ['flirt', canFlirt && canRomance(d, p) ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
+    ['kiss', !canRomance(d, p) ? 0 : r.lovers ? 26 : r.secret ? 18 : 0],
     ['argue', (r.f < 15 ? 10 : 1) + (cranky ? 7 : 0)],
   ]);
 }
@@ -1563,7 +1577,9 @@ function chooseKind(d, p) {
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p) {
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
-  const kind = (d.act && d.act.kind) || chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
+  let kind = (d.act && d.act.kind) || chooseKind(d, p);
+  if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
+  const S = SOCIAL[kind], r = rel(d, p);
   const t = 5 + Math.random() * 3;
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
@@ -1623,7 +1639,7 @@ function startSocial(d, p) {
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
   if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
   if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
-  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
+  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers && canRomance(d, p)) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
   setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
 }
@@ -1678,6 +1694,10 @@ const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act &&
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
+  // 保险：学生和任何人之间都不留恋爱关系
+  for (const d of G.dolls) if (isStudent(d)) for (const o of G.dolls) if (o !== d) {
+    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; }
+  }
   // 吃醋的人：等双方都有空，就立刻去找恋人算账
   for (const d of G.dolls) {
     const j = d.jealousOf;
@@ -2277,6 +2297,7 @@ function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f
 function bedroomEmptyFor(a, b) { return !G.dolls.some(o => o !== a && o !== b && inBedroom(o)); }
 
 function canTryst(d, p) {
+  if (!canRomance(d, p)) return false;
   const r = rel(d, p);
   if (r.trystAt > absNow() - 480) return false;            // 一次之后要隔几个小时
   return d.heart === 'fickle' && !r.lovers && (r.secret || r.l >= 40) && r.f >= 30 &&
@@ -3066,9 +3087,13 @@ function renderWardrobe() {
   section('性格', pers);
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
-    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天`;
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天${k === 'student' ? ' · 不谈恋爱' : ''}`;
     const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
-    b.onclick = () => { d.job = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => {
+      d.job = k; SFX.play('pop');
+      if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
+      renderWardrobe();
+    };
     jobs.append(b);
   }
   section('职业', jobs);

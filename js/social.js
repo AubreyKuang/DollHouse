@@ -40,7 +40,17 @@ function relLabel(r) {
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
 // 改变关系值，跨过关键门槛时弹提示
+// 只要有一方是学生，就不进入任何恋爱剧情（表白、亲亲、暧昧、偷情、恋人、吃醋），只当朋友
+const isStudent = d => d.job === 'student';
+const canRomance = (a, b) => !isStudent(a) && !isStudent(b);
+function clearRomance(d) {
+  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; }
+  for (const o of G.dolls) if (o.jealousOf && o.jealousOf.who === d) o.jealousOf = null;
+  d.jealousOf = null;
+}
+
 function bump(a, b, df, dl = 0) {
+  if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
   r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem : df)));
   r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem : dl)));
@@ -79,8 +89,8 @@ function chooseKind(d, p) {
     ['chat', 34],
     ['joke', 14 + (d.persona === 'genki' ? 12 : 0) + (r.f > 40 ? 8 : 0)],
     ['hug', r.f >= 55 ? 16 + (d.persona === 'social' ? 8 : 0) : 0],
-    ['flirt', canFlirt ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
-    ['kiss', r.lovers ? 26 : r.secret ? 18 : 0],
+    ['flirt', canFlirt && canRomance(d, p) ? (sneaky ? 14 : 6) + r.l * 0.7 : 0],
+    ['kiss', !canRomance(d, p) ? 0 : r.lovers ? 26 : r.secret ? 18 : 0],
     ['argue', (r.f < 15 ? 10 : 1) + (cranky ? 7 : 0)],
   ]);
 }
@@ -88,7 +98,9 @@ function chooseKind(d, p) {
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p) {
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
-  const kind = (d.act && d.act.kind) || chooseKind(d, p), S = SOCIAL[kind], r = rel(d, p);
+  let kind = (d.act && d.act.kind) || chooseKind(d, p);
+  if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
+  const S = SOCIAL[kind], r = rel(d, p);
   const t = 5 + Math.random() * 3;
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
@@ -148,7 +160,7 @@ function startSocial(d, p) {
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
   if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
   if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
-  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
+  if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers && canRomance(d, p)) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
   setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
 }
@@ -203,6 +215,10 @@ const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act &&
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
+  // 保险：学生和任何人之间都不留恋爱关系
+  for (const d of G.dolls) if (isStudent(d)) for (const o of G.dolls) if (o !== d) {
+    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; }
+  }
   // 吃醋的人：等双方都有空，就立刻去找恋人算账
   for (const d of G.dolls) {
     const j = d.jealousOf;

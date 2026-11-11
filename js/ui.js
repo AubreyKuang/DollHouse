@@ -289,9 +289,13 @@ function renderWardrobe() {
   section('性格', pers);
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
-    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天`;
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天${k === 'student' ? ' · 不谈恋爱' : ''}`;
     const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
-    b.onclick = () => { d.job = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => {
+      d.job = k; SFX.play('pop');
+      if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
+      renderWardrobe();
+    };
     jobs.append(b);
   }
   section('职业', jobs);

@@ -35,7 +35,7 @@ function save() {
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, weather: G.weather, wKey: G.wKey,
+      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     }));
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
@@ -54,6 +54,10 @@ function applySave(s) {
   if (!s.roomsV) migrateRooms();      // 老存档：给隔墙和门口腾地方
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
+  // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
+  if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
+    d.job = 'barista'; addLog(`🎓 ${d.name} 毕业了，现在是一名${JOBS.barista.name}`);
+  }
   G.sel = null;
 }
 
