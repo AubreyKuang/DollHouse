@@ -1,8 +1,10 @@
 // 静态数据：房间尺寸、家具、性格、服装选项、默认存档
 const T = 16;              // 每格像素
-const COLS = 16, ROWS = 12;
+let COLS = 16;              // 房子宽度，扩建时会变大
+const ROWS = 12;
 const WALL_ROWS = 3;       // 上面三行是墙
-const W = COLS * T, H = ROWS * T;
+let W = COLS * T;
+const H = ROWS * T;
 
 // use: 小人能做的事；mode: on=坐/躺在家具上, front=站在家具前
 // layer: floor=地毯(可走), wall=挂在墙上, 其它为普通家具

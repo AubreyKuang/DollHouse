@@ -14,6 +14,7 @@
     <span id="clock">08:00</span>
     <span id="timeIcon">☀️</span>
   </div>
+  <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
   <nav class="modes" aria-label="模式">
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
@@ -49,6 +50,13 @@
 </main>
 
 <section id="buildBar" hidden>
+  <div class="shop-bar">
+    <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
+    <span class="house" id="houseLv"></span>
+    <span class="spacer"></span>
+    <button id="btnCrowd" class="btn small">📣 号召大家凑钱</button>
+    <button id="btnExpand" class="btn small"></button>
+  </div>
   <div class="tabs" role="tablist">
     <button class="tab on" data-tab="furniture">家具</button>
     <button class="tab" data-tab="wall">墙纸</button>
@@ -95,6 +103,8 @@
 <script src="js/game.js"></script>
 <script src="js/social.js"></script>
 <script src="js/work.js"></script>
+<script src="js/furniture2.js"></script>
+<script src="js/economy.js"></script>
 <script src="js/view.js"></script>
 <script src="js/ui.js"></script>
 </body>

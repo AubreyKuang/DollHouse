@@ -167,15 +167,16 @@ function payday(d) {
   const J = JOBS[d.job];
   if (!J.wage) return;
   const w = Math.round(J.wage * (d.overtime ? 1.5 : 1));
-  d.money += w;
-  addLog(`💰 ${d.name} ${J.wageName || '领到工资'} ${yuan(w)}${d.overtime ? '（含加班费）' : ''}，存款 ${yuan(d.money)}`);
+  const c = d.job === 'student' ? 0 : Math.round(w * FUND_SHARE);   // 工资的 20% 存进家庭基金
+  d.money += w - c; G.fund += c;
+  addLog(`💰 ${d.name} ${J.wageName || '领到工资'} ${yuan(w)}${d.overtime ? '（含加班费）' : ''}${c ? `，${yuan(c)} 存进家庭基金` : ''}，个人存款 ${yuan(d.money)}`);
 }
 
 function nightlyBills() {
   const payers = G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
   for (const d of payers) d.money -= RENT;
   if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
-  for (const d of G.dolls) if (d.job === 'artist' && Math.random() < 0.35) {
+  for (const d of G.dolls) if (d.job === 'artist' && Math.random() < (d.paintedDay >= G.day - 1 ? 0.7 : 0.25)) {
     const v = 200 + Math.round(Math.random() * 6) * 100;
     d.money += v; addLog(`🎨 ${d.name} 的画卖出去了，收入 ${yuan(v)}`);
   }

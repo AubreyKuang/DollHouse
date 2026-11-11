@@ -5,8 +5,8 @@ const esc = s => String(s).replace(/[&<>"]/g, ch => ({ '&': '&amp;', '<': '&lt;'
 
 /* ---------- 提示 ---------- */
 let toastTimer = 0;
-HOOK.toast = msg => {
-  if (!msg.startsWith('☀️')) addLog(msg);          // 新的一天用日志里的日期分隔，不重复记
+HOOK.toast = (msg, quiet) => {
+  if (!quiet && !msg.startsWith('☀️')) addLog(msg);   // quiet=true 的是纯界面提示，不进日志          // 新的一天用日志里的日期分隔，不重复记
   const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200); };
 
 /* ---------- 住户列表 + 状态卡 ---------- */
@@ -37,7 +37,7 @@ function renderDollList() {
     b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
     box.append(b);
   }
-  $('#btnAddDoll').style.display = G.dolls.length >= 6 ? 'none' : '';
+  $('#btnAddDoll').style.display = G.dolls.length >= LEVELS[G.level].cap ? 'none' : '';
 }
 
 function renderInfo() {
@@ -64,7 +64,7 @@ function renderInfo() {
     </div>`;
   $('#btnPet').onclick = () => petDoll(d);
   $('#btnDress').onclick = () => openWardrobe(d.uid);
-  $('#btnWake').onclick = () => { if (d.state === 'away') { HOOK.toast(`${d.name} 不在家哦`); return; } if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
+  $('#btnWake').onclick = () => { if (d.state === 'away') { HOOK.toast(`${d.name} 不在家哦`, true); return; } if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
   tickInfo();
 }
 
@@ -148,7 +148,7 @@ $('#btnReset').onclick = () => {
   const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
-  s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认');
+  s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
 const iconCache = {};
@@ -159,12 +159,15 @@ function renderPalette() {
     for (const id of Object.keys(FURNITURE)) {
       const F = FURNITURE[id];
       if (F.fixed) continue;
-      const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : ''));
+      const [price, lv] = SHOP[id] || [0, 1], have = G.inv[id] || 0, locked = lv > G.level && !have;
+      const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
-      b.append(c, el('span', null, F.name));
+      const tag = have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
+      b.append(c, el('span', null, F.name), el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
       b.title = F.use ? `${F.name} · ${ACT_NAMES[F.use] || ''}` : F.name;
       b.onclick = () => {
+        if (locked) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${F.name}`, true); SFX.play('deny'); return; }
         if (G.build.placing && G.build.placing.moved) cancelPlacing();
         G.build.trash = false;
         G.build.placing = G.build.placing && G.build.placing.id === id ? null : { id };
@@ -182,7 +185,22 @@ function renderPalette() {
     }
   }
 }
-HOOK.refresh = () => { if (G.mode === 'build') renderPalette(); };
+HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette(); };
+
+/* ---------- 家庭基金与扩建 ---------- */
+function renderShopBar() {
+  $('#fundAmt').textContent = yuan(G.fund);
+  $('#fundTop').textContent = yuan(G.fund);
+  const L = LEVELS[G.level], next = LEVELS[G.level + 1];
+  $('#houseLv').textContent = `🏠 ${L.name}（Lv${G.level} · 最多 ${L.cap} 人）`;
+  const ex = $('#btnExpand');
+  ex.textContent = next ? `🔨 扩建成「${next.name}」${yuan(next.cost)}` : '🏰 已经是最大的房子了';
+  ex.disabled = !next;
+  ex.classList.toggle('ready', !!next && G.fund >= next.cost);
+  $('#btnCrowd').disabled = G.crowdDay === G.day;
+}
+$('#btnCrowd').onclick = () => crowdfund();
+$('#btnExpand').onclick = () => expand();
 
 /* ---------- 衣橱 ---------- */
 let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0;
@@ -206,7 +224,7 @@ $('#wdRandom').onclick = () => {
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  if (G.dolls.length <= 1) { HOOK.toast('至少要留一位住户哦'); return; }
+  if (G.dolls.length <= 1) { HOOK.toast('至少要留一位住户哦', true); return; }
   if (!confirm(`真的要让 ${d.name} 搬走吗？`)) return;
   if (d.act) endAct(d);
   for (const o of G.dolls) if (o.act && o.act.partner === d) endAct(o);
@@ -303,7 +321,7 @@ function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'
 
 /* ---------- 新住户 ---------- */
 $('#btnAddDoll').onclick = () => {
-  if (G.dolls.length >= 6) return;
+  if (G.dolls.length >= LEVELS[G.level].cap) { HOOK.toast(`房子住满了，扩建后才能邀请更多人`, true); return; }
   const used = new Set(G.dolls.map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || '新朋友';
   const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
@@ -318,7 +336,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   update(dt); render();
   uiT += dt;
-  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); }
+  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }
   requestAnimationFrame(loop);
 }

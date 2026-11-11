@@ -23,6 +23,7 @@ const G = {
   wall: 'cream', floor: 'oak', time: 480, day: 1, speed: 1, mode: 'live',
   furniture: [], dolls: [], sel: null, sky: '#9fd3f0', night: false, dark: 0,
   build: { placing: null, trash: false, hover: null }, rel: {}, log: [],
+  fund: 800, level: 1, inv: {}, crowdDay: 0,
   t: 0, uid: 1,
 };
 
@@ -34,7 +35,7 @@ function save() {
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      rel: G.rel, log: G.log,
+      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay,
     }));
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
@@ -46,6 +47,8 @@ function load() {
 function applySave(s) {
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
+  G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0;
+  setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
@@ -188,8 +191,11 @@ function decide(d) {
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + Math.random() * 25;
     if (F.use === 'sleep') s += G.night ? 70 : (N.energy > 45 ? -60 : 0);
-    if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
     else if (G.night && N.energy < 60) s -= 20;
+    if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
+    if (F.use === 'paint' && d.job === 'artist') s += 40;          // 画家要画画才卖得出画
+    if (F.use === 'study' && d.job === 'student') s += 15;
+    if (F.use === 'exercise' && N.energy < 30) s -= 40;
     s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
@@ -281,8 +287,9 @@ function arrive(d) {
       const left = !f.users.some(u => u !== d && u.act && u.act.seat === 0); a.seat = left ? 0 : 1;
       if (f.id === 'sofa') { d.x = f.x * T + 8 + a.seat * 16; d.y = f.y * T + 13; }
     }
-    else if (f.id === 'chair') { d.x = f.x * T + 8; d.y = f.y * T + 10; }
+    else if (f.id === 'chair' || f.id === 'beanbag') { d.x = f.x * T + 8; d.y = f.y * T + (f.id === 'chair' ? 10 : 12); }
     d.dir = 'down';
+    if (f.id === 'treadmill') { d.x = f.x * T + 18; d.y = f.y * T + 11; d.dir = 'left'; }
   } else {
     // 站在家具前：朝家具的方向
     const cx = (f.x + F.w / 2) * T, cy = (f.y + F.h / 2) * T;
@@ -343,6 +350,9 @@ function updateDoll(d, dt) {
       if (mate && rel(d, mate).lovers) { const r = rel(d, mate); r.l = Math.min(100, r.l + 0.3 * dt); if (Math.random() < dt * 0.08) spawnHeart(d, '💕'); }
     }
     if (a.type === 'piano' && Math.random() < dt * 3) SFX.play('piano');
+    if (a.type === 'exercise') { d.ft += dt; if (d.ft > 0.09) { d.ft = 0; d.frame = (d.frame + 1) % 4; } }
+    if (a.type === 'paint' && d.job === 'artist') d.paintedDay = G.day;
+    if (a.type === 'music' && Math.random() < dt * 2) SFX.play('game');
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
@@ -357,7 +367,7 @@ function updateDoll(d, dt) {
   if (Math.random() < dt * 0.04) {
     const low = Object.entries(N).sort((a, b) => a[1] - b[1])[0];
     const sad = { energy: '好困……', hunger: '肚子咕咕叫', fun: '好无聊～', social: '有点寂寞' };
-    say(d, low[1] < 25 ? sad[low[0]] : pick(P.lines));
+    say(d, low[1] < 25 ? sad[low[0]] : (Math.random() < 0.3 && wishLine(d)) || pick(P.lines));
   }
   if (d.think <= 0) decide(d);
 }

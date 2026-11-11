@@ -4,6 +4,11 @@ const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
 const lightCv = document.createElement('canvas'); lightCv.width = W; lightCv.height = H;
 const lctx = lightCv.getContext('2d');
+// 扩建后画布跟着变宽
+HOOK.resize = () => {
+  cv.width = W; lightCv.width = W; ctx.imageSmoothingEnabled = false;
+  document.getElementById('stage').style.aspectRatio = `${W} / ${H}`;
+};
 const overlay = document.getElementById('overlay');
 
 const wallSpec = () => WALLS.find(w => w.id === G.wall) || WALLS[0];
@@ -12,6 +17,7 @@ const floorSpec = () => FLOORS.find(f => f.id === G.floor) || FLOORS[0];
 function dollPose(d) {
   if (d.state === 'lift') return 'lift';
   if (d.state === 'walk') return 'walk';
+  if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
   if (d.act && d.state === 'act' && (d.act.type === 'dance' || (d.act.type === 'join' && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
@@ -72,6 +78,9 @@ function render() {
     };
     for (const f of G.furniture) {
       if (f.id === 'lamp') hole(f.x * T + 8, f.y * T - 10, 54);
+      if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(f.x * T + 4 + i * 6, f.y * T + 9, 16, .55);
+      if (f.id === 'aquarium') hole(f.x * T + 16, f.y * T - 6, 22, .5);
+      if ((f.id === 'pc' || f.id === 'speaker') && f.active) hole(f.x * T + 12, f.y * T - 10, 24, .7);
       if (f.id === 'tv' && f.active) hole(f.x * T + 16, f.y * T - 4, 34, .8);
       if (f.id === 'arcade') hole(f.x * T + 8, f.y * T - 8, 20, f.active ? .8 : .4);
       if (f.id === 'stove' && f.active) hole(f.x * T + 8, f.y * T - 6, 22, .7);
@@ -205,15 +214,16 @@ cv.addEventListener('pointerdown', e => {
   if (B.placing) {
     const g = ghostTile(p, B.placing.id);
     if (canPlace(B.placing.id, g.x, g.y, null)) {
-      addFurniture(B.placing.id, g.x, g.y); rebuild(); SFX.play('place'); save();
+      if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
+      addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
       if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
     } else SFX.play('deny');
     return;
   }
   const f = furnAt(p);
   if (!f) return;
-  if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置'); SFX.play('deny'); return; }
-  if (B.trash) { removeFurniture(f); rebuild(); SFX.play('trash'); save(); HOOK.toast(`已移除「${FURNITURE[f.id].name}」`); }
+  if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
+  if (B.trash) { removeFurniture(f); stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
   else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = ghostTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
