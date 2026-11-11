@@ -125,6 +125,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .rel{margin:0 0 8px}
 .rel-top{display:flex;justify-content:space-between;font-size:13px}
 .rel-top small{color:var(--muted)}
+.rel-top .stars{color:#e8a33a;font-size:11px;letter-spacing:-1px}
+.mbti-sep{align-self:center;color:var(--muted)}
 .rel-bars{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px;align-items:center;font-size:11px;margin-top:2px}
 .rel-bars .bar{height:8px}
 
@@ -453,10 +455,10 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
   ],
   dolls: [
-    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { pid: 'p-lan', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { pid: 'p-jing', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { pid: 'p-tuan', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
 };
 
@@ -1064,7 +1066,7 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
       rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     }));
@@ -1191,6 +1193,9 @@ function addDoll(src) {
     x: 0, y: 0, tx: 0, ty: 0, dir: 'down', frame: 0, ft: 0, state: 'idle', path: [], act: null,
     think: Math.random() * 2, bubble: null, blink: 0, blinkT: 2 + Math.random() * 3, hop: 0, happy: 0,
     gender: src.gender || (Math.random() < 0.5 ? 'f' : 'm'), heart: src.heart || 'normal',
+    // 老存档没有星座/MBTI：开局的四位用设定好的，其他人随机
+    zodiac: src.zodiac || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).zodiac || randomZodiac(),
+    mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
   };
   G.dolls.push(d);
@@ -1228,7 +1233,7 @@ function decide(d) {
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
-    let s = want(F.need) + (P.like[F.use] || 0) + Math.random() * 25;
+    let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
     if (F.use === 'sleep') s += G.night ? 70 : (N.energy > 45 ? -60 : 0);
     else if (G.night && N.energy < 60) s -= 20;
     if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
@@ -1244,7 +1249,7 @@ function decide(d) {
     (o.state === 'act' && o.act && !o.act.onFurn && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
-    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + Math.random() * 25 + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
+    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
   }
   // 恋人在家就想黏在一起；花心的人会去找暧昧对象，对象不在家时更大胆
   const lover = loverOf(d), lvBusy = lover && (lover.state === 'away' || lying(lover));
@@ -1258,10 +1263,10 @@ function decide(d) {
   for (const o of G.dolls) {
     if (o === d || !joinable(o)) continue;
     const J = JOIN[o.act.type], r = rel(d, o);
-    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + Math.random() * 20 - (G.night ? 15 : 0), type: 'join', target: o });
+    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
   }
-  opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + Math.random() * 15 - (G.night ? 20 : 0), type: 'dance' });
-  opts.push({ s: 12 + (P.like.wander || 0) + Math.random() * 20, type: 'wander' });
+  opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + traitBonus(d, 'dance') + Math.random() * 15 * noiseMul(d) - (G.night ? 20 : 0), type: 'dance' });
+  opts.push({ s: 12 + (P.like.wander || 0) + traitBonus(d, 'wander') + Math.random() * 20 * noiseMul(d), type: 'wander' });
   opts.sort((a, b) => b.s - a.s);
   for (const o of opts.slice(0, 4)) if (startAct(d, o)) return;
   d.think = 2;
@@ -1322,6 +1327,7 @@ function arrive(d) {
   a.t = a.type === 'sleep' ? 28 + Math.random() * 10 : 7 + Math.random() * 5;
   if (JOIN[a.type] && a.type !== 'read') { a.t = 16 + Math.random() * 8; nudgeAudience(d); }
   const PDur = PERSONAS[d.persona].dur; if (PDur && PDur[a.type]) a.t *= PDur[a.type];
+  a.t *= durMul(d);   // J 型更专注，P 型更容易换下一件事
   a.back = { x: d.tx, y: d.ty };
   f.active = true;
   if (F.mode === 'on') {
@@ -1354,7 +1360,7 @@ function face(d, x, y) {
 /* ---------------- 每帧更新 ---------------- */
 function updateDoll(d, dt) {
   const P = PERSONAS[d.persona], N = d.needs;
-  for (const k in N) N[k] = Math.max(0, N[k] - P.decay[k] * MIN_PER_SEC / 60 * dt);
+  for (const k in N) N[k] = Math.max(0, N[k] - P.decay[k] * decayMul(d, k) * MIN_PER_SEC / 60 * dt);
   d.blinkT -= dt; if (d.blinkT < 0) { d.blink = 0.15; d.blinkT = 2 + Math.random() * 4; }
   if (d.blink > 0) d.blink -= dt;
   if (d.happy > 0) d.happy -= dt;
@@ -1531,8 +1537,10 @@ function clearRomance(d) {
 function bump(a, b, df, dl = 0) {
   if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
-  r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem : df)));
-  r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem : dl)));
+  const cp = compat(a, b);                                    // 星座 + MBTI 缘分
+  if (df < 0 && !isF(a) && !isF(b)) df *= 0.7;                // 两个 T 型吵完架不太记仇
+  r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem * cp : df)));
+  r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem * cp * (isF(a) || isF(b) ? 1.15 : 1) : dl)));
   const after = levelOf(r.f, REL_LEVELS);
   if (after !== before && df > 0 && ['朋友', '好友', '挚友'].includes(after)) HOOK.toast(`🤝 ${a.name} 和 ${b.name} 成为${after}了`);
   if (after === '不和' && before !== '不和') HOOK.toast(`💢 ${a.name} 和 ${b.name} 闹翻了……`);
@@ -1553,7 +1561,7 @@ function pickPartner(d, others) {
     const r = rel(d, o);
     let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
     if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
-    return [o, w];
+    return [o, w * compat(d, o)];
   }));
 }
 
@@ -1584,6 +1592,7 @@ function startSocial(d, p) {
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
   face(d, p.x, p.y); face(p, d.x, d.y);
+  for (const x of [d, p]) if (!isE(x)) x.needs.energy = Math.max(0, x.needs.energy - 3);   // 内向的人社交会累
   const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
   d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
   // 普通聊天用各自性格的台词，一听就知道是谁
@@ -1602,7 +1611,7 @@ function startSocial(d, p) {
   let flirtOk = false;
   if (kind === 'flirt') {
     const lp = loverOf(p), ld = loverOf(d);
-    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
+    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem * compat(d, p));
     if (lp && lp !== d) chance = p.heart === 'fickle' ? chance : p.heart === 'loyal' ? 0 : chance * 0.4;
     if (lp && lp !== d && p.heart === 'loyal') {
       bump(d, p, -6, -8); reply = pick(['我已经有对象了！', `我心里只有${lp.name}`, '请你自重一点']);
@@ -1660,7 +1669,7 @@ function jealous(L, cheater, third) {
   const r = rel(L, cheater);
   r.l = Math.max(0, r.l - 6); r.f = Math.max(-100, r.f - 3);
   const t = rel(L, third); t.f = Math.max(-100, t.f - 10);
-  L.needs.fun = Math.max(0, L.needs.fun - 15);
+  L.needs.fun = Math.max(0, L.needs.fun - (isF(L) ? 20 : 12) * (zodiacOf(L).el === 'water' ? 1.3 : 1));   // F 型、水象更受伤
   face(L, cheater.x, cheater.y);
   say(L, pick(['😤 哼！抱那么久干嘛', '……我吃醋了', `你和${third.name}关系很好嘛？`]), 3);
   spawnHeart(L, '😤');
@@ -1888,7 +1897,7 @@ function exitHome(d) {
   if (d.overtime) back += 120 + Math.random() * 60;
   else if (Math.random() < 0.15) back -= 60 + Math.random() * 40;
   d.awayUntil = Math.round(back);
-  d.leaveJitter = Math.round(Math.random() * 40 - 15);  // 明天出门时间也稍微变一变
+  d.leaveJitter = leaveJitterFor(d);  // 明天出门时间也稍微变一变：J 型准时，P 型常常踩点
   SFX.play('open');
   HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${hhmm(d.awayUntil)} 回家`);
   if (G.sel === d.uid) HOOK.select();
@@ -2472,6 +2481,7 @@ function seasonTick() {
 
 // 新的一天开始时（0 点）：季节变化、节日
 function seasonNewDay() {
+  birthdayCheck();
   const S = seasonOf(G.day), prevS = seasonOf(G.day - 1);
   if (S !== prevS) { addLog(`${S.icon} ${S.name}天来了`); HOOK.toast(`${S.icon} ${S.name}天来了`, true); }
   const H = holidayOf(G.day);
@@ -2513,6 +2523,114 @@ function seasonBill() {
 }
 
 const isHolidayParty = () => { const H = holidayOf(G.day); return H && H.deco === 'xmastree'; };
+</script>
+<script>
+// 星座与 MBTI：在原有“性格”打分的基础上再做加减，并决定两个人的缘分
+// 不改变需求系统本身，只是让同一种性格的人也各有不同
+
+const ZODIAC = [
+  { id: 'aries',       name: '白羊座', icon: '♈', el: 'fire' },
+  { id: 'taurus',      name: '金牛座', icon: '♉', el: 'earth' },
+  { id: 'gemini',      name: '双子座', icon: '♊', el: 'air' },
+  { id: 'cancer',      name: '巨蟹座', icon: '♋', el: 'water' },
+  { id: 'leo',         name: '狮子座', icon: '♌', el: 'fire' },
+  { id: 'virgo',       name: '处女座', icon: '♍', el: 'earth' },
+  { id: 'libra',       name: '天秤座', icon: '♎', el: 'air' },
+  { id: 'scorpio',     name: '天蝎座', icon: '♏', el: 'water' },
+  { id: 'sagittarius', name: '射手座', icon: '♐', el: 'fire' },
+  { id: 'capricorn',   name: '摩羯座', icon: '♑', el: 'earth' },
+  { id: 'aquarius',    name: '水瓶座', icon: '♒', el: 'air' },
+  { id: 'pisces',      name: '双鱼座', icon: '♓', el: 'water' },
+];
+const ELEMENTS = {
+  fire:  { name: '火象', icon: '🔥', like: { dance: 8, game: 8, exercise: 8, music: 5 } },
+  earth: { name: '土象', icon: '🌍', like: { cook: 8, study: 8, water: 8, snack: 4 } },
+  air:   { name: '风象', icon: '💨', like: { chat: 8, pc: 8, music: 8, wander: 5 } },
+  water: { name: '水象', icon: '💧', like: { bath: 8, piano: 8, paint: 8, fish: 8 } },
+};
+const zodiacOf = d => ZODIAC.find(z => z.id === d.zodiac) || ZODIAC[0];
+
+const MBTI_NAMES = {
+  INTJ: '建筑师', INTP: '逻辑学家', ENTJ: '指挥官', ENTP: '辩论家', INFJ: '提倡者', INFP: '调停者', ENFJ: '主人公', ENFP: '竞选者',
+  ISTJ: '物流师', ISFJ: '守卫者', ESTJ: '总经理', ESFJ: '执政官', ISTP: '鉴赏家', ISFP: '探险家', ESTP: '企业家', ESFP: '表演者',
+};
+const MBTI_AXES = [['E', 'I', '外向', '内向'], ['S', 'N', '实感', '直觉'], ['T', 'F', '思考', '情感'], ['J', 'P', '判断', '感知']];
+const mb = d => d.mbti || 'ESFJ';
+const isE = d => mb(d)[0] === 'E', isN = d => mb(d)[1] === 'N', isF = d => mb(d)[2] === 'F', isJ = d => mb(d)[3] === 'J';
+
+// 经典“黄金搭档”
+const GOLDEN = [['INTJ', 'ENFP'], ['INFJ', 'ENFP'], ['ENTJ', 'INFP'], ['INTP', 'ENTJ'], ['INFJ', 'ENTP'], ['ISFJ', 'ESTP'], ['ISTJ', 'ESFP'], ['ESFJ', 'ISFP'], ['ESTJ', 'ISTP'], ['ENFJ', 'INFP']];
+
+/* ---------- 打分加成：活动偏好 ---------- */
+function traitBonus(d, use) {
+  let b = (ELEMENTS[zodiacOf(d).el].like[use] || 0);
+  if (use === 'chat') b += isE(d) ? 15 : -10;
+  if (['read', 'fish', 'pc', 'paint', 'study'].includes(use) && !isE(d)) b += 8;
+  if (['cook', 'exercise', 'water', 'snack'].includes(use) && !isN(d)) b += 8;
+  if (['read', 'paint', 'piano', 'pc', 'study'].includes(use) && isN(d)) b += 8;
+  if (use === 'wander') b += isJ(d) ? -5 : 15;
+  if (use === 'join') b += isE(d) ? 10 : -5;
+  return b;
+}
+// P 型更随性：随机部分放大；J 型更按部就班
+const noiseMul = d => (isJ(d) ? 0.8 : 1.4);
+// 做事时长：J 更专注，P 更容易换下一件事
+const durMul = d => (isJ(d) ? 1.15 : 0.85);
+// 需求下降速度：外向的人更快需要社交；火象更容易无聊
+function decayMul(d, k) {
+  if (k === 'social') return isE(d) ? 1.4 : 0.7;
+  if (k === 'fun' && zodiacOf(d).el === 'fire') return 1.2;
+  return 1;
+}
+// 上班出门时间的浮动：J 准时，P 常常踩点甚至迟到
+const leaveJitterFor = d => (isJ(d) ? Math.round(Math.random() * 10 - 8) : Math.round(Math.random() * 45 - 10));
+
+/* ---------- 缘分 ---------- */
+function elementMatch(a, b) {
+  const x = zodiacOf(a).el, y = zodiacOf(b).el;
+  if (x === y) return 1.2;
+  const pair = [x, y].sort().join('-');
+  if (pair === 'air-fire' || pair === 'earth-water') return 1.15;   // 互补
+  if (pair === 'fire-water' || pair === 'air-earth') return 0.85;   // 对冲
+  return 1;
+}
+function mbtiMatch(a, b) {
+  const A = mb(a), B = mb(b);
+  let m = 1;
+  m += A[1] === B[1] ? 0.12 : -0.05;     // 看世界的方式一致更聊得来
+  if (A[0] !== B[0]) m += 0.05;           // 一动一静互补
+  if (A[3] === B[3]) m += 0.05;           // 生活节奏一致
+  if (GOLDEN.some(([p, q]) => (p === A && q === B) || (p === B && q === A))) m += 0.2;
+  return m;
+}
+function compat(a, b) { return Math.max(0.7, Math.min(1.5, elementMatch(a, b) * mbtiMatch(a, b))); }
+function compatStars(a, b) { const c = compat(a, b); return c < 0.9 ? '★☆☆☆' : c < 1.05 ? '★★☆☆' : c < 1.2 ? '★★★☆' : '★★★★'; }
+
+/* ---------- 生日 ---------- */
+const dayOfYear = day => (day - 1) % 28 + 1;
+const birthdayOf = d => 1 + Math.floor(ZODIAC.indexOf(zodiacOf(d)) * 28 / 12);   // 白羊座在春天第 1 天
+function birthdayCheck() {
+  const today = dayOfYear(G.day);
+  for (const d of G.dolls) {
+    if (birthdayOf(d) !== today) continue;
+    HOOK.toast(`🎂 今天是 ${d.name} 的生日！`);
+    d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
+    for (const o of G.dolls) {
+      if (o === d) continue;
+      const r = rel(o, d);
+      if (o.state !== 'away') setTimeout(() => say(o, pick([`${d.name}生日快乐！`, '🎂 许个愿吧', '又长大一岁啦'])), 800 + Math.random() * 1500);
+      if ((r.f >= 40 || r.lovers) && o.money >= 60) { o.money -= 60; bump(o, d, 5, r.lovers ? 5 : 0); addLog(`🎁 ${o.name} 送了 ${d.name} 一份生日礼物`); }
+    }
+  }
+}
+
+// 状态卡上的一行介绍
+function astroLine(d) {
+  const z = zodiacOf(d), E = ELEMENTS[z.el];
+  return `${z.icon} ${z.name}（${E.icon}${E.name}） · ${mb(d)} ${MBTI_NAMES[mb(d)]} · 🎂 第 ${birthdayOf(d)} 天`;
+}
+function randomZodiac() { return pick(ZODIAC).id; }
+function randomMbti() { return MBTI_AXES.map(a => a[Math.random() < 0.5 ? 0 : 1]).join(''); }
 </script>
 <script>
 // 画面渲染 + 指针交互（拎小人、摆家具）
@@ -2846,12 +2964,13 @@ function renderInfo() {
   card.innerHTML = `<h3>${esc(d.name)}</h3>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
+    <div class="persona">${astroLine(d)}</div>
     <div class="money">💰 存款 <b id="infoMoney"></b></div>
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
-      <div class="rel"><div class="rel-top"><span>${esc(o.name)}</span><small data-rl="${o.uid}"></small></div>
+      <div class="rel"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
       <div class="rel-bars"><span title="友好度">🤝</span><div class="bar"><i data-rf="${o.uid}" style="background:#7cc576"></i></div>
       <span title="恋爱度">💗</span><div class="bar"><i data-rlv="${o.uid}" style="background:#ec6a8a"></i></div></div></div>`).join('')}</div>` : ''}
     <div class="hint" style="margin:4px 0 0">选中后点家具，可以让 TA 去用</div>
@@ -2946,7 +3065,7 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
   s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
@@ -3104,6 +3223,23 @@ function renderWardrobe() {
     gen.append(b);
   }
   section('性别', gen);
+  const zs = el('div', 'chips');
+  for (const z of ZODIAC) {
+    const b = el('button', 'chip' + (d.zodiac === z.id ? ' on' : ''), `${z.icon} ${z.name}<small>${ELEMENTS[z.el].icon}${ELEMENTS[z.el].name}</small>`);
+    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); };
+    zs.append(b);
+  }
+  section('星座', zs);
+  const ms = el('div', 'chips');
+  MBTI_AXES.forEach(([a, b, na, nb], i) => {
+    for (const [letter, label] of [[a, na], [b, nb]]) {
+      const btn = el('button', 'chip' + (mb(d)[i] === letter ? ' on' : ''), `${letter} ${label}`);
+      btn.onclick = () => { const m = mb(d).split(''); m[i] = letter; d.mbti = m.join(''); SFX.play('pop'); renderWardrobe(); };
+      ms.append(btn);
+    }
+    if (i < 3) ms.append(el('span', 'mbti-sep', '·'));
+  });
+  section(`MBTI：${mb(d)} ${MBTI_NAMES[mb(d)]}`, ms);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
@@ -3129,7 +3265,7 @@ $('#btnAddDoll').onclick = () => {
   if (G.dolls.length >= LEVELS[G.level].cap) { HOOK.toast(`房子住满了，扩建后才能邀请更多人`, true); return; }
   const used = new Set(G.dolls.map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || '新朋友';
-  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
+  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(), mbti: randomMbti(), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
   G.sel = d.uid; say(d, '大家好，请多关照！'); spawnHeart(d); SFX.play('love');
   HOOK.select(); save(); HOOK.toast(`${name} 搬进来啦！`);
 };

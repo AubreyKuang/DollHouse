@@ -52,8 +52,10 @@ function clearRomance(d) {
 function bump(a, b, df, dl = 0) {
   if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
-  r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem : df)));
-  r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem : dl)));
+  const cp = compat(a, b);                                    // 星座 + MBTI 缘分
+  if (df < 0 && !isF(a) && !isF(b)) df *= 0.7;                // 两个 T 型吵完架不太记仇
+  r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem * cp : df)));
+  r.l = Math.max(0, Math.min(100, r.l + (dl > 0 ? dl * r.chem * cp * (isF(a) || isF(b) ? 1.15 : 1) : dl)));
   const after = levelOf(r.f, REL_LEVELS);
   if (after !== before && df > 0 && ['朋友', '好友', '挚友'].includes(after)) HOOK.toast(`🤝 ${a.name} 和 ${b.name} 成为${after}了`);
   if (after === '不和' && before !== '不和') HOOK.toast(`💢 ${a.name} 和 ${b.name} 闹翻了……`);
@@ -74,7 +76,7 @@ function pickPartner(d, others) {
     const r = rel(d, o);
     let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
     if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
-    return [o, w];
+    return [o, w * compat(d, o)];
   }));
 }
 
@@ -105,6 +107,7 @@ function startSocial(d, p) {
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
   face(d, p.x, p.y); face(p, d.x, d.y);
+  for (const x of [d, p]) if (!isE(x)) x.needs.energy = Math.max(0, x.needs.energy - 3);   // 内向的人社交会累
   const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
   d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
   // 普通聊天用各自性格的台词，一听就知道是谁
@@ -123,7 +126,7 @@ function startSocial(d, p) {
   let flirtOk = false;
   if (kind === 'flirt') {
     const lp = loverOf(p), ld = loverOf(d);
-    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem);
+    let chance = Math.min(0.9, (0.15 + r.l / 140 + r.f / 260) * r.chem * compat(d, p));
     if (lp && lp !== d) chance = p.heart === 'fickle' ? chance : p.heart === 'loyal' ? 0 : chance * 0.4;
     if (lp && lp !== d && p.heart === 'loyal') {
       bump(d, p, -6, -8); reply = pick(['我已经有对象了！', `我心里只有${lp.name}`, '请你自重一点']);
@@ -181,7 +184,7 @@ function jealous(L, cheater, third) {
   const r = rel(L, cheater);
   r.l = Math.max(0, r.l - 6); r.f = Math.max(-100, r.f - 3);
   const t = rel(L, third); t.f = Math.max(-100, t.f - 10);
-  L.needs.fun = Math.max(0, L.needs.fun - 15);
+  L.needs.fun = Math.max(0, L.needs.fun - (isF(L) ? 20 : 12) * (zodiacOf(L).el === 'water' ? 1.3 : 1));   // F 型、水象更受伤
   face(L, cheater.x, cheater.y);
   say(L, pick(['😤 哼！抱那么久干嘛', '……我吃醋了', `你和${third.name}关系很好嘛？`]), 3);
   spawnHeart(L, '😤');

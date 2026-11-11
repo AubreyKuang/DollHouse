@@ -33,7 +33,7 @@ function save() {
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
       rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     }));
@@ -160,6 +160,9 @@ function addDoll(src) {
     x: 0, y: 0, tx: 0, ty: 0, dir: 'down', frame: 0, ft: 0, state: 'idle', path: [], act: null,
     think: Math.random() * 2, bubble: null, blink: 0, blinkT: 2 + Math.random() * 3, hop: 0, happy: 0,
     gender: src.gender || (Math.random() < 0.5 ? 'f' : 'm'), heart: src.heart || 'normal',
+    // 老存档没有星座/MBTI：开局的四位用设定好的，其他人随机
+    zodiac: src.zodiac || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).zodiac || randomZodiac(),
+    mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
   };
   G.dolls.push(d);
@@ -197,7 +200,7 @@ function decide(d) {
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
-    let s = want(F.need) + (P.like[F.use] || 0) + Math.random() * 25;
+    let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
     if (F.use === 'sleep') s += G.night ? 70 : (N.energy > 45 ? -60 : 0);
     else if (G.night && N.energy < 60) s -= 20;
     if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
@@ -213,7 +216,7 @@ function decide(d) {
     (o.state === 'act' && o.act && !o.act.onFurn && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
-    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + Math.random() * 25 + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
+    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
   }
   // 恋人在家就想黏在一起；花心的人会去找暧昧对象，对象不在家时更大胆
   const lover = loverOf(d), lvBusy = lover && (lover.state === 'away' || lying(lover));
@@ -227,10 +230,10 @@ function decide(d) {
   for (const o of G.dolls) {
     if (o === d || !joinable(o)) continue;
     const J = JOIN[o.act.type], r = rel(d, o);
-    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + Math.random() * 20 - (G.night ? 15 : 0), type: 'join', target: o });
+    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
   }
-  opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + Math.random() * 15 - (G.night ? 20 : 0), type: 'dance' });
-  opts.push({ s: 12 + (P.like.wander || 0) + Math.random() * 20, type: 'wander' });
+  opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + traitBonus(d, 'dance') + Math.random() * 15 * noiseMul(d) - (G.night ? 20 : 0), type: 'dance' });
+  opts.push({ s: 12 + (P.like.wander || 0) + traitBonus(d, 'wander') + Math.random() * 20 * noiseMul(d), type: 'wander' });
   opts.sort((a, b) => b.s - a.s);
   for (const o of opts.slice(0, 4)) if (startAct(d, o)) return;
   d.think = 2;
@@ -291,6 +294,7 @@ function arrive(d) {
   a.t = a.type === 'sleep' ? 28 + Math.random() * 10 : 7 + Math.random() * 5;
   if (JOIN[a.type] && a.type !== 'read') { a.t = 16 + Math.random() * 8; nudgeAudience(d); }
   const PDur = PERSONAS[d.persona].dur; if (PDur && PDur[a.type]) a.t *= PDur[a.type];
+  a.t *= durMul(d);   // J 型更专注，P 型更容易换下一件事
   a.back = { x: d.tx, y: d.ty };
   f.active = true;
   if (F.mode === 'on') {
@@ -323,7 +327,7 @@ function face(d, x, y) {
 /* ---------------- 每帧更新 ---------------- */
 function updateDoll(d, dt) {
   const P = PERSONAS[d.persona], N = d.needs;
-  for (const k in N) N[k] = Math.max(0, N[k] - P.decay[k] * MIN_PER_SEC / 60 * dt);
+  for (const k in N) N[k] = Math.max(0, N[k] - P.decay[k] * decayMul(d, k) * MIN_PER_SEC / 60 * dt);
   d.blinkT -= dt; if (d.blinkT < 0) { d.blink = 0.15; d.blinkT = 2 + Math.random() * 4; }
   if (d.blink > 0) d.blink -= dt;
   if (d.happy > 0) d.happy -= dt;

@@ -48,12 +48,13 @@ function renderInfo() {
   card.innerHTML = `<h3>${esc(d.name)}</h3>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
+    <div class="persona">${astroLine(d)}</div>
     <div class="money">💰 存款 <b id="infoMoney"></b></div>
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
-      <div class="rel"><div class="rel-top"><span>${esc(o.name)}</span><small data-rl="${o.uid}"></small></div>
+      <div class="rel"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
       <div class="rel-bars"><span title="友好度">🤝</span><div class="bar"><i data-rf="${o.uid}" style="background:#7cc576"></i></div>
       <span title="恋爱度">💗</span><div class="bar"><i data-rlv="${o.uid}" style="background:#ec6a8a"></i></div></div></div>`).join('')}</div>` : ''}
     <div class="hint" style="margin:4px 0 0">选中后点家具，可以让 TA 去用</div>
@@ -148,7 +149,7 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
   s.rel = keepRel; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
@@ -306,6 +307,23 @@ function renderWardrobe() {
     gen.append(b);
   }
   section('性别', gen);
+  const zs = el('div', 'chips');
+  for (const z of ZODIAC) {
+    const b = el('button', 'chip' + (d.zodiac === z.id ? ' on' : ''), `${z.icon} ${z.name}<small>${ELEMENTS[z.el].icon}${ELEMENTS[z.el].name}</small>`);
+    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); };
+    zs.append(b);
+  }
+  section('星座', zs);
+  const ms = el('div', 'chips');
+  MBTI_AXES.forEach(([a, b, na, nb], i) => {
+    for (const [letter, label] of [[a, na], [b, nb]]) {
+      const btn = el('button', 'chip' + (mb(d)[i] === letter ? ' on' : ''), `${letter} ${label}`);
+      btn.onclick = () => { const m = mb(d).split(''); m[i] = letter; d.mbti = m.join(''); SFX.play('pop'); renderWardrobe(); };
+      ms.append(btn);
+    }
+    if (i < 3) ms.append(el('span', 'mbti-sep', '·'));
+  });
+  section(`MBTI：${mb(d)} ${MBTI_NAMES[mb(d)]}`, ms);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
@@ -331,7 +349,7 @@ $('#btnAddDoll').onclick = () => {
   if (G.dolls.length >= LEVELS[G.level].cap) { HOOK.toast(`房子住满了，扩建后才能邀请更多人`, true); return; }
   const used = new Set(G.dolls.map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || '新朋友';
-  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
+  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(), mbti: randomMbti(), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
   G.sel = d.uid; say(d, '大家好，请多关照！'); spawnHeart(d); SFX.play('love');
   HOOK.select(); save(); HOOK.toast(`${name} 搬进来啦！`);
 };

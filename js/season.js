@@ -116,6 +116,7 @@ function seasonTick() {
 
 // 新的一天开始时（0 点）：季节变化、节日
 function seasonNewDay() {
+  birthdayCheck();
   const S = seasonOf(G.day), prevS = seasonOf(G.day - 1);
   if (S !== prevS) { addLog(`${S.icon} ${S.name}天来了`); HOOK.toast(`${S.icon} ${S.name}天来了`, true); }
   const H = holidayOf(G.day);

@@ -71,7 +71,7 @@ function exitHome(d) {
   if (d.overtime) back += 120 + Math.random() * 60;
   else if (Math.random() < 0.15) back -= 60 + Math.random() * 40;
   d.awayUntil = Math.round(back);
-  d.leaveJitter = Math.round(Math.random() * 40 - 15);  // 明天出门时间也稍微变一变
+  d.leaveJitter = leaveJitterFor(d);  // 明天出门时间也稍微变一变：J 型准时，P 型常常踩点
   SFX.play('open');
   HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${hhmm(d.awayUntil)} 回家`);
   if (G.sel === d.uid) HOOK.select();

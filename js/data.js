@@ -162,10 +162,10 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
   ],
   dolls: [
-    { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { pid: 'p-lan', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { pid: 'p-jing', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { pid: 'p-tuan', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
 };
 

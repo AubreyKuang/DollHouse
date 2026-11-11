@@ -118,6 +118,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .rel{margin:0 0 8px}
 .rel-top{display:flex;justify-content:space-between;font-size:13px}
 .rel-top small{color:var(--muted)}
+.rel-top .stars{color:#e8a33a;font-size:11px;letter-spacing:-1px}
+.mbti-sep{align-self:center;color:var(--muted)}
 .rel-bars{display:grid;grid-template-columns:auto 1fr auto 1fr;gap:4px;align-items:center;font-size:11px;margin-top:2px}
 .rel-bars .bar{height:8px}
 
