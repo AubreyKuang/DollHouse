@@ -2,6 +2,19 @@
 const SFX = (() => {
   let ctx = null, master = null, musicBus = null, sfxBus = null, noiseBuf = null;
   let on = false, musicTimer = null, nextNote = 0, step = 0;
+  let rainWanted = false, rainSrc = null, rainGain = null;
+
+  // 下雨时的沙沙声：一段循环的带通白噪声
+  function updateRain() {
+    if (on && rainWanted && !rainSrc) {
+      rainSrc = ctx.createBufferSource(); rainSrc.buffer = noiseBuf; rainSrc.loop = true;
+      const f = ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 1400; f.Q.value = 0.6;
+      rainGain = ctx.createGain(); rainGain.gain.value = 0.0001; rainGain.gain.exponentialRampToValueAtTime(0.06, ctx.currentTime + 1.5);
+      rainSrc.connect(f); f.connect(rainGain); rainGain.connect(master); rainSrc.start();
+    } else if ((!on || !rainWanted) && rainSrc) {
+      rainSrc.stop(); rainSrc = null;
+    }
+  }
 
   function init() {
     if (ctx) return;
@@ -77,6 +90,7 @@ const SFX = (() => {
 
   return {
     get on() { return on; },
+    setRain(v) { rainWanted = v; if (ctx) updateRain(); },
     play(name) {
       if (!on || !ctx || !SOUNDS[name]) return;
       SOUNDS[name](ctx.currentTime + 0.005);
@@ -90,6 +104,7 @@ const SFX = (() => {
         musicTimer = setInterval(schedule, 100);
         SOUNDS.open(ctx.currentTime);
       } else { clearInterval(musicTimer); musicTimer = null; }
+      updateRain();
       return on;
     },
   };

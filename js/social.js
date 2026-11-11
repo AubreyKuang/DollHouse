@@ -159,6 +159,7 @@ function witness(a, b, how = 'caught') {
     const L = loverOf(cheater);
     if (!L || L === third || L.state === 'away' || L.state === 'lift' || lying(L)) continue;
     if (Math.abs(L.tx - cheater.tx) + Math.abs(L.ty - cheater.ty) > 6) continue;
+    if (!canSee(L, cheater)) continue;              // 卧室门关着，外面的人看不见
     if (how === 'jealous') jealous(L, cheater, third); else caught(L, cheater, third);
     return;
   }

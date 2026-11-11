@@ -63,6 +63,7 @@ function render() {
     const y = d.state === 'act' && d.act && d.act.onFurn ? (d.act.furn.y + 1) * T + 0.5 : d.y;
     list.push({ y, draw: () => drawDollObj(c, d) });
   }
+  list.push(...partitionDrawables(c));
   list.sort((a, b) => a.y - b.y).forEach(o => o.draw());
 
   // 夜晚：整体压暗，台灯/电视/游戏机处“挖洞”透光
@@ -80,6 +81,8 @@ function render() {
       if (f.id === 'lamp') hole(f.x * T + 8, f.y * T - 10, 54);
       if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(f.x * T + 4 + i * 6, f.y * T + 9, 16, .55);
       if (f.id === 'aquarium') hole(f.x * T + 16, f.y * T - 6, 22, .5);
+      if (f.id === 'xmastree') hole(f.x * T + 8, f.y * T - 2, 30, .8);
+      if (f.id === 'lantern') hole(f.x * T + 8, f.y * T + 9, 22, .7);
       if ((f.id === 'pc' || f.id === 'speaker') && f.active) hole(f.x * T + 12, f.y * T - 10, 24, .7);
       if (f.id === 'tv' && f.active) hole(f.x * T + 16, f.y * T - 4, 34, .8);
       if (f.id === 'arcade') hole(f.x * T + 8, f.y * T - 8, 20, f.active ? .8 : .4);
@@ -206,6 +209,7 @@ cv.addEventListener('pointerdown', e => {
   cv.setPointerCapture(e.pointerId);
   if (G.mode === 'live') {
     const d = dollAt(p);
+    if (!d && hitBedDoor(p)) { toggleBedDoor(); return; }
     press = { p, d, moved: false, furn: d ? null : furnAt(p) };
     return;
   }

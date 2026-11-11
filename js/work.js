@@ -55,7 +55,7 @@ function startLeave(d) {
   if (!path) { d.state = 'idle'; d.think = 3; return; }
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
   d.act = { type: 'leave' };
-  say(d, pick(J.go));
+  say(d, G.weather === 'rain' ? pick(['下雨了，带上伞！', '雨好大……']) : G.weather === 'snow' ? pick(['外面好冷……', '围巾戴好！']) : pick(J.go));
 }
 
 function exitHome(d) {
@@ -84,6 +84,7 @@ function comeHome(d) {
   d.state = 'idle'; d.dir = 'down'; d.think = 2 + Math.random() * 2; d.away = false;
   if (door) door.openT = 0.8;
   say(d, d.overtime ? J.tired : pick(J.back));
+  if (G.weather === 'rain' && Math.random() < 0.4) { d.needs.fun = Math.max(0, d.needs.fun - 8); setTimeout(() => say(d, '淋湿了……阿嚏！'), 1600); }
   payday(d);
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
@@ -176,9 +177,16 @@ function nightlyBills() {
   const payers = G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
   for (const d of payers) d.money -= RENT;
   if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
+  const sb = seasonBill();
+  if (sb && payers.length) { for (const d of payers) d.money -= sb[1]; addLog(`${sb[0] === '暖气费' ? '🔥' : '🧊'} 每人还交了${sb[0]} ${yuan(sb[1])}`); }
   for (const d of G.dolls) if (d.job === 'artist' && Math.random() < (d.paintedDay >= G.day - 1 ? 0.7 : 0.25)) {
     const v = 200 + Math.round(Math.random() * 6) * 100;
     d.money += v; addLog(`🎨 ${d.name} 的画卖出去了，收入 ${yuan(v)}`);
+  }
+  // 欠债太多的人会出去找工作
+  for (const d of G.dolls) if ((d.job === 'none' || d.job === 'artist') && d.money < -500 && Math.random() < 0.3) {
+    d.job = pick(['barista', 'night', 'office']);
+    addLog(`💼 ${d.name} 欠了 ${yuan(-d.money)}，终于去找了份工作：${JOBS[d.job].name}`);
   }
   const broke = G.dolls.filter(d => d.money < 0);
   for (const d of broke) d.needs.fun = Math.max(0, d.needs.fun - 20);

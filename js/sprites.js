@@ -209,6 +209,7 @@ const DRAW = {
     R(c, x + 4, y + 6, 24, 20, G.sky || '#9fd3f0');
     if (G.night) { R(c, x + 21, y + 9, 4, 4, '#fff6c8'); R(c, x + 22, y + 9, 3, 1, G.sky); R(c, x + 8, y + 10, 1, 1, '#fff'); R(c, x + 13, y + 18, 1, 1, '#fff'); }
     else { R(c, x + 7, y + 11, 8, 2, '#ffffff'); R(c, x + 9, y + 10, 4, 1, '#ffffff'); R(c, x + 19, y + 17, 6, 2, '#ffffffcc'); }
+    if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 4, y + 6, 24, 20);
     R(c, x + 15, y + 5, 2, 22, '#ffffff'); R(c, x + 3, y + 15, 26, 2, '#ffffff');
     R(c, x, y + 1, 32, 3, WOOD_D);                            // 窗帘杆
     R(c, x + 1, y + 3, 5, 24, '#e26d7d'); R(c, x + 26, y + 3, 5, 24, '#e26d7d');

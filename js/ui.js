@@ -126,8 +126,11 @@ $('#btnWardrobe').onclick = () => openWardrobe(G.sel || (G.dolls[0] && G.dolls[0
 function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
-  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`;
-  $('#timeIcon').textContent = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
+  const S = seasonOf(G.day), Hd = holidayOf(G.day);
+  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
+  const sky = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
+  $('#timeIcon').textContent = G.weather && G.weather !== 'sunny' ? WEATHER[G.weather].icon : sky;
+  $('#timeIcon').title = WEATHER[G.weather || 'sunny'].name;
 }
 
 /* ---------- 布置面板 ---------- */
@@ -330,7 +333,7 @@ $('#btnAddDoll').onclick = () => {
 };
 
 /* ---------- 主循环 ---------- */
-load(); rebuild(); HOOK.select(); updateClock(); renderLog();
+load(); rebuild(); HOOK.select(); updateClock(); renderLog(); renderShopBar();
 let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;

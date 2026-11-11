@@ -35,7 +35,7 @@ function save() {
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay,
+      rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, weather: G.weather, wKey: G.wKey,
     }));
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
@@ -47,9 +47,11 @@ function load() {
 function applySave(s) {
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
-  G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0;
+  G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
+  G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  if (!s.roomsV) migrateRooms();      // 老存档：给隔墙和门口腾地方
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
   G.sel = null;
@@ -68,6 +70,8 @@ function canPlace(id, x, y, ignore) {
   if (x < 0 || x + d.w > COLS) return false;
   if (L === 'wall') { if (y < 0 || y + d.h > WALL_ROWS) return false; if (id === 'door' && y !== WALL_ROWS - 2) return false; }
   else if (y < WALL_ROWS || y + d.h > ROWS) return false;
+  if (straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
+  if (L === 'solid') for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if (isDoorTile(x + i, y + j)) return false;
   for (const f of G.furniture) {
     if (f === ignore || layerOf(f.id) !== L) continue;
     const e = FURNITURE[f.id];
@@ -129,7 +133,7 @@ function findPath(sx, sy, goals) {
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
     for (const [dx, dy] of dirs) {
       const nx = cx + dx, ny = cy + dy, nk = nx + ',' + ny;
-      if (!free(nx, ny) || prev.has(nk)) continue;
+      if (!free(nx, ny) || prev.has(nk) || wallBetween(cx, cy, nx, ny)) continue;
       prev.set(nk, k); q.push([nx, ny]);
     }
   }
@@ -196,6 +200,7 @@ function decide(d) {
     if (F.use === 'paint' && d.job === 'artist') s += 40;          // 画家要画画才卖得出画
     if (F.use === 'study' && d.job === 'student') s += 15;
     if (F.use === 'exercise' && N.energy < 30) s -= 40;
+    if (F.use === 'party') s += isHolidayParty() ? 50 : -10;           // 圣诞节大家围着圣诞树过节
     s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
@@ -213,6 +218,7 @@ function decide(d) {
   if (d.heart === 'fickle') {
     const crush = others.filter(o => o !== lover && rel(d, o).l >= 15).sort((a, b) => rel(d, b).l - rel(d, a).l)[0];
     if (crush) opts.push({ s: 18 + rel(d, crush).l * 0.5 + (lvBusy ? 30 : lover ? 0 : 10) + Math.random() * 20, type: 'chat', partner: crush });
+    if (crush && canTryst(d, crush)) opts.push({ s: 30 + rel(d, crush).l * 0.6 + (lvBusy ? 25 : 0) + Math.random() * 20, type: 'tryst', partner: crush });
   }
   for (const o of G.dolls) {
     if (o === d || !joinable(o)) continue;
@@ -238,6 +244,7 @@ function startAct(d, o) {
     return true;
   }
   if (o.type === 'join') return startJoin(d, o.target);
+  if (o.type === 'tryst') return startTryst(d, o.partner);
   if (o.type === 'chat') {
     // 优先站到对方左右两边，这样两个人不会上下叠在一起
     const p = o.partner, side = [[1, 0], [-1, 0]].map(([a, b]) => ({ x: p.tx + a, y: p.ty + b }));
@@ -263,6 +270,7 @@ function arrive(d) {
   const a = d.act;
   if (a && a.type === 'join') { arriveJoin(d); return; }
   if (a && a.type === 'leave') { exitHome(d); return; }
+  if (a && a.type === 'tryst') { arriveTryst(d); return; }
   if (!a || a.type === 'wander') { d.act = null; d.state = 'idle'; d.think = 0.5 + Math.random() * 2; return; }
   if (a.type === 'chat') {
     const p = a.partner;
@@ -420,14 +428,15 @@ function update(realDt) {
   G.t += realDt;
   if (dt > 0) {
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); SFX.play('newday'); }
+    if (G.time >= 1440) { G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); SFX.play('newday'); }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
+    seasonTick();
     for (const d of G.dolls) updateDoll(d, dt);
   }
   updateDoors(realDt);
-  if (dt > 0) socialTick(dt);
+  if (dt > 0) { socialTick(dt); trystTick(); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }

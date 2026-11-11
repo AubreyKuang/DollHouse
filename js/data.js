@@ -150,16 +150,16 @@ const FLOORS = [
 const DEFAULT_SAVE = {
   wall: 'cream', floor: 'oak', time: 8 * 60, day: 1,
   furniture: [
-    { id: 'window', x: 2, y: 0 }, { id: 'window', x: 11, y: 0 }, { id: 'clock', x: 7, y: 1 },
-    { id: 'painting', x: 5, y: 1 }, { id: 'poster', x: 14, y: 0 },
-    { id: 'bed', x: 0, y: 3 }, { id: 'lamp', x: 2, y: 3 }, { id: 'shelf', x: 4, y: 3 },
-    { id: 'fridge', x: 8, y: 3 }, { id: 'stove', x: 9, y: 3 }, { id: 'plant', x: 10, y: 3 },
+    // 卧室（0~6 列）
+    { id: 'window', x: 1, y: 0 }, { id: 'painting', x: 4, y: 1 },
+    { id: 'bigbed', x: 0, y: 3 }, { id: 'lamp', x: 3, y: 3 }, { id: 'bed', x: 4, y: 3 }, { id: 'plant', x: 6, y: 3 },
+    { id: 'rug2', x: 2, y: 7 }, { id: 'bath', x: 0, y: 10 },
+    // 客厅（7 列以后）
+    { id: 'door', x: 9, y: 1 }, { id: 'clock', x: 11, y: 1 }, { id: 'window', x: 12, y: 0 }, { id: 'poster', x: 15, y: 0 },
+    { id: 'shelf', x: 7, y: 3 }, { id: 'fridge', x: 10, y: 3 }, { id: 'stove', x: 11, y: 3 }, { id: 'plant', x: 12, y: 3 },
     { id: 'tv', x: 13, y: 3 }, { id: 'arcade', x: 15, y: 3 },
-    { id: 'rug', x: 11, y: 6 }, { id: 'sofa', x: 12, y: 9 },
-    { id: 'table', x: 7, y: 7 }, { id: 'chair', x: 6, y: 7 }, { id: 'chair', x: 9, y: 7 },
-    { id: 'piano', x: 0, y: 10 }, { id: 'bath', x: 3, y: 10 }, { id: 'catbed', x: 15, y: 10 },
-    { id: 'bigbed', x: 6, y: 10 }, { id: 'door', x: 6, y: 1 },
-    { id: 'rug2', x: 1, y: 6 },
+    { id: 'table', x: 9, y: 7 }, { id: 'chair', x: 8, y: 7 }, { id: 'chair', x: 11, y: 7 },
+    { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
   ],
   dolls: [
     { pid: 'p-tao', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'student', money: 320,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
