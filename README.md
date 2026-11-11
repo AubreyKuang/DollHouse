@@ -7,6 +7,10 @@
 小人们会在房子里自己生活：上班上学、吃饭睡觉、弹琴打游戏、交朋友、谈恋爱……偶尔还会闹出点狗血剧情。
 你负责布置房间、给他们换衣服，偶尔把谁拎起来换个地方。
 
+### [▶️ 在线试玩](https://aubreykuang.github.io/DollHouse/)
+
+<sub>打开就能玩，电脑和手机都可以</sub>
+
 <img src="docs/demo.gif" width="720" alt="小桃在弹琴，其他小人围过来听、跟着跳舞">
 
 <sub>☝️ 小桃弹起了钢琴，大家陆续围过来听，有人跟着跳起舞</sub>
@@ -243,7 +247,9 @@
 
 ## 🚀 怎么玩
 
-**直接玩**：下载 [`pixel-dollhouse.html`](pixel-dollhouse.html)，双击用浏览器打开就行。
+**在线玩**：打开 <https://aubreykuang.github.io/DollHouse/> 就行。
+
+**离线玩**：下载 [`pixel-dollhouse.html`](pixel-dollhouse.html)，双击用浏览器打开。
 
 ```bash
 git clone git@github.com:AubreyKuang/DollHouse.git
