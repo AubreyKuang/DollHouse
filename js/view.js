@@ -44,13 +44,16 @@ function render() {
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
     const F = FURNITURE[f.id];
-    const sleeper = f.users.find(u => u.state === 'act' && u.act && u.act.furn === f && (f.id === 'bed' || f.id === 'bath'));
-    f.occ = sleeper ? (hx, hy) => drawDoll(c, hx, hy + 1, sleeper.look, { pose: f.id === 'bed' ? 'head' : 'head', dir: 'down' }) : null;
+    const sleepers = f.users.filter(u => lying(u) && u.act.furn === f);
+    f.occ = sleepers.length ? (slot, hx, hy) => {
+      const s = sleepers.find(u => (u.act.seat || 0) === slot);
+      if (s) drawDoll(c, hx, hy + 1, s.look, { pose: 'head', dir: 'down' });
+    } : null;
     list.push({ y: (f.y + F.h) * T, draw: () => DRAW[f.id](c, f.x * T, f.y * T, f, t) });
   }
   for (const d of G.dolls) {
     if (d.state === 'lift') continue;
-    if (d.state === 'act' && d.act && d.act.onFurn && (d.act.furn.id === 'bed' || d.act.furn.id === 'bath')) continue;
+    if (lying(d)) continue;
     const y = d.state === 'act' && d.act && d.act.onFurn ? (d.act.furn.y + 1) * T + 0.5 : d.y;
     list.push({ y, draw: () => drawDollObj(c, d) });
   }
@@ -88,7 +91,7 @@ function render() {
   const sel = G.dolls.find(d => d.uid === G.sel);
   if (sel && sel.state !== 'lift' && G.mode === 'live') {
     let ax = sel.x, ay = sel.y - 30 + Math.round(Math.sin(t * 6));
-    if (sel.act && sel.act.onFurn && (sel.act.furn.id === 'bed' || sel.act.furn.id === 'bath')) { ax = sel.act.furn.x * T + 16; ay = sel.act.furn.y * T - 6; }
+    if (lying(sel)) { const h = headPos(sel); ax = h.x; ay = h.y - 6; }
     R(c, ax - 3, ay, 7, 1, INK); R(c, ax - 2, ay + 1, 5, 1, INK); R(c, ax - 1, ay + 2, 3, 1, INK); R(c, ax, ay + 3, 1, 1, INK);
     R(c, ax - 2, ay, 5, 1, '#ffd35c'); R(c, ax - 1, ay + 1, 3, 1, '#ffd35c');
   }
@@ -135,15 +138,18 @@ function updateOverlay() {
     if (!el) { el = { b: document.createElement('div'), n: document.createElement('div'), id: null }; el.b.className = 'bubble'; el.n.className = 'nametag'; overlay.append(el.b, el.n); domBubbles.set(d.uid, el); }
     alive.add(d.uid);
     let hx = d.x, hy = d.y - 24;
-    if (d.state === 'act' && d.act && d.act.onFurn && (d.act.furn.id === 'bed' || d.act.furn.id === 'bath')) { hx = d.act.furn.x * T + 16; hy = d.act.furn.y * T - 2; }
-    if (d.state === 'act' && d.act && d.act.onFurn && d.act.furn.id !== 'bed' && d.act.furn.id !== 'bath') hy = d.y - 22;
+    if (lying(d)) { const h = headPos(d); hx = h.x; hy = h.y - 2; }
+    else if (d.state === 'act' && d.act && d.act.onFurn) hy = d.y - 22;
     if (d.bubble) {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
     } else el.b.style.display = 'none';
     const showName = d.uid === G.sel || d.uid === hoverDoll;
     el.n.style.display = showName ? '' : 'none';
-    if (showName) { el.n.textContent = d.name; el.n.style.left = d.x * s + 'px'; el.n.style.top = (d.y + 2) * s + 'px'; }
+    if (showName) {
+      const np = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 17 } : d;
+      el.n.textContent = d.name; el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
+    }
   }
   for (const [uid, el] of domBubbles) if (!alive.has(uid)) { el.b.remove(); el.n.remove(); domBubbles.delete(uid); }
   for (const h of hearts) {
@@ -162,7 +168,7 @@ function dollAt(p) {
   let best = null;
   for (const d of G.dolls) {
     let x = d.x, y = d.y;
-    if (d.act && d.act.onFurn && d.state === 'act' && (d.act.furn.id === 'bed' || d.act.furn.id === 'bath')) { x = d.act.furn.x * T + 16; y = d.act.furn.y * T + 14; }
+    if (lying(d)) { const h = headPos(d); x = h.x; y = h.y + 14; }
     if (p.x >= x - 7 && p.x <= x + 7 && p.y >= y - 22 && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
   }
   return best && best.d;

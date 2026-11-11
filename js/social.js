@@ -121,6 +121,20 @@ function tickSocial(d, dt) {
   else if (a.kind !== 'chat' || rel(d, a.partner).l > 40) spawnHeart(who, rel(d, a.partner).lovers ? '💕' : '❤');
 }
 
+// 先躺上双人床的人会叫恋人一起来睡
+function inviteLover(d, f) {
+  const lv = loverOf(d);
+  if (!lv || f.users.length >= 2 || lv.state === 'lift' || lying(lv)) return;
+  if (!G.night && lv.needs.energy > 70) return;
+  if (lv.act && (lv.act.type === 'chat' || lv.act.onFurn)) return;
+  if (lv.act) endAct(lv);
+  lv.path = []; lv.state = 'idle';
+  if (startAct(lv, { type: 'sleep', furn: f })) {
+    setTimeout(() => say(d, `${lv.name}，一起睡吧～`), 900);
+    setTimeout(() => lv.act && say(lv, pick(['来啦 💕', '马上就来～', '好～'])), 2000);
+  }
+}
+
 /* ---------- 围观 / 一起玩 ---------- */
 function joinable(o) { return o.state === 'act' && o.act && JOIN[o.act.type] && o.act.t > 3; }
 

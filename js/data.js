@@ -8,6 +8,7 @@ const W = COLS * T, H = ROWS * T;
 // layer: floor=地毯(可走), wall=挂在墙上, 其它为普通家具
 const FURNITURE = {
   bed:      { name: '小床',   w: 2, h: 2, use: 'sleep', mode: 'on',    need: { energy: 26 } },
+  bigbed:   { name: '双人床', w: 3, h: 2, use: 'sleep', mode: 'on',    need: { energy: 26 } },
   sofa:     { name: '沙发',   w: 2, h: 1, use: 'sit',   mode: 'on',    need: { energy: 6, fun: 4 } },
   chair:    { name: '椅子',   w: 1, h: 1, use: 'sit',   mode: 'on',    need: { energy: 5 } },
   table:    { name: '餐桌',   w: 2, h: 1, use: null },
@@ -137,6 +138,7 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 11, y: 6 }, { id: 'sofa', x: 12, y: 9 },
     { id: 'table', x: 7, y: 7 }, { id: 'chair', x: 6, y: 7 }, { id: 'chair', x: 9, y: 7 },
     { id: 'piano', x: 0, y: 10 }, { id: 'bath', x: 3, y: 10 }, { id: 'catbed', x: 15, y: 10 },
+    { id: 'bigbed', x: 6, y: 10 },
     { id: 'rug2', x: 1, y: 6 },
   ],
   dolls: [

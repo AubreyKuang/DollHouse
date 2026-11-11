@@ -3,6 +3,15 @@ const SAVE_KEY = 'pixel-dollhouse-v1';
 const MIN_PER_SEC = 4;               // 现实 1 秒 = 游戏 4 分钟，一天约 6 分钟
 const HOOK = { refresh() {}, select() {}, toast() {} };
 
+// 躺下的家具：人藏起来，只在枕头上画个头
+const LIE = { bed: 1, bigbed: 1, bath: 1 };
+const lying = d => d.state === 'act' && d.act && d.act.onFurn && LIE[d.act.furn.id];
+function headPos(d) {
+  const f = d.act.furn;
+  if (f.id === 'bigbed') return { x: f.x * T + 13 + (d.act.seat || 0) * 22, y: f.y * T };
+  return { x: f.x * T + 16, y: f.y * T };
+}
+
 const G = {
   wall: 'cream', floor: 'oak', time: 480, day: 1, speed: 1, mode: 'live',
   furniture: [], dolls: [], sel: null, sky: '#9fd3f0', night: false, dark: 0,
@@ -159,10 +168,14 @@ function decide(d) {
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
     if (!F.use) continue;
-    const cap = f.id === 'sofa' ? 2 : 1;
+    const cap = f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1;
     if (f.users.length >= cap) continue;
+    const lover = loverOf(d);
+    // 双人床只和恋人一起睡
+    if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + Math.random() * 25;
     if (F.use === 'sleep') s += G.night ? 70 : (N.energy > 45 ? -60 : 0);
+    if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
     else if (G.night && N.energy < 60) s -= 20;
     s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
     opts.push({ s, type: F.use, furn: f });
@@ -239,7 +252,10 @@ function arrive(d) {
   f.active = true;
   if (F.mode === 'on') {
     a.onFurn = true;
-    if (f.id === 'sofa') { const left = !f.users.some(u => u !== d && u.act && u.act.seat === 0); a.seat = left ? 0 : 1; d.x = f.x * T + 8 + a.seat * 16; d.y = f.y * T + 13; }
+    if (f.id === 'sofa' || f.id === 'bigbed') {
+      const left = !f.users.some(u => u !== d && u.act && u.act.seat === 0); a.seat = left ? 0 : 1;
+      if (f.id === 'sofa') { d.x = f.x * T + 8 + a.seat * 16; d.y = f.y * T + 13; }
+    }
     else if (f.id === 'chair') { d.x = f.x * T + 8; d.y = f.y * T + 10; }
     d.dir = 'down';
   } else {
@@ -247,7 +263,9 @@ function arrive(d) {
     const cx = (f.x + F.w / 2) * T, cy = (f.y + F.h / 2) * T;
     face(d, cx, cy);
   }
-  say(d, pick(ACT_LINES[a.type] || ['…']));
+  const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
+  say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
+  if (f.id === 'bigbed' && !mate) inviteLover(d, f);
   const snd = { snack: 'eat', cook: 'cook', piano: 'piano', game: 'game', bath: 'splash', cat: 'meow', water: 'splash' }[a.type];
   if (snd) SFX.play(snd);
 }
@@ -293,6 +311,10 @@ function updateDoll(d, dt) {
     if (a.type === 'join') { tickJoin(d, dt); if (!d.act) return; }
     if (a.type !== 'chat' && a.type !== 'join' && a.type !== 'sleep' && Math.random() < dt * 0.12) say(d, pick(ACT_LINES[a.type] || ['♪']));
     if (a.type === 'sleep' && Math.random() < dt * 0.15) { d.bubble = { text: 'Zzz…', t: 2, id: Math.random() }; SFX.play('snore'); }
+    if (a.type === 'sleep' && a.furn.id === 'bigbed') {
+      const mate = a.furn.users.find(u => u !== d && lying(u));
+      if (mate && rel(d, mate).lovers) { const r = rel(d, mate); r.l = Math.min(100, r.l + 0.3 * dt); if (Math.random() < dt * 0.08) spawnHeart(d, '💕'); }
+    }
     if (a.type === 'piano' && Math.random() < dt * 3) SFX.play('piano');
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
@@ -312,7 +334,10 @@ function updateDoll(d, dt) {
 }
 
 const hearts = [];
-function spawnHeart(d, txt = '❤') { hearts.push({ x: d.x + (Math.random() * 8 - 4), y: d.y - 24, t: 1, txt, id: Math.random() }); }
+function spawnHeart(d, txt = '❤') {
+  const p = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 14 } : d;
+  hearts.push({ x: p.x + (Math.random() * 8 - 4), y: p.y - 24, t: 1, txt, id: Math.random() });
+}
 
 function petDoll(d) {
   if (d.state === 'lift') return;

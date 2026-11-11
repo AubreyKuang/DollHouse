@@ -52,12 +52,25 @@ const DRAW = {
     R(c, x + 3, y - 6, 26, 2, WOOD_L);
     box(c, x + 1, y + 2, 30, 28, '#fff6ea');         // 床垫
     box(c, x + 6, y + 4, 20, 8, '#ffffff', '#cbbfae'); // 枕头
-    if (f && f.occ) f.occ(x + 16, y + 11);
+    if (f && f.occ) f.occ(0, x + 16, y + 11);
     const bl = f && f.color || '#e26d7d';
     box(c, x + 1, y + 13, 30, 17, bl);              // 被子
     R(c, x + 2, y + 14, 28, 2, shade(bl, 0.15));
     for (let i = 0; i < 4; i++) R(c, x + 5 + i * 7, y + 20, 3, 3, shade(bl, -0.12));
     R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 29, y + 29, 3, 3, WOOD_D);
+  },
+  bigbed(c, x, y, f) {
+    box(c, x, y - 9, 48, 13, WOOD);                 // 床头板，中间一颗小爱心
+    R(c, x + 3, y - 7, 42, 2, WOOD_L);
+    R(c, x + 22, y - 5, 2, 2, '#e26d7d'); R(c, x + 25, y - 5, 2, 2, '#e26d7d'); R(c, x + 22, y - 4, 5, 2, '#e26d7d'); R(c, x + 23, y - 2, 3, 1, '#e26d7d'); R(c, x + 24, y - 1, 1, 1, '#e26d7d');
+    box(c, x + 1, y + 2, 46, 28, '#fff6ea');
+    box(c, x + 4, y + 4, 18, 8, '#ffffff', '#cbbfae'); box(c, x + 26, y + 4, 18, 8, '#ffffff', '#cbbfae');
+    if (f && f.occ) { f.occ(0, x + 13, y + 11); f.occ(1, x + 35, y + 11); }
+    const bl = '#8a7fe0';
+    box(c, x + 1, y + 13, 46, 17, bl);
+    R(c, x + 2, y + 14, 44, 2, shade(bl, 0.15));
+    for (let i = 0; i < 5; i++) { const hx = x + 6 + i * 8, hy = y + 20 + (i % 2) * 3; R(c, hx, hy, 1, 1, '#f6b0c8'); R(c, hx + 2, hy, 1, 1, '#f6b0c8'); R(c, hx, hy + 1, 3, 1, '#f6b0c8'); R(c, hx + 1, hy + 2, 1, 1, '#f6b0c8'); }
+    R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 45, y + 29, 3, 3, WOOD_D);
   },
   sofa(c, x, y) {
     const col = '#5bb8b0', l = shade(col, 0.12), d = shade(col, -0.18);
@@ -137,7 +150,7 @@ const DRAW = {
   bath(c, x, y, f) {
     box(c, x, y - 4, 32, 18, '#ffffff', '#7a8a96'); R(c, x + 2, y - 2, 28, 6, '#9fd8f0');
     R(c, x + 28, y - 9, 2, 6, '#a9b6c0'); R(c, x + 25, y - 9, 4, 2, '#a9b6c0');
-    if (f && f.occ) f.occ(x + 14, y + 2);
+    if (f && f.occ) f.occ(0, x + 14, y + 2);
     R(c, x + 1, y + 3, 30, 10, '#ffffff'); R(c, x + 1, y + 3, 30, 1, '#dbe6ec');
     if (f && f.active) for (let i = 0; i < 5; i++) { R(c, x + 4 + i * 5, y + 1 - (i % 2), 4, 3, '#ffffff'); R(c, x + 5 + i * 5, y + 1 - (i % 2), 2, 1, '#cfeaf7'); }
     R(c, x + 2, y + 13, 3, 3, '#a9b6c0'); R(c, x + 27, y + 13, 3, 3, '#a9b6c0');
@@ -214,7 +227,7 @@ const DRAW = {
 };
 
 // 家具在 y 方向的视觉顶部（用于选中高亮、图标裁切）
-const TALL = { bed: 8, sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
+const TALL = { bed: 8, bigbed: 9, sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
 function furnitureIcon(id, size = 56) {
