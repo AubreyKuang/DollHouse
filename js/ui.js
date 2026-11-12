@@ -11,7 +11,12 @@ HOOK.toast = (msg, quiet) => {
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
-  if (d.act?.type === 'visitStay') return GET_TOGETHERS[G.community.active?.kind]?.name || '和朋友相聚';
+  if (d.act?.type === 'visitStay') {
+    if (d.act.theme === 'quiet') return '在二楼书房聊天';
+    if (d.act.theme === 'umbrella') return '撑着伞野餐';
+    return GET_TOGETHERS[G.community.active?.kind]?.name || '和朋友相聚';
+  }
+  if (d.act?.type === 'neighborLeave') return '准备去麦麦家';
   if (d.state === 'lift') return '被你拎在手里';
   if (d.state === 'wait') return '在等人过来';
   if (d.state === 'away') return awayText(d);
@@ -384,13 +389,78 @@ function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'
 function updateCommunityStatus() {
   const event = G.community.active;
   const status = $('#communityStatus');
-  status.hidden = !event;
-  if (!event) return;
+  const pending = G.community.deferredPicnic;
+  const outing = G.community.outing;
+  status.hidden = !event && !pending && !outing;
+  $('#picnicNotice').hidden = !event?.rainDeadline;
+  if ($('#neighborDialog').open) updateNeighborDialog();
+  if (!event) {
+    status.textContent = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}` : pending ? '🧺 野餐已改期，等天晴再开场' : '';
+    return;
+  }
   const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
-  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${style.name} · ${host?.name || '住户'}邀请了${guest?.name || '朋友'} · ${event.joined.length} 人参与`;
+  const plan = event.rainMode && PICNIC_PLANS[event.rainMode];
+  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${event.exchange ? '邻居来访' : style.name} · ${host?.name || '住户'}和${guest?.name || '朋友'} · ${event.joined.length} 人参与${plan ? ' · ' + plan : ''}`;
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
+
+for (const [plan, label] of Object.entries(PICNIC_PLANS)) {
+  const button = el('button', 'btn small', label);
+  button.type = 'button';
+  button.onclick = () => {
+    if (!choosePicnicPlan(plan)) HOOK.toast('现在客厅没有足够的可达空位，可以换一个安排。', true);
+  };
+  $('#picnicPlans').append(button);
+}
+
+function updateNeighborDialog() {
+  const select = $('#neighborVisitor');
+  const d = communityDoll(select.value), tie = d && neighborTie(d);
+  const outing = G.community.outing;
+  const visitor = outing?.phase === 'visiting' && communityDoll(outing.pid);
+  const neighbor = communityDoll(NEIGHBOR_PID) || neighborProfile();
+  const text = visitor ? `${visitor.name}正在门廊陪麦麦吃点心。` : neighborSchedule();
+  $('#neighborStatus').textContent = text;
+  const porch = $('#neighborPorch');
+  const key = JSON.stringify([text, neighbor.look, visitor && visitor.look]);
+  if (porch.dataset.scene !== key) {
+    porch.dataset.scene = key;
+    const cast = [neighbor, visitor].filter(Boolean);
+    porch.replaceChildren(...cast.map(person => {
+      const figure = el('figure');
+      const portrait = el('canvas');
+      portrait.width = 20; portrait.height = 24;
+      dollPortrait(portrait, person.look, 'down', 0, visitor ? 'sit' : 'stand');
+      const caption = el('figcaption'); caption.textContent = person.name;
+      figure.append(portrait, caption);
+      return figure;
+    }));
+  }
+  $('#neighborTie').textContent = tie
+    ? `来往了 ${tie.months} 个月 · 一起吃过 ${tie.meals} 次饭${tie.invited && G.day < tie.inviteMonth ? ' · 下个月可以赴约' : ''}`
+    : '麦麦下午回家，有时会来送面包或借工具。';
+  $('#neighborGo').disabled = !canVisitNeighbor(d);
+}
+
+$('#btnNeighbor').onclick = () => {
+  const select = $('#neighborVisitor');
+  select.replaceChildren(...residents().map(d => {
+    const option = el('option'); option.value = d.pid; option.textContent = d.name; return option;
+  }));
+  const selected = residents().find(d => d.uid === G.sel);
+  if (selected) select.value = selected.pid;
+  else {
+    const acquainted = residents().find(d => neighborTie(d)?.invited);
+    if (acquainted) select.value = acquainted.pid;
+  }
+  updateNeighborDialog();
+  $('#neighborDialog').showModal();
+};
+$('#neighborVisitor').onchange = updateNeighborDialog;
+$('#neighborGo').onclick = () => {
+  if (!startNeighborOuting(communityDoll($('#neighborVisitor').value))) HOOK.toast('现在走不到门口，稍后再去吧。', true);
+};
 
 $('#btnCommunity').onclick = () => {
   const hosts = availableHosts();
@@ -402,7 +472,7 @@ $('#btnCommunity').onclick = () => {
   }
   if (hosts.some(d => d.uid === G.sel)) select.value = hosts.find(d => d.uid === G.sel).pid;
   const event = G.community.active;
-  const ready = !event && absNow() >= G.community.nextEventAt && hosts.length > 0;
+  const ready = !event && !G.community.outing && absNow() >= G.community.nextEventAt && hosts.length > 0;
   $('#communityHelp').textContent = event ? `正在进行${GET_TOGETHERS[event.kind].name}，结束后可以再邀请朋友。`
     : !hosts.length ? '现在没有在家且醒着的住户。'
     : !ready ? '刚送走朋友，让小屋休息一会儿吧。'
@@ -471,7 +541,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   update(dt); render();
   uiT += dt;
-  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); }
+  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }
   requestAnimationFrame(loop);
 }

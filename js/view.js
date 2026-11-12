@@ -42,9 +42,14 @@ function drawDollObj(c, d) {
     } else if (d.act.theme === 'games') {
       box(c, px, py, 5, 5, '#f8e6c7', '#8e6d82');
       R(c, px + 2, py + 2, 1, 1, '#a67696');
-    } else if (d.act.theme === 'tea') {
+    } else if (d.act.theme === 'tea' || d.act.theme === 'picnic') {
       box(c, px, py, 6, 5, '#ffefdc', '#a0747e');
       R(c, px + 6, py + 1, 2, 2, '#f6c8b5');
+    } else if (d.act.theme === 'umbrella') {
+      R(c, x + 6, y - 28, 1, 13, '#76564f');
+      R(c, x - 7, y - 30, 24, 4, '#e4879d');
+      R(c, x - 3, y - 33, 16, 4, '#f6b2bf');
+      R(c, x + 2, y - 35, 6, 3, '#fbd2d5');
     }
   }
   const motion = ROUTINES[d.act?.type]?.motion;
