@@ -138,21 +138,8 @@ function heardRumor(listener, subjectPid, emotion) {
 const DISCOVERY_VERBS = { study: '使用书桌', read: '看书', groom: '照镜子', piano: '弹钢琴', game: '打游戏', cook: '下厨', paint: '画画',
   exercise: '健身', pc: '用电脑', meal: '坐到大餐桌前吃饭', chess: '下棋', tv: '看电视', water: '浇花', cat: '撸猫' };
 function trustSnapshot() { return { ...(G.trust || {}) }; }
-function housePaperExtras(lines) {
-  const extra = [];
-  const monthLog = G.log.filter(e => e.d === G.day);
-  // 头条：先看本月最戏剧化的一件事
-  const dramatic = [/撞见/, /变心/, /分手/, /在一起/, /闹翻/, /表白/, /搭子/, /派对/, /一起吃饭/];
-  let headline = null;
-  for (const pattern of dramatic) {
-    const hit = monthLog.findLast(e => pattern.test(e.text));
-    if (hit) { headline = hit.text.replace(/^\S+\s/, ''); break; }
-  }
-  const topSocial = Object.entries(G.daily.social || {}).sort((a, b) => b[1] - a[1])[0];
-  if (!headline && topSocial) headline = `${topSocial[0].replace(' × ', ' 和 ')} 本月聊了 ${topSocial[1]} 次`;
-  if (!headline && G.daily.crowdMax) headline = `${G.daily.crowdMax.name} 的琴声把大家都吸引过来了`;
-  if (headline) extra.push(['头条', headline, 'top']);
-  // 新发现：上个月几乎不碰、这个月频繁使用的家具
+function housePaperExtras() {
+  const stories = [];
   let found = null;
   for (const [kind, verb] of Object.entries(DISCOVERY_VERBS)) {
     for (const [name, count] of Object.entries(G.daily[kind] || {})) {
@@ -160,25 +147,11 @@ function housePaperExtras(lines) {
       if (count >= 3 && before <= 1 && (!found || count > found.count)) found = { name, verb, count };
     }
   }
-  if (found) extra.push(['新发现', `${found.name} 开始频繁${found.verb}（本月 ${found.count} 次）。`]);
-  if (G.daily.crowdMax?.count >= 2) extra.push(['小屋趣闻', `${G.daily.crowdMax.name} 弹钢琴时，${G.daily.crowdMax.count} 位住户围了过来。`]);
-  if (G.daily.groupMeal) extra.push(['集体用餐', `大餐桌旁本月凑齐了 ${G.daily.groupMeal} 次三人以上的饭局。`]);
-  // 信任变化：单向的，选变化最大的一条
-  let change = null;
-  const before = G.dayTrust || {};
-  for (const [k, v] of Object.entries(G.trust || {})) {
-    const delta = v - (before[k] || 0);
-    if (Math.abs(delta) >= 8 && (!change || Math.abs(delta) > Math.abs(change.delta))) change = { k, delta };
-  }
-  if (change) {
-    const [from, to] = change.k.split('>').map(pid => G.dolls.find(o => o.pid === pid)?.name);
-    if (from && to) extra.push(['关系变化', `${from} 对 ${to} 的信任${change.delta > 0 ? '上升' : '下降'}了。`]);
-  }
-  if (G.daily.rumor) extra.push(['传闻', `本月屋里传了 ${G.daily.rumor} 条闲话${G.daily.rumorWrong ? `，其中 ${G.daily.rumorWrong} 条传岔了` : ''}。`]);
+  if (found) stories.push({ label: '新爱好', icon: '✨', score: 40, text: `${found.name} 本月迷上了${found.verb}。` });
+  const crowd = G.daily.crowdMax;
+  if (crowd?.count >= 2) stories.push({ label: '一起玩', icon: '🎵', score: 57, text: `${crowd.name} 一弹琴，就有 ${crowd.count} 位住户围了过来。` });
+  if (G.daily.groupMeal) stories.push({ label: '一起玩', icon: '🍽', score: 45, text: '至少三位住户围在一起吃了顿饭。' });
   G.dayTrust = trustSnapshot();
   G.lastDaily = JSON.parse(JSON.stringify(G.daily));
-  const top = extra.filter(([, , pos]) => pos === 'top').map(([label, text]) => `${label}　${text}`);
-  const rest = extra.filter(([, , pos]) => pos !== 'top').map(([label, text]) => `${label}　${text}`);
-  lines.splice(1, 0, ...top);
-  lines.push(...rest);
+  return stories;
 }
