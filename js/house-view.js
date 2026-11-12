@@ -1,7 +1,7 @@
 // Two cutaway storeys over the existing simulation grid. The front edges
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
-const HOUSE_HEIGHT = 266;
+const HOUSE_HEIGHT = 310;
 const HOUSE_MARGIN = 60;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
@@ -11,10 +11,11 @@ const STOREYS = [
   { wall: 74, back: 134, front: 158, row: FLOOR_SPLIT, wallRow: UPPER_WALL,
     rooms: ['#666780', '#d9c5cc'], floors: ['#655c70', '#a7b9aa'] },
 ];
-const storeyOf = row => STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
+const YARD = { wall: 258, back: 258, front: 300, row: ROWS, step: 7 };
+const storeyOf = row => row >= ROWS ? YARD : STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
 
 function houseY(y, storey) {
-  return storey.back + (y - storey.row * T) * FLOOR_STEP / T;
+  return storey.back + (y - storey.row * T) * (storey.step || FLOOR_STEP) / T;
 }
 
 function stairPoint(progress) {
@@ -33,9 +34,15 @@ function houseDollPoint(d) {
   if (takingStairs(d)) {
     return stairPoint((UPPER_LANDING * T + 14 - d.y) / ((UPPER_LANDING - LOWER_LANDING) * T));
   }
+  if (takingYardPath(d)) {
+    const inside = FLOOR_SPLIT - 1, outside = ROWS;
+    const progress = (d.y - (inside * T + 14)) / ((outside - inside) * T);
+    return { x: HOUSE_X + d.x, y: mixNum(houseY(inside * T + 14, STOREYS[0]), houseY(outside * T + 14, YARD), progress) };
+  }
   if (d.act?.onFurn) {
     const f = d.act.furn;
-    return { x: HOUSE_X + d.x, y: houseFurnitureRect(f).y + d.y - f.y * T };
+    const offset = f.id === 'gardenSwing' ? swingOffset(G.t) : 0;
+    return { x: HOUSE_X + d.x, y: houseFurnitureRect(f).y + d.y - f.y * T + offset };
   }
   return { x: HOUSE_X + d.x, y: houseY(d.y, storeyOf(d.ty)) };
 }
@@ -51,7 +58,7 @@ function houseFurnitureRect(f) {
 }
 
 function houseTile(p, id) {
-  const storey = p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
+  const storey = p.y >= YARD.back ? YARD : p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
   const F = id && FURNITURE[id];
   const wall = F && layerOf(id) === 'wall';
   const x = F ? Math.round((p.x - HOUSE_X) / T - F.w / 2) : Math.floor((p.x - HOUSE_X) / T);
@@ -62,8 +69,8 @@ function houseTile(p, id) {
     return { x, y: storey.wallRow + Math.max(0, Math.min(WALL_ROWS - F.h, row)) };
   }
   if (p.y < storey.back) return null;
-  const y = storey.row + (p.y - storey.back) / FLOOR_STEP;
-  const end = storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
+  const y = storey.row + (p.y - storey.back) / (storey.step || FLOOR_STEP);
+  const end = storey === YARD ? YARD_END : storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
   return { x, y: F ? Math.max(storey.row, Math.min(end - F.h, Math.round(y - F.h / 2))) : Math.floor(y) };
 }
 
@@ -83,17 +90,37 @@ function housePoly(c, color, ...points) {
 function drawHouseGarden(c, left, right) {
   const width = W + HOUSE_MARGIN;
   R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
-  R(c, 0, 231, width, HOUSE_HEIGHT - 231, '#a6b597');
-  R(c, 0, 259, width, 7, '#bdc7a6');
-  R(c, left - 5, 258, right - left + 44, 4, '#83947e');
+  const season = seasonOf(G.day).id;
+  const grass = season === 'autumn' ? '#b9b47c' : G.weather === 'snow' ? '#cbdacc' : '#a5bf8d';
+  R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
+  for (const [x, y, size] of [[1, 202, 25], [right + 26, 207, 28]]) {
+    R(c, x + 9, y + 6, 4, size + 12, '#846d55');
+    R(c, x, y - 10, size - 5, 22, '#739678');
+    R(c, x + 3, y - 17, size - 9, 23, season === 'autumn' ? '#d5a367' : '#94b58a');
+    R(c, x + 7, y - 14, size - 16, 7, '#b0c699');
+  }
+  R(c, left - 5, YARD.back, W + 10, YARD.front - YARD.back, shade(grass, .075));
+  R(c, 0, 301, width, 9, '#c6bca0');
+  R(c, 0, 301, width, 1, '#e0d3b5');
+  for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
+  const gate = left + 10 * T;
+  housePoly(c, '#d2c2a2', [gate + 2, 253], [gate + 14, 253], [gate + 25, 301], [gate - 9, 301]);
+  for (let y = 261; y < 300; y += 7) R(c, gate - 4, y, 24, 1, '#e7dcc3');
+  for (const x of [left - 7, right + 5]) {
+    R(c, x, 254, 3, 44, '#b69b7b');
+    R(c, x + 1, 254, 1, 44, '#e8d2af');
+    for (let y = 256; y < 300; y += 7) R(c, x - 1, y, 5, 3, '#d5bc99');
+  }
   for (const [x, y] of [[4, 38], [right + 12, 62], [right - 28, 14]]) {
     R(c, x, y + 6, 22, 4, '#f4f6ebbb');
     R(c, x + 4, y + 2, 14, 6, '#f4f6ebbb');
     R(c, x + 8, y, 6, 3, '#f4f6ebbb');
   }
-  for (let i = 0; i < 34; i++) {
-    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 5;
-    R(c, x, y, 2, 1, i % 5 === 0 ? '#e9d1a5' : '#97a885');
+  for (let i = 0; i < 65; i++) {
+    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 37;
+    if (Math.abs(x - gate - 8) < 18) continue;
+    R(c, x, y, 2, 1, i % 4 === 0 ? '#fff0cf' : shade(grass, -.14));
+    if (i % 4 === 0) R(c, x, y + 1, 1, 2, shade(grass, -.18));
   }
 }
 

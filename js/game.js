@@ -33,7 +33,7 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
     return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+      floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -52,7 +52,7 @@ function defaultHouseSave() {
   if (TEST_MODE) {
     for (const [id, x, y] of [
       ['vanity', 17, 4], ['teaTray', 20, 6], ['herbStand', 23, 5],
-      ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15],
+      ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15], ['puzzleDesk', 19, 9],
     ]) initial.furniture.push({ id, x, y });
   }
   return initial;
@@ -68,6 +68,9 @@ function applySave(s) {
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  if (!s.yardV) for (const [id, x, y] of YARD_DEFAULT) {
+    if (canPlace(id, x, y)) addFurniture(id, x, y);
+  }
   if(!s.floorsV)for(const [id,x,y] of [['desk',2,13],['shelf',5,13],['mirror',10,13],['bed',2,17],['chair',5,16]]){
     if(canPlace(id,x,y))addFurniture(id,x,y);
   }
@@ -93,6 +96,7 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
   if (x < 0 || x + d.w > COLS) return false;
+  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : y >= ROWS) return false;
   if (L === 'solid' && blocksStairs({ id, x, y })) return false;
   if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
   if (L === 'wall') {
@@ -100,7 +104,7 @@ function canPlace(id, x, y, ignore) {
     if (y < start || y + d.h > start + WALL_ROWS) return false;
     if (id === 'door' && y !== WALL_ROWS - 2) return false;
   }
-  else if (y < WALL_ROWS || y + d.h > ROWS) return false;
+  else if (y < WALL_ROWS || (!d.outdoor && y + d.h > ROWS)) return false;
   if (straddles(x, y, d.w)) return false;
   if (L === 'solid' && blocksDoor({ x, y }, d)) return false;
   for (const f of G.furniture) {
@@ -114,7 +118,7 @@ function canPlace(id, x, y, ignore) {
 // 能走的格子：地板区域里没有实心家具
 function blockedMap() {
   const m = [];
-  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < ROWS; y++) m[x][y] = y < WALL_ROWS; }
+  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < YARD_END; y++) m[x][y] = y < WALL_ROWS; }
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
     const d = FURNITURE[f.id];
@@ -133,11 +137,11 @@ function rebuild() {
     d.path = [];
   }
 }
-const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !BLOCK[x][y];
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < YARD_END && !BLOCK[x][y];
 
 function nearestFree(x, y, floor) {
-  const first = floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
-  const end = floor === 1 ? FLOOR_SPLIT : ROWS;
+  const first = floor === 3 ? ROWS : floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
+  const end = floor === 1 ? FLOOR_SPLIT : floor === 2 ? ROWS : YARD_END;
   x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(first, Math.min(end - 1, y));
   const seen = new Set([x + ',' + y]), q = [[x, y]];
   while (q.length) {
@@ -169,6 +173,8 @@ function findPath(sx, sy, goals) {
       .filter(([nx, ny]) => !wallBetween(cx, cy, nx, ny));
     if (cx === stairsColumn() && cy === LOWER_LANDING) neighbors.push([cx, UPPER_LANDING]);
     if (cx === stairsColumn() && cy === UPPER_LANDING) neighbors.push([cx, LOWER_LANDING]);
+    if (yardGate(cx) && cy === FLOOR_SPLIT - 1) neighbors.push([cx, ROWS]);
+    if (yardGate(cx) && cy === ROWS) neighbors.push([cx, FLOOR_SPLIT - 1]);
     for (const [nx, ny] of neighbors) {
       const nk = nx + ',' + ny;
       if (!free(nx, ny) || prev.has(nk)) continue;
@@ -181,7 +187,7 @@ function findPath(sx, sy, goals) {
 // 使用家具时站的位置：优先家具正下方，其次左右两侧
 function approachTiles(f) {
   const d = FURNITURE[f.id], out = [];
-  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : ROWS;
+  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : f.y < ROWS ? ROWS : YARD_END;
   const front = f.y + d.h < end;
   if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
   if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
@@ -226,11 +232,12 @@ function say(d, text, dur = 2.6) { if (text) { d.bubble = { text, t: dur, id: Ma
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function takingStairs(d) {
-  return d.state === 'walk' && d.path.length > 0 && Math.abs(d.path[0].y - d.ty) > 1;
+  return d.state === 'walk' && d.path.length > 0 && d.ty < ROWS && d.path[0].y < ROWS && Math.abs(d.path[0].y - d.ty) > 1;
 }
+const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && (d.ty >= ROWS) !== (d.path[0].y >= ROWS);
 
 function endAct(d) {
-  if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
+  if (takingStairs(d) || takingYardPath(d)) placeDollAt(d, d.tx, d.ty);
   const a = d.act;
   if (G.community.active && ['visitGather', 'visitStay'].includes(a?.type)) delete G.community.active.reserved[d.pid];
   if (a && a.furn) {
@@ -256,6 +263,10 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (F.outdoor) {
+      if (G.weather === 'rain' || G.night) continue;
+      s += F.use === 'swing' && ['active', 'genki'].includes(d.persona) ? 24 : 13;
+    }
     if (F.use === 'toilet') {
       if (N.bladder >= 48) continue;
       s += N.bladder < 20 ? 75 : 20;
@@ -273,7 +284,8 @@ function decide(d) {
       s+=evening?18+f.users.length*12:0;
     }
     if(F.use==='groom'&&['romantic','social','genki'].includes(d.persona))s+=18;
-    s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
+    const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
+    s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
@@ -332,7 +344,8 @@ function startAct(d, o) {
   const f = o.furn, F = FURNITURE[f.id];
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
-  const tiles = approachTiles(f).filter(tile=>!['meal', 'chess'].includes(F.use)||!f.users.some(user=>{
+  const distinct = F.cap > 1;
+  const tiles = approachTiles(f).filter(tile=>!distinct || !f.users.some(user=>{
     const destination=user.path.at(-1)||user;
     return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
   }));
@@ -379,6 +392,11 @@ function arrive(d) {
       if (f.id === 'sofa') { d.x = f.x * T + 8 + a.seat * 16; d.y = f.y * T + 13; }
     }
     else if (f.id === 'chair' || f.id === 'beanbag') { d.x = f.x * T + 8; d.y = f.y * T + (f.id === 'chair' ? 10 : 12); }
+    else if (F.outdoor) {
+      a.seat = f.users.some(o => o !== d && o.act?.seat === 0) ? 1 : 0;
+      d.x = f.x * T + (f.id === 'gardenSwing' ? 14 : 8) + a.seat * 16;
+      d.y = f.y * T + 10;
+    }
     d.dir = 'down';
     if (f.id === 'treadmill') { d.x = f.x * T + 18; d.y = f.y * T + 11; d.dir = 'left'; }
   } else {
@@ -388,6 +406,13 @@ function arrive(d) {
   }
   d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
+  if ((F.outdoor || a.type === 'puzzle') && F.cap > 1) {
+    const companion = f.users.find(o => o !== d && o.state === 'act');
+    if (companion) {
+      bump(d, companion, 3);
+      addLog(`🌿 ${d.name} 和 ${companion.name} 一起${ACT_NAMES[a.type]}`);
+    }
+  }
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
@@ -434,7 +459,7 @@ function updateDoll(d, dt) {
     if (!free(n.x, n.y)) { endAct(d); d.path = []; return; }
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
     const onStairs = takingStairs(d);
-    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (onStairs ? 2 : 1);
+    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
     if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
     if (dist <= sp) { d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift(); if (!d.path.length) arrive(d); }
