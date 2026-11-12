@@ -70,10 +70,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .btn.ghost{background:transparent}
 .btn.danger,.btn.on{background:var(--accent);color:var(--accent-ink)}
 
-.layout{flex:1;display:flex;gap:16px;padding:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
-#stageWrap{flex:1 1 560px;max-width:680px;min-width:0}
+.layout{flex:1;position:relative;width:100%;padding:12px}
+#stageWrap{width:100%;min-width:0}
 #stage{
-  position:relative;width:100%;aspect-ratio:316/266;
+  position:relative;width:100%;aspect-ratio:316/310;
   border:1px solid var(--line);border-radius:8px;overflow:hidden;
   box-shadow:0 3px 0 var(--shadow);background:#9fd3f0;
   touch-action:none;user-select:none;-webkit-user-select:none;
@@ -98,8 +98,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 @keyframes pop{from{transform:translate(-50%,-80%) scale(.6);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
 @keyframes floatUp{to{transform:translateY(-28px);opacity:0}}
 
-#side{flex:0 1 270px;min-width:240px;display:flex;flex-direction:column;gap:10px}
-#side h2{font-size:20px}
+#side{position:absolute;z-index:3;top:22px;right:22px;width:max-content;max-width:calc(100% - 44px)}
+#side summary{width:max-content;margin-left:auto;cursor:pointer;padding:7px 10px;background:var(--panel);border:1px solid var(--line);border-radius:7px;font-size:13px;font-weight:650}
+.resident-panel{display:grid;gap:9px;width:min(300px,calc(100vw - 44px));max-height:calc(100svh - 125px);overflow:auto;margin-top:7px;padding:10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 3px 0 var(--shadow)}
 #dollList{display:flex;flex-direction:column;gap:6px}
 .doll-row{display:flex;align-items:center;gap:10px;padding:6px 8px;background:var(--panel);
   border:2px solid var(--line);border-radius:6px;cursor:pointer;text-align:left;width:100%}
@@ -169,6 +170,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .palette[data-category="essentials"]{--item-art:#e3eee2}
 .palette[data-category="decor"]{--item-art:#f4dfe8}
 .palette[data-category="hobbies"]{--item-art:#e9e2f5}
+.palette[data-category="yard"]{--item-art:#e4eccf}
 .item{flex:none;width:94px;display:flex;flex-direction:column;align-items:center;gap:3px;
   background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:6px 4px;font-size:12px}
 .item-name{font-weight:650}
@@ -212,8 +214,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   .topbar h1{font-size:20px}
   .modes{margin-left:0;order:3;width:100%}
   .modes button{flex:1;padding:6px 4px}
-  .layout{padding:12px 16px;gap:12px}
-  #side{flex:1 1 100%}
+  .layout{padding:8px}
+  #side{top:16px;right:16px}
   .bubble{font-size:11px;padding:2px 6px}
 }
 
@@ -273,14 +275,15 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 <main class="layout">
   <div id="stageWrap">
     <div id="stage">
-      <canvas id="cv" width="316" height="266" aria-label="两层像素小洋房"></canvas>
+      <canvas id="cv" width="316" height="310" aria-label="两层像素小洋房与院子"></canvas>
       <div id="overlay"></div>
     </div>
-    <p id="hint" class="hint">点小人查看状态，按住拖到另一位身边可以让他们互动。</p>
+    <p id="hint" class="hint">点小人看状态，再点家具安排活动。拖到另一位身边可互动。</p>
   </div>
 
-  <aside id="side">
-    <h2>住户</h2>
+  <details id="side">
+    <summary>住户与生活日志</summary>
+    <div class="resident-panel">
     <div id="dollList"></div>
     <div id="dollInfo" class="card" hidden></div>
     <div class="community-panel">
@@ -292,7 +295,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
       <div class="log-head"><h3>📜 生活日志</h3><button id="btnLogClear" class="btn small ghost">清空</button></div>
       <div id="logList" class="log-list"></div>
     </div>
-  </aside>
+    </div>
+  </details>
 </main>
 
 <dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
@@ -336,6 +340,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button class="tab on" data-tab="essentials" aria-pressed="true">生活家具</button>
     <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
     <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
+    <button class="tab" data-tab="yard" aria-pressed="false">院子家具</button>
     <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
     <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
@@ -388,6 +393,8 @@ let COLS = 16;              // 房子宽度，扩建时会变大
 const FLOOR_SPLIT = 12;
 const stairsColumn = () => COLS - 2;
 const ROWS = 20;
+const YARD_END = 26;
+const yardGate = x => x >= 9 && x <= 11;
 const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
 const LOWER_LANDING = WALL_ROWS + 1;
 const UPPER_LANDING = ROWS - 1;
@@ -1462,7 +1469,7 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
     return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+      floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -1481,7 +1488,7 @@ function defaultHouseSave() {
   if (TEST_MODE) {
     for (const [id, x, y] of [
       ['vanity', 17, 4], ['teaTray', 20, 6], ['herbStand', 23, 5],
-      ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15],
+      ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15], ['puzzleDesk', 19, 9],
     ]) initial.furniture.push({ id, x, y });
   }
   return initial;
@@ -1497,6 +1504,9 @@ function applySave(s) {
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  if (!s.yardV) for (const [id, x, y] of YARD_DEFAULT) {
+    if (canPlace(id, x, y)) addFurniture(id, x, y);
+  }
   if(!s.floorsV)for(const [id,x,y] of [['desk',2,13],['shelf',5,13],['mirror',10,13],['bed',2,17],['chair',5,16]]){
     if(canPlace(id,x,y))addFurniture(id,x,y);
   }
@@ -1522,6 +1532,7 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
   if (x < 0 || x + d.w > COLS) return false;
+  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : y >= ROWS) return false;
   if (L === 'solid' && blocksStairs({ id, x, y })) return false;
   if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
   if (L === 'wall') {
@@ -1529,7 +1540,7 @@ function canPlace(id, x, y, ignore) {
     if (y < start || y + d.h > start + WALL_ROWS) return false;
     if (id === 'door' && y !== WALL_ROWS - 2) return false;
   }
-  else if (y < WALL_ROWS || y + d.h > ROWS) return false;
+  else if (y < WALL_ROWS || (!d.outdoor && y + d.h > ROWS)) return false;
   if (straddles(x, y, d.w)) return false;
   if (L === 'solid' && blocksDoor({ x, y }, d)) return false;
   for (const f of G.furniture) {
@@ -1543,7 +1554,7 @@ function canPlace(id, x, y, ignore) {
 // 能走的格子：地板区域里没有实心家具
 function blockedMap() {
   const m = [];
-  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < ROWS; y++) m[x][y] = y < WALL_ROWS; }
+  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < YARD_END; y++) m[x][y] = y < WALL_ROWS; }
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
     const d = FURNITURE[f.id];
@@ -1562,11 +1573,11 @@ function rebuild() {
     d.path = [];
   }
 }
-const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !BLOCK[x][y];
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < YARD_END && !BLOCK[x][y];
 
 function nearestFree(x, y, floor) {
-  const first = floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
-  const end = floor === 1 ? FLOOR_SPLIT : ROWS;
+  const first = floor === 3 ? ROWS : floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
+  const end = floor === 1 ? FLOOR_SPLIT : floor === 2 ? ROWS : YARD_END;
   x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(first, Math.min(end - 1, y));
   const seen = new Set([x + ',' + y]), q = [[x, y]];
   while (q.length) {
@@ -1598,6 +1609,8 @@ function findPath(sx, sy, goals) {
       .filter(([nx, ny]) => !wallBetween(cx, cy, nx, ny));
     if (cx === stairsColumn() && cy === LOWER_LANDING) neighbors.push([cx, UPPER_LANDING]);
     if (cx === stairsColumn() && cy === UPPER_LANDING) neighbors.push([cx, LOWER_LANDING]);
+    if (yardGate(cx) && cy === FLOOR_SPLIT - 1) neighbors.push([cx, ROWS]);
+    if (yardGate(cx) && cy === ROWS) neighbors.push([cx, FLOOR_SPLIT - 1]);
     for (const [nx, ny] of neighbors) {
       const nk = nx + ',' + ny;
       if (!free(nx, ny) || prev.has(nk)) continue;
@@ -1610,7 +1623,7 @@ function findPath(sx, sy, goals) {
 // 使用家具时站的位置：优先家具正下方，其次左右两侧
 function approachTiles(f) {
   const d = FURNITURE[f.id], out = [];
-  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : ROWS;
+  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : f.y < ROWS ? ROWS : YARD_END;
   const front = f.y + d.h < end;
   if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
   if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
@@ -1655,11 +1668,12 @@ function say(d, text, dur = 2.6) { if (text) { d.bubble = { text, t: dur, id: Ma
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function takingStairs(d) {
-  return d.state === 'walk' && d.path.length > 0 && Math.abs(d.path[0].y - d.ty) > 1;
+  return d.state === 'walk' && d.path.length > 0 && d.ty < ROWS && d.path[0].y < ROWS && Math.abs(d.path[0].y - d.ty) > 1;
 }
+const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && (d.ty >= ROWS) !== (d.path[0].y >= ROWS);
 
 function endAct(d) {
-  if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
+  if (takingStairs(d) || takingYardPath(d)) placeDollAt(d, d.tx, d.ty);
   const a = d.act;
   if (G.community.active && ['visitGather', 'visitStay'].includes(a?.type)) delete G.community.active.reserved[d.pid];
   if (a && a.furn) {
@@ -1685,6 +1699,10 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (F.outdoor) {
+      if (G.weather === 'rain' || G.night) continue;
+      s += F.use === 'swing' && ['active', 'genki'].includes(d.persona) ? 24 : 13;
+    }
     if (F.use === 'toilet') {
       if (N.bladder >= 48) continue;
       s += N.bladder < 20 ? 75 : 20;
@@ -1702,7 +1720,8 @@ function decide(d) {
       s+=evening?18+f.users.length*12:0;
     }
     if(F.use==='groom'&&['romantic','social','genki'].includes(d.persona))s+=18;
-    s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
+    const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
+    s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
@@ -1761,7 +1780,8 @@ function startAct(d, o) {
   const f = o.furn, F = FURNITURE[f.id];
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
-  const tiles = approachTiles(f).filter(tile=>!['meal', 'chess'].includes(F.use)||!f.users.some(user=>{
+  const distinct = F.cap > 1;
+  const tiles = approachTiles(f).filter(tile=>!distinct || !f.users.some(user=>{
     const destination=user.path.at(-1)||user;
     return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
   }));
@@ -1808,6 +1828,11 @@ function arrive(d) {
       if (f.id === 'sofa') { d.x = f.x * T + 8 + a.seat * 16; d.y = f.y * T + 13; }
     }
     else if (f.id === 'chair' || f.id === 'beanbag') { d.x = f.x * T + 8; d.y = f.y * T + (f.id === 'chair' ? 10 : 12); }
+    else if (F.outdoor) {
+      a.seat = f.users.some(o => o !== d && o.act?.seat === 0) ? 1 : 0;
+      d.x = f.x * T + (f.id === 'gardenSwing' ? 14 : 8) + a.seat * 16;
+      d.y = f.y * T + 10;
+    }
     d.dir = 'down';
     if (f.id === 'treadmill') { d.x = f.x * T + 18; d.y = f.y * T + 11; d.dir = 'left'; }
   } else {
@@ -1817,6 +1842,13 @@ function arrive(d) {
   }
   d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
+  if ((F.outdoor || a.type === 'puzzle') && F.cap > 1) {
+    const companion = f.users.find(o => o !== d && o.state === 'act');
+    if (companion) {
+      bump(d, companion, 3);
+      addLog(`🌿 ${d.name} 和 ${companion.name} 一起${ACT_NAMES[a.type]}`);
+    }
+  }
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
@@ -1863,7 +1895,7 @@ function updateDoll(d, dt) {
     if (!free(n.x, n.y)) { endAct(d); d.path = []; return; }
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
     const onStairs = takingStairs(d);
-    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (onStairs ? 2 : 1);
+    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
     if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
     if (dist <= sp) { d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift(); if (!d.path.length) arrive(d); }
@@ -3061,8 +3093,9 @@ const FURNITURE_GROUPS = {
   decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
     'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
     'shelfwall', 'garland', 'xmastree', 'lantern', 'corkboard', 'plushRabbit', 'paperLantern'],
-  hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
+  hobbies: ['recordPlayer', 'chessTable', 'puzzleDesk', 'knitting', 'ukulele', 'piano', 'shelf',
     'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill', 'yogaMat', 'punchingBag', 'craftBench', 'toolbox', 'scrapbook', 'herbStand'],
+  yard: ['gardenSwing', 'gardenBench', 'flowerBox', 'picnicTable'],
 };
 
 const LEVELS = [null,
@@ -3148,7 +3181,7 @@ const BATH_X = 4;
 const BATH_DOOR_Y = 17;
 G.bedDoor = true;
 
-const roomOf = d => d.ty >= FLOOR_SPLIT
+const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
   : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
@@ -3156,13 +3189,14 @@ const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty 
 const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
 const crossesDivider = (x1, x2, divider) => Math.min(x1, x2) === divider - 1 && Math.max(x1, x2) === divider;
 const wallBetween = (x1, y1, x2, y2) =>
+  ((y1 >= ROWS || y2 >= ROWS) ? (y1 >= ROWS) !== (y2 >= ROWS) :
   ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
   (crossesDivider(x1, x2, BX) && y1 !== passageRow(y1)) ||
-  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y);
+  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y));
 const isDoorTile = (x, y) => (y === passageRow(y) && (x === BX - 1 || x === BX)) ||
   (G.bathroom && y === BATH_DOOR_Y && (x === BATH_X - 1 || x === BATH_X));
-const straddles = (x, y, w) => (x < BX && x + w > BX) ||
-  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X);
+const straddles = (x, y, w) => y < ROWS && ((x < BX && x + w > BX) ||
+  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X));
 
 function blocksDoor({ x, y }, { w, h }) {
   for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {
@@ -3985,7 +4019,7 @@ function moveInApplicant(pid) {
 // Two cutaway storeys over the existing simulation grid. The front edges
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
-const HOUSE_HEIGHT = 266;
+const HOUSE_HEIGHT = 310;
 const HOUSE_MARGIN = 60;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
@@ -3995,10 +4029,11 @@ const STOREYS = [
   { wall: 74, back: 134, front: 158, row: FLOOR_SPLIT, wallRow: UPPER_WALL,
     rooms: ['#666780', '#d9c5cc'], floors: ['#655c70', '#a7b9aa'] },
 ];
-const storeyOf = row => STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
+const YARD = { wall: 258, back: 258, front: 300, row: ROWS, step: 7 };
+const storeyOf = row => row >= ROWS ? YARD : STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
 
 function houseY(y, storey) {
-  return storey.back + (y - storey.row * T) * FLOOR_STEP / T;
+  return storey.back + (y - storey.row * T) * (storey.step || FLOOR_STEP) / T;
 }
 
 function stairPoint(progress) {
@@ -4017,9 +4052,15 @@ function houseDollPoint(d) {
   if (takingStairs(d)) {
     return stairPoint((UPPER_LANDING * T + 14 - d.y) / ((UPPER_LANDING - LOWER_LANDING) * T));
   }
+  if (takingYardPath(d)) {
+    const inside = FLOOR_SPLIT - 1, outside = ROWS;
+    const progress = (d.y - (inside * T + 14)) / ((outside - inside) * T);
+    return { x: HOUSE_X + d.x, y: mixNum(houseY(inside * T + 14, STOREYS[0]), houseY(outside * T + 14, YARD), progress) };
+  }
   if (d.act?.onFurn) {
     const f = d.act.furn;
-    return { x: HOUSE_X + d.x, y: houseFurnitureRect(f).y + d.y - f.y * T };
+    const offset = f.id === 'gardenSwing' ? swingOffset(G.t) : 0;
+    return { x: HOUSE_X + d.x, y: houseFurnitureRect(f).y + d.y - f.y * T + offset };
   }
   return { x: HOUSE_X + d.x, y: houseY(d.y, storeyOf(d.ty)) };
 }
@@ -4035,7 +4076,7 @@ function houseFurnitureRect(f) {
 }
 
 function houseTile(p, id) {
-  const storey = p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
+  const storey = p.y >= YARD.back ? YARD : p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
   const F = id && FURNITURE[id];
   const wall = F && layerOf(id) === 'wall';
   const x = F ? Math.round((p.x - HOUSE_X) / T - F.w / 2) : Math.floor((p.x - HOUSE_X) / T);
@@ -4046,8 +4087,8 @@ function houseTile(p, id) {
     return { x, y: storey.wallRow + Math.max(0, Math.min(WALL_ROWS - F.h, row)) };
   }
   if (p.y < storey.back) return null;
-  const y = storey.row + (p.y - storey.back) / FLOOR_STEP;
-  const end = storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
+  const y = storey.row + (p.y - storey.back) / (storey.step || FLOOR_STEP);
+  const end = storey === YARD ? YARD_END : storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
   return { x, y: F ? Math.max(storey.row, Math.min(end - F.h, Math.round(y - F.h / 2))) : Math.floor(y) };
 }
 
@@ -4067,17 +4108,37 @@ function housePoly(c, color, ...points) {
 function drawHouseGarden(c, left, right) {
   const width = W + HOUSE_MARGIN;
   R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
-  R(c, 0, 231, width, HOUSE_HEIGHT - 231, '#a6b597');
-  R(c, 0, 259, width, 7, '#bdc7a6');
-  R(c, left - 5, 258, right - left + 44, 4, '#83947e');
+  const season = seasonOf(G.day).id;
+  const grass = season === 'autumn' ? '#b9b47c' : G.weather === 'snow' ? '#cbdacc' : '#a5bf8d';
+  R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
+  for (const [x, y, size] of [[1, 202, 25], [right + 26, 207, 28]]) {
+    R(c, x + 9, y + 6, 4, size + 12, '#846d55');
+    R(c, x, y - 10, size - 5, 22, '#739678');
+    R(c, x + 3, y - 17, size - 9, 23, season === 'autumn' ? '#d5a367' : '#94b58a');
+    R(c, x + 7, y - 14, size - 16, 7, '#b0c699');
+  }
+  R(c, left - 5, YARD.back, W + 10, YARD.front - YARD.back, shade(grass, .075));
+  R(c, 0, 301, width, 9, '#c6bca0');
+  R(c, 0, 301, width, 1, '#e0d3b5');
+  for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
+  const gate = left + 10 * T;
+  housePoly(c, '#d2c2a2', [gate + 2, 253], [gate + 14, 253], [gate + 25, 301], [gate - 9, 301]);
+  for (let y = 261; y < 300; y += 7) R(c, gate - 4, y, 24, 1, '#e7dcc3');
+  for (const x of [left - 7, right + 5]) {
+    R(c, x, 254, 3, 44, '#b69b7b');
+    R(c, x + 1, 254, 1, 44, '#e8d2af');
+    for (let y = 256; y < 300; y += 7) R(c, x - 1, y, 5, 3, '#d5bc99');
+  }
   for (const [x, y] of [[4, 38], [right + 12, 62], [right - 28, 14]]) {
     R(c, x, y + 6, 22, 4, '#f4f6ebbb');
     R(c, x + 4, y + 2, 14, 6, '#f4f6ebbb');
     R(c, x + 8, y, 6, 3, '#f4f6ebbb');
   }
-  for (let i = 0; i < 34; i++) {
-    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 5;
-    R(c, x, y, 2, 1, i % 5 === 0 ? '#e9d1a5' : '#97a885');
+  for (let i = 0; i < 65; i++) {
+    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 37;
+    if (Math.abs(x - gate - 8) < 18) continue;
+    R(c, x, y, 2, 1, i % 4 === 0 ? '#fff0cf' : shade(grass, -.14));
+    if (i % 4 === 0) R(c, x, y + 1, 1, 2, shade(grass, -.18));
   }
 }
 
@@ -4226,6 +4287,82 @@ function drawHouseShell(c, wall, floor) {
 }
 </script>
 <script>
+// Outdoor furniture uses the same reservations and need system as indoor furniture.
+const YARD_DEFAULT = [['gardenSwing', 1, 23], ['gardenBench', 5, 23], ['flowerBox', 8, 23], ['picnicTable', 12, 23]];
+
+Object.assign(FURNITURE, {
+  gardenSwing: { name: '木架秋千', w: 3, h: 1, outdoor: true, use: 'swing', mode: 'on', cap: 2, need: { fun: 24, social: 5 } },
+  gardenBench: { name: '鼠尾草长椅', w: 2, h: 1, outdoor: true, use: 'gardenRest', mode: 'on', cap: 2, need: { energy: 10, fun: 6, social: 5 } },
+  flowerBox: { name: '雏菊花箱', w: 2, h: 1, outdoor: true, use: 'waterFlowers', mode: 'front', need: { fun: 14 } },
+  picnicTable: { name: '格纹野餐桌', w: 3, h: 1, outdoor: true, use: 'picnic', mode: 'front', cap: 3, need: { hunger: 14, fun: 12, social: 12 } },
+  puzzleDesk: { name: '奶油拼图桌', w: 2, h: 1, use: 'puzzle', mode: 'front', cap: 2, need: { fun: 18, social: 8 } },
+});
+Object.assign(SHOP, { gardenSwing: [620, 1], gardenBench: [320, 1], flowerBox: [190, 1], picnicTable: [440, 1], puzzleDesk: [390, 1] });
+Object.assign(TALL, { gardenSwing: 18, gardenBench: 6, flowerBox: 7, picnicTable: 5, puzzleDesk: 5 });
+Object.assign(ACT_NAMES, { swing: '荡秋千', gardenRest: '坐在长椅上休息', waterFlowers: '给雏菊浇水', picnic: '在院子里野餐', puzzle: '拼拼图' });
+Object.assign(ACT_LINES, {
+  swing: ['再荡高一点！', '风吹过来啦～'], gardenRest: ['在院子里坐一会儿吧'],
+  waterFlowers: ['这朵又开大了一点'], picnic: ['带了草莓和三明治，分你一点！'],
+  puzzle: ['这块蓝色的是天空吧？', '最后一块在哪儿呢？'],
+});
+
+const swingOffset = t => Math.round(Math.sin(t * 5) * 3);
+Object.assign(DRAW, {
+  gardenSwing(c, x, y, f, t) {
+    R(c, x + 1, y + 14, 46, 2, '#496f4388');
+    housePoly(c, '#82604e', [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
+    housePoly(c, '#82604e', [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
+    box(c, x + 6, y - 16, 36, 4, '#c69671', '#765647');
+    for (const seat of [0, 1]) {
+      const left = x + 10 + seat * 16;
+      const active = f.users?.some(d => d.state === 'act' && d.act?.seat === seat);
+      const off = active ? swingOffset(t) : 0;
+      R(c, left, y - 12, 1, 22 + off, '#e7d6a4');
+      R(c, left + 8, y - 12, 1, 22 + off, '#e7d6a4');
+      box(c, left - 1, y + 9 + off, 11, 3, seat ? '#e4a880' : '#dc8b99', '#7d514f');
+    }
+  },
+  gardenBench(c, x, y) {
+    R(c, x + 5, y + 9, 3, 6, '#63715a'); R(c, x + 24, y + 9, 3, 6, '#63715a');
+    box(c, x + 2, y - 2, 28, 9, '#9bb48c', '#506e58');
+    R(c, x + 3, y + 1, 26, 1, '#c4d2a6'); R(c, x + 3, y + 4, 26, 1, '#6d8b6e');
+    box(c, x + 1, y + 6, 30, 4, '#b8c8a0', '#506e58');
+  },
+  flowerBox(c, x, y, f, t) {
+    box(c, x + 1, y + 5, 30, 9, '#bd8565', '#795a4f');
+    R(c, x + 2, y + 6, 28, 2, '#edb38b');
+    for (const [i, px] of [5, 11, 17, 23, 27].entries()) {
+      const top = y + i % 2 * 3 - 4;
+      R(c, x + px, top + 3, 1, 8, '#4a8158');
+      R(c, x + px - 2, top + 6, 2, 1, '#6ca068');
+      R(c, x + px - 2, top, 5, 3, i % 2 ? '#f7c6c4' : '#fff6d9');
+      R(c, x + px, top + 1, 1, 1, '#d5a33f');
+      if (f.active) R(c, x + px + 2, y - 8 + Math.floor((t * 12 + i * 3) % 10), 1, 2, '#87d4e4');
+    }
+  },
+  picnicTable(c, x, y, f) {
+    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, '#846552');
+    box(c, x + 2, y + 7, 44, 4, '#c28e63', '#846552');
+    box(c, x + 5, y, 38, 7, '#f1c8a0', '#846552');
+    R(c, x + 12, y + 1, 24, 7, '#eeb6b1');
+    for (let px = 12; px < 36; px += 4) R(c, x + px, y + 1, 2, 7, '#fff1dd');
+    R(c, x + 12, y + 3, 24, 2, '#d991945a');
+    if (f.active) { R(c, x + 17, y, 5, 3, '#f8f4dc'); R(c, x + 28, y - 2, 3, 4, '#b77984'); }
+  },
+  puzzleDesk(c, x, y, f, t) {
+    for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, '#9f765b');
+    box(c, x + 1, y - 2, 30, 10, '#ecc99f', '#9f765b');
+    R(c, x + 7, y, 18, 6, '#f9edda');
+    const pieces = ['#7da7c8', '#8dac83', '#dc9a9d', '#e6b972'];
+    const shown = f.active ? 2 + Math.floor(t * 2) % 3 : 2;
+    for (let i = 0; i < shown; i++) {
+      R(c, x + 8 + i * 4, y + 1, 3, 4, pieces[i]);
+      R(c, x + 11 + i * 4, y + 2, 1, 2, pieces[i]);
+    }
+  },
+});
+</script>
+<script>
 // 画面渲染 + 指针交互（拎小人、摆家具）
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -4299,11 +4436,12 @@ function render() {
   for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);
 
   if (G.mode === 'build') {
-    for (const storey of STOREYS) {
+    for (const storey of [...STOREYS, YARD]) {
       const { back, front } = storey;
       R(c, HOUSE_X, back, W, front - back, '#48323810');
       for (let x = T; x < W; x += T) R(c, HOUSE_X + x, back, 1, front - back, '#48323824');
-      for (let y = back + FLOOR_STEP; y < front; y += FLOOR_STEP) R(c, HOUSE_X, y, W, 1, '#48323824');
+      const step = storey.step || FLOOR_STEP;
+      for (let y = back + step; y < front; y += step) R(c, HOUSE_X, y, W, 1, '#48323824');
     }
   }
 
@@ -4421,7 +4559,7 @@ function drawBuildOverlay(c, t) {
     const F = FURNITURE[id], rect = houseFurnitureRect(f);
     const wall = layerOf(id) === 'wall';
     const x = rect.x, w = rect.w, bottom = rect.bottom;
-    const h = F.h * (wall ? T : FLOOR_STEP);
+    const h = F.h * (wall ? T : rect.storey.step || FLOOR_STEP);
     const y = bottom - h;
     const ok = canPlace(id, hv.x, hv.y, null);
     c.globalAlpha = .75;
@@ -4497,7 +4635,7 @@ function dropInteraction(point, carried) {
   if (column < 0 || column >= COLS) return null;
   let target = null, closest = Infinity;
   for (const d of G.dolls) {
-    if (d === carried || ['away', 'lift'].includes(d.state) || takingStairs(d)) continue;
+    if (d === carried || ['away', 'lift'].includes(d.state) || takingStairs(d) || takingYardPath(d)) continue;
     if (d === direct) { target = d; break; }
     if (direct || roomOf(d) !== roomOf({ tx: column, ty: d.ty })) continue;
     const head = houseHeadPoint(d);
@@ -4610,7 +4748,7 @@ cv.addEventListener('pointerup', e => {
       HOOK.select();
     } else if (invite) HOOK.toast(invite.reason, true);
   } else if (d) {
-    G.sel = d.uid; SFX.play('click'); HOOK.select();
+    G.sel = d.uid; SFX.play('click'); HOOK.select(true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
@@ -4634,7 +4772,7 @@ cv.addEventListener('pointerleave', () => { hoverDoll = null; if (G.mode === 'bu
 const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {
   const tile = rawDropTile(p);
-  return tile && nearestFree(tile.x, tile.y, storeyOf(tile.y) === STOREYS[1] ? 2 : 1);
+  return tile && nearestFree(tile.x, tile.y, tile.y >= ROWS ? 3 : tile.y >= FLOOR_SPLIT ? 2 : 1);
 }
 
 function cancelPlacing() {
@@ -4767,7 +4905,10 @@ function tickInfo() {
   }
 }
 
-HOOK.select = () => { renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus(); };
+HOOK.select = (reveal = false) => {
+  if (reveal) $('#side').open = true;
+  renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
+};
 
 /* ---------- 生活日志 ---------- */
 function renderLog() {
@@ -4789,7 +4930,7 @@ function setMode(m) {
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '布置模式：小人们会继续生活，放好家具 TA 们就会去用' : '点小人查看状态，按住拖到另一位身边可以让他们互动。';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点小人看状态，再点家具安排活动。拖到另一位身边可互动。';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }

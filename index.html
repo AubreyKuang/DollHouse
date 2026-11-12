@@ -32,14 +32,15 @@
 <main class="layout">
   <div id="stageWrap">
     <div id="stage">
-      <canvas id="cv" width="316" height="266" aria-label="两层像素小洋房"></canvas>
+      <canvas id="cv" width="316" height="310" aria-label="两层像素小洋房与院子"></canvas>
       <div id="overlay"></div>
     </div>
-    <p id="hint" class="hint">点小人查看状态，按住拖到另一位身边可以让他们互动。</p>
+    <p id="hint" class="hint">点小人看状态，再点家具安排活动。拖到另一位身边可互动。</p>
   </div>
 
-  <aside id="side">
-    <h2>住户</h2>
+  <details id="side">
+    <summary>住户与生活日志</summary>
+    <div class="resident-panel">
     <div id="dollList"></div>
     <div id="dollInfo" class="card" hidden></div>
     <div class="community-panel">
@@ -51,7 +52,8 @@
       <div class="log-head"><h3>📜 生活日志</h3><button id="btnLogClear" class="btn small ghost">清空</button></div>
       <div id="logList" class="log-list"></div>
     </div>
-  </aside>
+    </div>
+  </details>
 </main>
 
 <dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
@@ -95,6 +97,7 @@
     <button class="tab on" data-tab="essentials" aria-pressed="true">生活家具</button>
     <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
     <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
+    <button class="tab" data-tab="yard" aria-pressed="false">院子家具</button>
     <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
     <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
@@ -153,6 +156,7 @@
 <script src="js/routines.js"></script>
 <script src="js/community.js"></script>
 <script src="js/house-view.js"></script>
+<script src="js/yard.js"></script>
 <script src="js/view.js"></script>
 <script src="js/ui.js"></script>
 </body>
