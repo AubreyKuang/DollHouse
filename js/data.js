@@ -88,6 +88,38 @@ const PERSONAS = {
     chat: ['我跟你说个八卦！', '你今天发型好好看！', '有空一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
   },
+  maker: {
+    name: '巧手', icon: '🧵', desc: '喜欢做手工，也会动手修修补补',
+    speed: 2.1, decay: { energy: 4, hunger: 4, fun: 5, social: 2 },
+    like: { craft: 47, knit: 32, repair: 37, paint: 24, read: 8, dance: -10 },
+    dur: { craft: 1.35, knit: 1.3, repair: 1.25 },
+    chat: ['我刚缝好一枚布贴', '这颗螺丝换小一点就好了', '下次给你做一个～'],
+    lines: ['线头藏起来就好', '让我找找剪刀', '再试一种配色'],
+  },
+  stylist: {
+    name: '爱打扮', icon: '🎀', desc: '爱试配饰，也喜欢看别人穿了什么',
+    speed: 2.5, decay: { energy: 4, hunger: 4, fun: 6, social: 5 },
+    like: { style: 48, groom: 30, scrapbook: 24, chat: 12, music: 13 },
+    dur: { style: 1.35, groom: 1.25 },
+    chat: ['今天这个颜色很衬你', '我在找一条能配这件衣服的围巾', '换个发夹试试？'],
+    lines: ['这个颜色配米白应该不错', '今天想戴蝴蝶结', '发尾再理一下'],
+  },
+  active: {
+    name: '运动派', icon: '👟', desc: '爱拉伸、练平衡和运动后的放松',
+    speed: 3.1, decay: { energy: 5, hunger: 5, fun: 6, social: 3 },
+    like: { exercise: 45, yoga: 42, boxPractice: 37, shower: 22, wander: 13, tv: -15 },
+    dur: { exercise: 1.25, yoga: 1.25, boxPractice: 1.2 },
+    chat: ['刚才那组动作稳多了', '散个步就回来吧', '我练完再去洗澡'],
+    lines: ['先热热身', '今天的平衡好多了', '还差最后一组'],
+  },
+  tidy: {
+    name: '爱整洁', icon: '🧺', desc: '习惯整理房间、照料小物和植物',
+    speed: 2.2, decay: { energy: 4, hunger: 4, fun: 4, social: 3 },
+    like: { tidy: 44, careHerbs: 33, water: 26, wash: 13, study: 12 },
+    dur: { tidy: 1.3, careHerbs: 1.2 },
+    chat: ['我把备用毛巾叠在篮子里了', '窗边那盆薄荷冒新叶了', '这个盒子刚好能收好零碎东西'],
+    lines: ['叠好这一摞就休息', '给叶子擦擦灰', '小东西有地方收就好'],
+  },
 };
 
 const GENDERS = { f: '♀ 女生', m: '♂ 男生' };

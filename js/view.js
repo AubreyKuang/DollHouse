@@ -20,6 +20,7 @@ function dollPose(d) {
   if (d.state === 'lift') return 'lift';
   if (d.state === 'walk') return 'walk';
   if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
+  if (d.state === 'act' && (['yoga', 'boxPractice'].includes(d.act?.type) || ROUTINES[d.act?.type]?.motion === 'stretch')) return 'dance';
   if (d.act && d.state === 'act' && (d.act.type === 'dance' || (d.act.type === 'join' && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
@@ -28,9 +29,25 @@ function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
-    blink: d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
+    blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
   });
+  if (d.state !== 'act') return;
+  const motion = ROUTINES[d.act?.type]?.motion;
+  if (motion === 'book') {
+    const side = d.dir === 'left' ? -1 : 1;
+    box(c, x + side * 9 - 3, y - 12, 7, 5, '#fff1d7', '#8e6d82');
+    R(c, x + side * 9, y - 11, 1, 3, '#c69eb4');
+  }
+  if (motion === 'doze') {
+    R(c, x + 7, y - 23, 4, 1, '#f4e5ff');
+    R(c, x + 8, y - 22, 2, 1, '#f4e5ff');
+    R(c, x + 7, y - 21, 4, 1, '#f4e5ff');
+  }
+  if (motion === 'spark') {
+    R(c, x + 9, y - 18, 1, 5, '#f7d485');
+    R(c, x + 7, y - 16, 5, 1, '#f7d485');
+  }
 }
 
 function render() {
@@ -86,7 +103,7 @@ function render() {
       lctx.rect(HOUSE_X, storey.wall, W, storey.front - storey.wall);
       lctx.clip();
       if (f.id === 'lamp') hole(x + 8, y - 10, 54);
-      if (f.id === 'moonLamp') hole(x + 8, y + 8, 34, .85);
+      if (f.id === 'moonLamp' || f.id === 'paperLantern') hole(x + 8, y + 8, 34, .85);
       if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(x + 4 + i * 6, y + 9, 16, .55);
       if (f.id === 'aquarium') hole(x + 16, y - 6, 22, .5);
       if (f.id === 'xmastree') hole(x + 8, y - 2, 30, .8);
