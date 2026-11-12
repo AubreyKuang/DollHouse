@@ -109,7 +109,14 @@ function applySave(s) {
   G.wall = s.wall; G.floor = s.floor; G.bathroom = s.bathroom === true; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
   G.community = restoreCommunity(s.community);
-  if (G.community.active) G.community.active.reserved = {};
+  if (G.community.active) {
+    const event = G.community.active;
+    event.reserved = {};
+    if (!event.leavingAt && (event.kind === 'picnic' || (event.exchange && !event.exchangeDone))) {
+      event.credited ||= [...event.joined];
+      event.joined = [];
+    }
+  }
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
@@ -416,6 +423,7 @@ function startAct(d, o) {
 function arrive(d) {
   const a = d.act;
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
+  if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
   if (a?.type === 'visitGather') { arriveAtGathering(d); return; }
   if (a && Object.hasOwn(ROUTINES, a.type)) { beginRoutine(d); return; }
   if (a && a.type === 'join') { arriveJoin(d); return; }

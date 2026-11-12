@@ -475,3 +475,95 @@ test('the evening roll is bounded and applications wait when the house is full',
     assert.equal(G.community.active, null);
   `);
 });
+
+test('the same neighbor exchanges bread and tools, then hosts a persistent visit and earns a meal bond', () => {
+  runGame(`
+    load();
+    const host = residents().find(d => d.persona === 'foodie');
+    Math.random = () => .5;
+    const pid = host.pid;
+    G.dolls = [host];
+    host.job = 'none';
+    for (const [day, exchange] of [[1, 'bread'], [2, 'borrow'], [3, 'returnTool']]) {
+      G.day = day; G.time = 14 * 60;
+      assert.ok(tickNeighborVisit());
+      const event = G.community.active;
+      assert.equal(event.exchange, exchange);
+      assert.equal(event.guestPid, NEIGHBOR_PID);
+      const guest = communityDoll(NEIGHBOR_PID);
+      for (const d of [host, guest]) {
+        assert.ok(joinGetTogether(d));
+        for (let i = 0; i < 600 && d.act?.type === 'visitGather'; i++) updateDoll(d, .05);
+        assert.equal(d.act.type, 'visitStay');
+      }
+      assert.ok(event.exchangeDone);
+      endGetTogether();
+      finishGuestDeparture();
+      assert.equal(G.community.applications.length, 0);
+    }
+    assert.ok(G.log.some(entry => entry.text.includes('回赠了一盒点心')));
+    assert.equal(neighborTie(host).months, 3);
+    assert.equal(G.community.neighbor.borrowed, false);
+    G.time = 18 * 60;
+    assert.ok(startNeighborOuting(host));
+    assert.ok(save()); load(); tickNeighborOuting();
+    const restored = communityDoll(pid);
+    assert.equal(restored.act.type, 'neighborLeave');
+    for (let i = 0; i < 600 && restored.state !== 'away'; i++) updateDoll(restored, .05);
+    assert.match(awayText(restored), /麦麦家做客/);
+    assert.ok(save()); load();
+    const visitor = communityDoll(pid);
+    G.time += 100;
+    tickNeighborOuting();
+    assert.equal(visitor.state, 'idle');
+    assert.equal(neighborTie(visitor).meals, 1);
+    assert.equal(G.community.applications.length, 0);
+    for (const day of [4, 5]) {
+      G.day = day; G.time = 18 * 60;
+      assert.ok(startNeighborOuting(visitor));
+      for (let i = 0; i < 600 && visitor.state !== 'away'; i++) updateDoll(visitor, .05);
+      G.time += 100; tickNeighborOuting();
+    }
+    assert.ok(bondTagged(visitor, neighborProfile(), 'meal'));
+    assert.equal(G.community.applications[0].pid, NEIGHBOR_PID);
+  `);
+});
+
+test('rain can reroute a quiet visitor upstairs, keep a picnic outdoors, or postpone it with the same guest', () => {
+  for (const plan of ['inside', 'umbrella', 'postpone']) runGame(`
+    load();
+    G.time = 12 * 60; G.weather = 'sunny';
+    const [host, , jing] = G.dolls;
+    for (const d of residents()) { d.job = 'none'; d.needs.social = 40; }
+    assert.ok(startGetTogether(host, 'picnic'));
+    const event = G.community.active;
+    const guest = communityDoll(event.guestPid);
+    guest.mbti = 'INTJ';
+    assert.ok(event.tiles.every(t => t.y >= ROWS));
+    G.weather = 'rain'; communityTick();
+    assert.ok(event.rainDeadline);
+    assert.ok(choosePicnicPlan('${plan}'));
+    if ('${plan}' === 'postpone') {
+      assert.equal(G.community.deferredPicnic.guestPid, guest.pid);
+      assert.ok(save()); load();
+      finishGuestDeparture();
+      G.time += 360; G.weather = 'sunny';
+      assert.ok(resumePicnic());
+      assert.equal(G.community.active.guestPid, guest.pid);
+      assert.equal(G.community.deferredPicnic, null);
+    } else {
+      const inside = '${plan}' === 'inside';
+      assert.ok(event.tiles.every(t => inside ? t.y < FLOOR_SPLIT : t.y >= ROWS));
+      for (const d of inside ? [jing, guest] : [host, guest]) {
+        assert.ok(joinGetTogether(d));
+        for (let i = 0; i < 720 && d.act?.type === 'visitGather'; i++) updateDoll(d, .05);
+        assert.equal(d.act?.theme, inside ? 'quiet' : 'umbrella');
+        assert.equal(roomOf(d), inside ? 'study' : 'yard');
+      }
+      if (inside) {
+        assert.ok(event.quietDone);
+        assert.ok(G.log.some(entry => entry.text.includes('安静的书房聊熟')));
+      }
+    }
+  `);
+});

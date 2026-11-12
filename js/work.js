@@ -104,6 +104,7 @@ function comeHome(d) {
 // 每帧在 updateDoll 里调用；返回 true 表示这帧不用再做别的
 function workTick(d, dt) {
   if (d.guest) return false;
+  if (d.state === 'away' && G.community?.outing?.pid === d.pid && G.community.outing.phase === 'visiting') return true;
   const N = d.needs;
   if (d.state === 'away') {
     // 在外面：会累、会饿，但和同事也算有社交
@@ -138,6 +139,7 @@ function returnTime(d) {
   return cycle > G.day ? `${monthLabel(cycle)} ${time}` : time;
 }
 function awayText(d) {
+  if (G.community?.outing?.pid === d.pid && G.community.outing.phase === 'visiting') return `在麦麦家做客，约 ${returnTime(d)} 回家`;
   const J = JOBS[d.job] || JOBS.none;
   return `${J.verb}中，约 ${returnTime(d)} 回家`;
 }

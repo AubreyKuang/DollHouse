@@ -122,6 +122,13 @@ function drawHouseGarden(c, left, right) {
     R(c, x, y, 2, 1, i % 4 === 0 ? '#fff0cf' : shade(grass, -.14));
     if (i % 4 === 0) R(c, x, y + 1, 1, 2, shade(grass, -.18));
   }
+  const picnic = G.community?.active;
+  if (G.weather === 'rain' || (picnic?.showerAt && absNow() >= picnic.showerAt)) {
+    for (let i = 0; i < 26; i++) {
+      const x = rnd(i + 460) * width, y = 252 + (rnd(i + 361) * 58 + G.t * 85) % 58;
+      R(c, x, y, 1, 5, '#d7e6eeaa');
+    }
+  }
 }
 
 function drawHouseRoof(c, left, right) {

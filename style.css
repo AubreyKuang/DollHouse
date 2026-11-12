@@ -279,6 +279,12 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 
 
 .community-panel{display:grid;gap:6px}
+.picnic-notice{margin:8px 0 0;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:7px;font-size:13px}
+#picnicPlans{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.neighbor-porch{min-height:134px;display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:16px 12px 10px;border:2px solid #956d60;border-top:8px solid #9d605c;border-radius:8px;background:repeating-linear-gradient(90deg,#ba9272 0 1px,transparent 1px 17px) bottom/100% 28px no-repeat,linear-gradient(#f2d4b2 0 76%,#dcab83 76%);color:#513b3a}
+.neighbor-porch figure{display:grid;justify-items:center;margin:0;font-size:12px;font-weight:700}
+.neighbor-porch canvas{width:60px;height:72px;image-rendering:pixelated}
+#neighborTie{margin:8px 0}
 .community-status{font-size:12px;line-height:1.4;margin:0;padding:7px 9px;border-radius:7px;background:var(--panel);color:var(--ink)}
 .guest-tag{font-size:10px;font-style:normal;font-weight:600;border-radius:5px;padding:2px 5px;background:#ecd6f3;color:#59355e}
 .community-dialog h3{margin:14px 0 6px;font-size:15px}
