@@ -7,16 +7,23 @@ const { test } = require('node:test');
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 
-function runGame(scenario, { mode, data = new Map() } = {}) {
+function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
+  const pointer = {};
+  const canvas = {
+    style: {}, getContext: () => ({}), setPointerCapture() {},
+    addEventListener: (name, fn) => { pointer[name] = fn; },
+    getBoundingClientRect() { return { left: 0, top: 0, width: this.width, height: this.height }; },
+  };
   const context = vm.createContext({
-    assert, setTimeout() {}, document: { body: { dataset: { mode } }, getElementById: () => null },
+    assert, pointer, setTimeout() {}, window: { addEventListener() {} },
+    document: { body: { dataset: { mode } }, getElementById: id => id === 'cv' ? canvas : { style: {} }, createElement: () => canvas },
     localStorage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) },
   });
   for (const [, script] of read('index.html').matchAll(/<script src="([^"]+)"/g)) {
-    if (script === 'js/view.js') break;
+    if (script === (withView ? 'js/ui.js' : 'js/view.js')) break;
     vm.runInContext(read(script), context, { filename: script });
   }
-  vm.runInContext('HOOK.resize = () => {}', context);
+  if (!withView) vm.runInContext('HOOK.resize = () => {}', context);
   vm.runInContext(scenario, context);
 }
 
@@ -31,6 +38,64 @@ test('every purchasable furnishing has one category, a price, and a sprite', () 
       if (FURNITURE[id].use) assert.ok(ACT_NAMES[FURNITURE[id].use], id);
     }
   `);
+});
+
+test('dropping onto or beside a resident starts a mutual interaction on separate tiles', () => {
+  runGame(`
+    load();
+    const [carried, target] = G.dolls;
+    G.dolls = [carried, target];
+    const event = ({ x, y }) => ({ clientX: x, clientY: y, pointerId: 1, button: 0 });
+    for (const offset of [0, T]) {
+      placeDollAt(carried, 5, 18);
+      placeDollAt(target, 11, 17);
+      const from = houseHeadPoint(carried), head = houseHeadPoint(target);
+      const release = { x: head.x + offset, y: head.y + (offset ? 2 : 12) };
+      pointer.pointerdown(event({ x: from.x, y: from.y + 6 }));
+      pointer.pointermove(event(release));
+      assert.equal(carried.state, 'lift');
+      assert.equal(dropInteraction(release, carried).target, target);
+      pointer.pointerup(event(release));
+      assert.equal(carried.act.partner, target);
+      assert.equal(target.act.partner, carried);
+      assert.equal(Math.abs(carried.tx - target.tx), 1);
+      assert.equal(carried.ty, target.ty);
+      endAct(carried);
+    }
+  `, { withView: true });
+});
+
+test('interaction drops respect walls, busy residents, and canceled drags', () => {
+  runGame(`
+    load();
+    const [carried, target] = G.dolls;
+    G.dolls = [carried, target];
+    placeDollAt(carried, 5, 18);
+    placeDollAt(target, 3, 18);
+    const point = houseHeadPoint(carried);
+    const event = ({ x, y }) => ({ clientX: x, clientY: y, pointerId: 1, button: 0 });
+    const bedroom = { x: HOUSE_X + 4 * T + 8, y: houseDollPoint(target).y - 12 };
+    assert.equal(dropInteraction(bedroom, carried), null);
+    target.act = { type: 'shower' };
+    const occupied = houseHeadPoint(target);
+    const release = { x: occupied.x, y: occupied.y + 12 };
+    pointer.pointerdown(event({ x: point.x, y: point.y + 6 }));
+    pointer.pointermove(event(release));
+    assert.match(dropInteraction(release, carried).reason, /正在忙/);
+    pointer.pointerup(event(release));
+    assert.equal(target.act.type, 'shower');
+    assert.equal(carried.act, null);
+    assert.equal(carried.tx, 5);
+
+    target.act = null;
+    pointer.pointerdown(event({ x: point.x, y: point.y + 6 }));
+    pointer.pointermove(event(release));
+    pointer.pointercancel(event(release));
+    pointer.pointerup(event(release));
+    assert.equal(carried.state, 'idle');
+    assert.equal(carried.tx, 5);
+    assert.equal(target.act, null);
+  `, { withView: true });
 });
 
 test('an urgent resident uses the toilet and the new need survives save and reload', () => {
