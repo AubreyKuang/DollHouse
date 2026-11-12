@@ -145,6 +145,50 @@ test('the starter bathroom fixtures can all be reached through its open doorway'
   `, { mode });
 });
 
+test('residents can walk to the yard, share a swing and return indoors', () => {
+  runGame(`
+    load();
+    const [first, second] = G.dolls;
+    const swing = G.furniture.find(f => f.id === 'gardenSwing');
+    placeDollAt(first, 10, 17);
+    placeDollAt(second, 11, 10);
+    for (const d of [first, second]) {
+      assert.ok(orderUse(d, swing));
+      assert.ok(d.path.some(t => t.y === ROWS && yardGate(t.x)));
+      for (let i = 0; i < 700 && d.state !== 'act'; i++) updateDoll(d, .05);
+      assert.equal(d.act?.type, 'swing');
+      assert.equal(roomOf(d), 'yard');
+    }
+    assert.notEqual(first.act.seat, second.act.seat);
+    assert.ok(G.log.some(e => e.text.includes('一起荡秋千')));
+    endAct(first);
+    assert.ok(findPath(first.tx, first.ty, [{ x: 11, y: 10 }]).some(t => t.y === FLOOR_SPLIT - 1));
+    assert.ok(!canPlace('gardenSwing', 1, 6));
+    assert.ok(!canPlace('bed', 1, 21));
+    assert.ok(save());
+    load();
+    assert.equal(roomOf(G.dolls[0]), 'yard');
+    assert.equal(G.furniture.filter(f => f.id === 'gardenSwing').length, 1);
+  `);
+});
+
+test('legacy saves gain a furnished yard once while indoor furniture stays in place', () => {
+  runGame(`
+    const old = defaultHouseSave();
+    old.furniture = [{ id: 'sofa', x: 3, y: 15 }];
+    old.bathroom = false;
+    applySave(old);
+    assert.equal(G.furniture.filter(f => f.y >= ROWS).length, 4);
+    G.furniture = G.furniture.filter(f => f.id !== 'flowerBox');
+    assert.ok(save());
+    load();
+    assert.equal(G.furniture.filter(f => f.y >= ROWS).length, 3);
+    const sofa = G.furniture.find(f => f.id === 'sofa');
+    assert.equal(sofa.x, 3);
+    assert.equal(sofa.y, 15);
+  `);
+});
+
 test('older custom houses keep their upstairs floor plan on reload', () => {
   runGame(`
     const custom = defaultHouseSave();
