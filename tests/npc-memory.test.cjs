@@ -77,8 +77,9 @@ if(dollhouse) {
     const make=(pid,x)=>({pid,name:pid,persona:'normal',heart:'normal',job:'none',x,y:0,tx:x,ty:0,state:'idle',needs:{fun:60,hunger:60,energy:60}});
     const a=make('alice',0), b=make('bob',1), near=make('charlie',2), far=make('diana',50), hidden=make('hidden',2);
     a.act={kind:'argue'};
-    const G={dolls:[a,b,near,far,hidden],rel:{}};
+    const G={dolls:[a,b,near,far,hidden],rel:{},daily:{}};
     const ctx=runtime({G,PERSONAS:{normal:{}},compat:()=>1,isF:()=>true,isE:()=>true,face:noop,say:noop,spawnHeart:noop,SFX:{play:noop},HOOK:{toast:noop},pick:a=>a[0],absNow:()=>100,lying:()=>false,canSee:n=>n!==hidden,addLog:noop,setTimeout:noop});
+    vm.runInContext(read('js/house-life.js'),ctx);
     vm.runInContext(read('js/social.js'),ctx);
     ctx.startSocial(a,b);
     assert.equal(ctx.memory.recall(G,'alice').length,1);

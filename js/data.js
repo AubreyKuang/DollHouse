@@ -1,7 +1,9 @@
 // 静态数据：房间尺寸、家具、性格、服装选项、默认存档
 const T = 16;              // 每格像素
 let COLS = 16;              // 房子宽度，扩建时会变大
-const ROWS = 12;
+const FLOOR_SPLIT = 12;
+const STAIRS_X = 14;
+const ROWS = 20;
 const WALL_ROWS = 3;       // 上面三行是墙
 let W = COLS * T;
 const H = ROWS * T;
@@ -13,7 +15,7 @@ const FURNITURE = {
   bigbed:   { name: '双人床', w: 3, h: 2, use: 'sleep', mode: 'on',    need: { energy: 26 } },
   sofa:     { name: '沙发',   w: 2, h: 1, use: 'sit',   mode: 'on',    need: { energy: 6, fun: 4 } },
   chair:    { name: '椅子',   w: 1, h: 1, use: 'sit',   mode: 'on',    need: { energy: 5 } },
-  table:    { name: '餐桌',   w: 2, h: 1, use: null },
+  table:    { name: '餐桌',   w: 2, h: 1, use: 'meal', mode: 'front', cap: 4, need: { hunger: 32, social: 12 } },
   fridge:   { name: '冰箱',   w: 1, h: 1, use: 'snack', mode: 'front', need: { hunger: 22 } },
   stove:    { name: '灶台',   w: 1, h: 1, use: 'cook',  mode: 'front', need: { hunger: 34, fun: 4 } },
   shelf:    { name: '书架',   w: 2, h: 1, use: 'read',  mode: 'front', need: { fun: 14 } },

@@ -367,3 +367,12 @@ function loop(now) {
 }
 requestAnimationFrame(loop);
 window.addEventListener('beforeunload', save);
+
+document.getElementById('dailyPaper').onclick=showHousePaper;
+document.getElementById('paperCopy').onclick=async event=>{
+  try{await navigator.clipboard.writeText(document.getElementById('paperText').textContent);event.target.textContent='已复制';}
+  catch{event.target.textContent='请选中日报文字复制';}
+};
+const paperAuto=document.getElementById('paperAuto');
+paperAuto.checked=localStorage.getItem('house-paper-auto')!=='off';
+paperAuto.onchange=()=>localStorage.setItem('house-paper-auto',paperAuto.checked?'on':'off');

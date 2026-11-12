@@ -143,6 +143,9 @@ function startSocial(d, p) {
           if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
             const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
             HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
+            NPCMemory.record(G,{type:'breakup',time:absNow(),participants:[x.pid,old.pid],outcome:'left'},[
+              {person:old.pid,subject:x.pid,emotion:-1,impact:100,interpretation:`我被${x.name}抛下了`}
+            ]);
             say(old, '……怎么会这样'); spawnHeart(old, '💔');
           }
         }
@@ -161,11 +164,14 @@ function startSocial(d, p) {
   // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
   const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
-  if (!routine && ['argue', 'hug', 'kiss', 'flirt'].includes(kind)) {
+  countHouseDay('social',d.name+' × '+p.name);
+  if(kind==='chat'&&Math.random()<.32)shareHouseNews(d,p);
+  if (!routine && ['argue', 'hug', 'kiss', 'flirt', 'joke'].includes(kind)) {
     const outcome = kind === 'flirt' ? (flirtOk ? 'accepted' : 'rejected') : 'completed';
-    const emotion = kind === 'argue' ? -.9 : outcome === 'rejected' ? -.85 : .55;
+    const emotion = kind === 'joke' ? -.38 : kind === 'argue' ? -.9 : outcome === 'rejected' ? -.85 : .55;
     const impact = kind === 'argue' || kind === 'flirt' ? 90 : 45;
     const descriptions = {
+      joke: [`我当着大家的面和${p.name}开了玩笑`,`${d.name}拿我开玩笑，我有点难堪`],
       argue: [`我找${p.name}理论，结果吵了起来`, `${d.name}来找我理论，我们吵了一架`],
       hug: [`我拥抱了${p.name}`, `${d.name}拥抱了我`],
       kiss: [`我亲了${p.name}`, `${d.name}亲了我`],
@@ -173,17 +179,17 @@ function startSocial(d, p) {
         `${d.name}向我表白，${flirtOk ? '我接受了' : '我拒绝了'}`]
     };
     const views = [
-      { person: d.pid, subject: p.pid, interpretation: descriptions[kind][0], emotion, impact },
+      { person: d.pid, subject: p.pid, interpretation: descriptions[kind][0], emotion:kind==='joke'?.22:emotion, impact },
       { person: p.pid, subject: d.pid, interpretation: descriptions[kind][1],
         emotion: outcome === 'rejected' ? -.35 : emotion, impact }
     ];
-    if (kind === 'argue') {
+    if (kind === 'argue' || kind === 'joke' || kind === 'kiss') {
       for (const observer of G.dolls) {
         if (observer === d || observer === p || ['away', 'lift'].includes(observer.state) || lying(observer)) continue;
         if (Math.abs(observer.tx - d.tx) + Math.abs(observer.ty - d.ty) > 4 ||
             !canSee(observer, d) || !canSee(observer, p)) continue;
         views.push({ person: observer.pid, subject: d.pid, channel: 'witness',
-          interpretation: `我看到${d.name}和${p.name}在争吵`, emotion: -.3, impact: 40, confidence: .8 });
+          interpretation: `我看到${d.name}和${p.name}${kind==='kiss'?'亲吻':kind==='joke'?'开玩笑':'争吵'}`, emotion: kind==='kiss'?-.15:-.3, impact: 55, confidence: .8 });
       }
     }
     NPCMemory.record(G, {
@@ -331,7 +337,7 @@ function startJoin(d, o) {
 
 // 有人开始表演时，闲着的人会更快拿主意（更可能过来凑热闹）
 function nudgeAudience(performer) {
-  for (const o of G.dolls) if (o !== performer && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander'))) {
+  for (const o of G.dolls) if (o !== performer && canSee(o,performer) && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander'))) {
     if (o.state === 'walk') { o.path = []; o.state = 'idle'; o.act = null; }
     o.think = Math.min(o.think, 0.3 + Math.random() * 1.2);
   }
@@ -354,6 +360,13 @@ function arriveJoin(d) {
   bump(d, o, 3, rel(d, o).f >= 45 ? 1.5 : 0);
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
+  if(a.what==='game'||a.what==='piano'){
+    countHouseDay(a.what==='piano'?'audience':'partners',o.name);
+    NPCMemory.record(G,{type:'company',time:absNow(),participants:[o.pid,d.pid],outcome:a.what},[
+      {person:o.pid,subject:d.pid,emotion:.55,impact:55,interpretation:`${d.name}来陪我${a.what==='game'?'玩游戏':'弹琴'}`},
+      {person:d.pid,subject:o.pid,emotion:.55,impact:55,interpretation:`我和${o.name}一起${a.what==='game'?'玩游戏':'听钢琴'}`}
+    ]);
+  }
   if (a.what === 'piano' && !o.act.logged) { o.act.logged = true; addLog(`🎵 ${o.name} 弹起了钢琴，${d.name} 过来听`); }
 }
 

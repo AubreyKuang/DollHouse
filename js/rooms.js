@@ -5,12 +5,12 @@ const BX = 7;           // 隔墙在第 7 列左边（0~6 列是卧室）
 const DY = 5;           // 门在第 5 行
 G.bedDoor = true;       // 卧室门：true 开着，false 关着
 
-const roomOf = d => (d.tx < BX ? 'bed' : 'living');
+const roomOf = d => (d.ty >= FLOOR_SPLIT ? 'upstairs' : d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
 // 两个人能不能看见对方：同一个房间，或者门开着
-const canSee = (a, b) => roomOf(a) === roomOf(b) || G.bedDoor;
+const canSee = (a, b) => roomOf(a) === roomOf(b) || (roomOf(a) !== 'upstairs' && roomOf(b) !== 'upstairs' && G.bedDoor);
 // 两个相邻格子之间有没有墙挡着（只有门那一行能穿过去）
-const wallBetween = (x1, y1, x2, y2) => Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== DY;
+const wallBetween = (x1, y1, x2, y2) => (Math.min(y1,y2) === FLOOR_SPLIT - 1 && Math.max(y1,y2) === FLOOR_SPLIT && x1 !== STAIRS_X) || (y1 < FLOOR_SPLIT && y2 < FLOOR_SPLIT && Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== DY);
 // 门两边的格子要留出来，不能放实心家具
 const isDoorTile = (x, y) => y === DY && (x === BX - 1 || x === BX);
 const straddles = (x, w) => x < BX && x + w > BX;
@@ -21,7 +21,7 @@ function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away
 function partitionDrawables(c) {
   const out = [], bx = BX * T, ws = WALLS.find(w => w.id === G.wall) || WALLS[0];
   const face = shade(ws.base, -0.12), cap = shade(ws.base, 0.08);
-  for (let r = WALL_ROWS; r < ROWS; r++) {
+  for (let r = WALL_ROWS; r < FLOOR_SPLIT; r++) {
     if (r === DY) {
       out.push({ y: (r + 1) * T - 0.1, draw: () => {
         R(c, bx - 3, r * T, 6, 2, INK);                                  // 门框上沿

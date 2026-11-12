@@ -28,24 +28,26 @@ const G = {
 };
 
 /* ---------------- 存档 ---------------- */
+const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({
+    return SaveManager.save(localStorage,SAVE_KEY,{
+      floorsV: 1, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+        tx:d.tx, ty:d.ty, dir:d.dir,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
       npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
-    }));
+    },validHouseSave);
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
 function load() {
-  let s = null;
-  try { s = JSON.parse(localStorage.getItem(SAVE_KEY)); } catch (e) { s = null; }
+  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave);
   applySave(s && s.furniture ? s : JSON.parse(JSON.stringify(DEFAULT_SAVE)));
 }
 function applySave(s) {
-  G.npcMemory = s.npcMemory;
+  G.npcMemory = s.npcMemory; G.paper = s.paper || []; G.daily=s.daily || {};
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
@@ -53,12 +55,16 @@ function applySave(s) {
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
   if (!s.roomsV) migrateRooms();      // 老存档：给隔墙和门口腾地方
+  if(!s.floorsV)for(const [id,x,y] of [['desk',2,13],['shelf',5,13],['mirror',10,13],['bed',2,17],['chair',5,16]]){
+    if(canPlace(id,x,y))addFurniture(id,x,y);
+  }
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
   // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
   if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
     d.job = 'barista'; addLog(`🎓 ${d.name} 毕业了，现在是一名${JOBS.barista.name}`);
   }
+  G.dayRelations=s.dayRelations||houseRelations();
   G.sel = null;
 }
 
@@ -73,9 +79,11 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
   if (x < 0 || x + d.w > COLS) return false;
+  if(L==='solid'&&x<=STAIRS_X&&x+d.w>STAIRS_X&&y<FLOOR_SPLIT+1&&y+d.h>FLOOR_SPLIT-1)return false;
+  if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
   if (L === 'wall') { if (y < 0 || y + d.h > WALL_ROWS) return false; if (id === 'door' && y !== WALL_ROWS - 2) return false; }
   else if (y < WALL_ROWS || y + d.h > ROWS) return false;
-  if (straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
+  if (y < FLOOR_SPLIT && straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
   if (L === 'solid') for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if (isDoorTile(x + i, y + j)) return false;
   for (const f of G.furniture) {
     if (f === ignore || layerOf(f.id) !== L) continue;
@@ -170,6 +178,8 @@ function addDoll(src) {
   if (!BLOCK) BLOCK = blockedMap();
   const p = nearestFree(2 + ((Math.random() * (COLS - 4)) | 0), WALL_ROWS + 1 + ((Math.random() * (ROWS - WALL_ROWS - 2)) | 0));
   if (p) placeDollAt(d, p.x, p.y);
+  if(Number.isInteger(src.tx)&&Number.isInteger(src.ty)&&free(src.tx,src.ty))placeDollAt(d,src.tx,src.ty);
+  if(src.dir)d.dir=src.dir;
   if (src.away) d.state = 'away';
   return d;
 }
@@ -195,7 +205,7 @@ function decide(d) {
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
     if (!F.use) continue;
-    const cap = f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1;
+    const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
     if (f.users.length >= cap) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
     const lover = loverOf(d);
@@ -209,6 +219,11 @@ function decide(d) {
     if (F.use === 'study' && d.job === 'student') s += 15;
     if (F.use === 'exercise' && N.energy < 30) s -= 40;
     if (F.use === 'party') s += isHolidayParty() ? 50 : -10;           // 圣诞节大家围着圣诞树过节
+    if(F.use==='meal'){
+      const evening=G.time>=17*60&&G.time<21*60;
+      s+=evening?18+f.users.length*12:0;
+    }
+    if(F.use==='groom'&&['romantic','social','genki'].includes(d.persona))s+=18;
     s -= (Math.abs(f.x - d.tx) + Math.abs(f.y - d.ty)) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
@@ -217,7 +232,7 @@ function decide(d) {
     (o.state === 'act' && o.act && !o.act.onFurn && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
-    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0), type: 'chat', partner: p });
+    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
   }
   // 恋人在家就想黏在一起；花心的人会去找暧昧对象，对象不在家时更大胆
   const lover = loverOf(d), lvBusy = lover && (lover.state === 'away' || lying(lover));
@@ -229,7 +244,7 @@ function decide(d) {
     if (crush && canTryst(d, crush)) opts.push({ s: 30 + rel(d, crush).l * 0.6 + (lvBusy ? 25 : 0) + Math.random() * 20, type: 'tryst', partner: crush });
   }
   for (const o of G.dolls) {
-    if (o === d || !joinable(o)) continue;
+    if (o === d || !joinable(o) || !canSee(d,o)) continue;
     const J = JOIN[o.act.type], r = rel(d, o);
     opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
   }
@@ -264,7 +279,12 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
-  const tiles = approachTiles(f);
+  const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
+  if(f.users.length>=capacity)return false;
+  const tiles = approachTiles(f).filter(tile=>F.use!=='meal'||!f.users.some(user=>{
+    const destination=user.path.at(-1)||user;
+    return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
+  }));
   const here = tiles.find(t => t.x === d.tx && t.y === d.ty);
   const path = here ? [] : findPath(d.tx, d.ty, tiles);
   if (!path) return false;
@@ -312,6 +332,8 @@ function arrive(d) {
     const cx = (f.x + F.w / 2) * T, cy = (f.y + F.h / 2) * T;
     face(d, cx, cy);
   }
+  countHouseDay(a.type,d.name);
+  if(a.type==='meal'&&f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
@@ -435,9 +457,9 @@ let saveT = 0;
 function update(realDt) {
   const dt = realDt * G.speed;
   G.t += realDt;
-  if (dt > 0) {
+  if (dt > 0 && !document.getElementById('paperDialog')?.open) {
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); SFX.play('newday'); }
+    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); SFX.play('newday'); }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
@@ -445,7 +467,7 @@ function update(realDt) {
     for (const d of G.dolls) updateDoll(d, dt);
   }
   updateDoors(realDt);
-  if (dt > 0) { socialTick(dt); trystTick(); }
+  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }

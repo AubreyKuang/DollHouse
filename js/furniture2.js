@@ -126,3 +126,10 @@ Object.assign(DRAW, {
     box(c, x + 21, y + 4, 7, 6, '#fffaf0', '#d9a640'); R(c, x + 23, y + 6, 3, 2, '#e27fa6');
   },
 });
+
+FURNITURE.mirror={name:"穿衣镜",w:1,h:1,use:"groom",mode:"front",need:{fun:9}};
+DRAW.mirror=(c,x,y)=>{ R(c,x+3,y-8,10,22,INK); R(c,x+5,y-6,6,17,"#add8dc"); R(c,x+6,y-4,1,8,"#f5ffff"); };
+TALL.mirror=9;
+
+Object.assign(ACT_NAMES,{meal:'用餐',groom:'整理仪容'});
+Object.assign(ACT_LINES,{meal:['今天的晚饭真香','一起吃吧'],groom:['理一理头发','今天这身不错']});

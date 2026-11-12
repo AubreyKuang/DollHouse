@@ -49,6 +49,8 @@
   </aside>
 </main>
 
+<div style="padding:.5rem"><button type="button" id="dailyPaper">📰 小屋日报</button></div>
+<dialog id="paperDialog"><form method="dialog"><button aria-label="关闭">关闭</button></form><h2>小屋日报</h2><label><input id="paperAuto" type="checkbox"> 每日自动打开</label><pre id="paperText" style="white-space:pre-wrap"></pre><button type="button" id="paperCopy">复制日报</button></dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
     <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
@@ -101,6 +103,8 @@
 <script src="js/doll.js"></script>
 <script src="js/audio.js"></script>
 <script src="js/npc-memory.js"></script>
+<script src="js/save-manager.js"></script>
+<script src="js/house-life.js"></script>
 <script src="js/game.js"></script>
 <script src="js/social.js"></script>
 <script src="js/work.js"></script>

@@ -6,7 +6,7 @@ const lightCv = document.createElement('canvas'); lightCv.width = W; lightCv.hei
 const lctx = lightCv.getContext('2d');
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
-  cv.width = W; lightCv.width = W; ctx.imageSmoothingEnabled = false;
+  cv.width = W; cv.height = H; lightCv.width = W; lightCv.height = H; ctx.imageSmoothingEnabled = false;
   document.getElementById('stage').style.aspectRatio = `${W} / ${H}`;
 };
 const overlay = document.getElementById('overlay');
@@ -34,6 +34,15 @@ function render() {
   const c = ctx, t = G.t;
   drawWall(c, wallSpec());
   drawFloor(c, floorSpec());
+  c.fillStyle='#4c3543';
+  c.fillRect(0,FLOOR_SPLIT*T-2,STAIRS_X*T,4);
+  c.fillRect((STAIRS_X+1)*T,FLOOR_SPLIT*T-2,W-(STAIRS_X+1)*T,4);
+  c.fillStyle='#cda277';
+  for(let i=0;i<5;i++)c.fillRect(STAIRS_X*T+1,(FLOOR_SPLIT-1)*T+i*6,T-2,3);
+  c.fillStyle='#4c3543';
+  c.font='10px sans-serif';
+  c.fillText('一楼',3,(FLOOR_SPLIT-1)*T);
+  c.fillText('二楼',3,(FLOOR_SPLIT+1)*T);
   const placing = G.build.placing;
 
   for (const f of G.furniture) if (layerOf(f.id) === 'wall') DRAW[f.id](c, f.x * T, f.y * T, f, t);
