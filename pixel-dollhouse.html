@@ -70,11 +70,11 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .btn.danger,.btn.on{background:var(--accent);color:var(--accent-ink)}
 
 .layout{flex:1;display:flex;gap:16px;padding:16px;align-items:flex-start;justify-content:center;flex-wrap:wrap}
-#stageWrap{flex:1 1 560px;max-width:900px;min-width:0}
+#stageWrap{flex:1 1 560px;max-width:680px;min-width:0}
 #stage{
-  position:relative;width:100%;aspect-ratio:4/3;
-  border:3px solid var(--line);border-radius:6px;overflow:hidden;
-  box-shadow:0 6px 0 var(--shadow);background:#000;
+  position:relative;width:100%;aspect-ratio:316/266;
+  border:1px solid var(--line);border-radius:8px;overflow:hidden;
+  box-shadow:0 3px 0 var(--shadow);background:#9fd3f0;
   touch-action:none;user-select:none;-webkit-user-select:none;
 }
 #cv{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
@@ -153,11 +153,17 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #buildBar{background:var(--panel);border-top:3px solid var(--line);padding:10px 16px 12px;position:sticky;bottom:0}
 .tabs{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 .tabs .spacer{flex:1}
-.palette{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 6px}
-.item{flex:none;width:84px;display:flex;flex-direction:column;align-items:center;gap:4px;
-  background:var(--panel-2);border:2px solid var(--line);border-radius:6px;padding:6px 4px;font-size:12px}
+.palette{display:flex;gap:9px;overflow-x:auto;padding:10px 2px 7px}
+.palette[data-category="essentials"]{--item-art:#e3eee2}
+.palette[data-category="decor"]{--item-art:#f4dfe8}
+.palette[data-category="hobbies"]{--item-art:#e9e2f5}
+.item{flex:none;width:94px;display:flex;flex-direction:column;align-items:center;gap:3px;
+  background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:6px 4px;font-size:12px}
+.item-name{font-weight:650}
+.item-purpose{color:var(--muted);font-size:10px}
+.item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .item.on{background:var(--sel);color:#3b2a2f}
-.item canvas{width:56px;height:56px;image-rendering:pixelated}
+.item canvas{width:56px;height:56px;image-rendering:pixelated;background:var(--item-art,transparent);border-radius:8px}
 
 .modal{position:fixed;inset:0;background:var(--backdrop);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
 .modal[hidden],#buildBar[hidden],.card[hidden]{display:none}
@@ -212,16 +218,16 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 <header class="topbar">
   <h1>像素小屋</h1>
   <div class="clock" title="游戏时间">
-    <span id="dayLabel">第 1 天</span>
-    <span id="clock">08:00</span>
-    <span id="timeIcon">☀️</span>
+    <span id="dayLabel">1 年 1 月</span>
+    <span id="clock">00:00</span>
+    <span id="timeIcon">🌙</span>
   </div>
   <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
   <nav class="modes" aria-label="模式">
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
-    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋日报</button>
+    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
   </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
@@ -234,7 +240,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 <main class="layout">
   <div id="stageWrap">
     <div id="stage">
-      <canvas id="cv" width="256" height="192"></canvas>
+      <canvas id="cv" width="316" height="266" aria-label="两层像素小洋房"></canvas>
       <div id="overlay"></div>
     </div>
     <p id="hint" class="hint">点击小人查看状态，按住可以把 TA 拎起来放到别处～</p>
@@ -254,12 +260,12 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 
 <dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
   <header class="paper-head">
-    <h2 id="paperTitle">小屋日报</h2>
-    <form method="dialog"><button class="btn small ghost" aria-label="关闭日报">关闭</button></form>
+    <h2 id="paperTitle">小屋月报</h2>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
   </header>
-  <label><input id="paperAuto" type="checkbox"> 每日自动打开</label>
+  <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
   <pre id="paperText" aria-live="polite"></pre>
-  <button type="button" id="paperCopy" class="btn small">复制日报</button>
+  <button type="button" id="paperCopy" class="btn small">复制月报</button>
 </dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
@@ -269,10 +275,12 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button id="btnCrowd" class="btn small">📣 号召大家凑钱</button>
     <button id="btnExpand" class="btn small"></button>
   </div>
-  <div class="tabs" role="tablist">
-    <button class="tab on" data-tab="furniture">家具</button>
-    <button class="tab" data-tab="wall">墙纸</button>
-    <button class="tab" data-tab="floor">地板</button>
+  <div class="tabs" role="group" aria-label="布置分类">
+    <button class="tab on" data-tab="essentials" aria-pressed="true">生活家具</button>
+    <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
+    <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
+    <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
+    <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
     <button id="btnTrash" class="btn small" title="点击家具删除">🗑 删除模式</button>
     <button id="btnReset" class="btn small ghost">恢复默认</button>
@@ -309,13 +317,24 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 <div id="toast" role="status"></div>
 
 <script>
+// The save keeps its original cycle index so timed activities and logs can
+// resume. Each complete light/dark cycle advances the displayed month.
+const MONTHS_PER_YEAR = 12;
+const monthOf = cycle => ((cycle - 1) % MONTHS_PER_YEAR + MONTHS_PER_YEAR) % MONTHS_PER_YEAR + 1;
+const yearOf = cycle => Math.floor((cycle - 1) / MONTHS_PER_YEAR) + 1;
+const monthLabel = cycle => `${yearOf(cycle)} 年 ${monthOf(cycle)} 月`;
+</script>
+<script>
 // 静态数据：房间尺寸、家具、性格、服装选项、默认存档
 const T = 16;              // 每格像素
 let COLS = 16;              // 房子宽度，扩建时会变大
 const FLOOR_SPLIT = 12;
-const STAIRS_X = 14;
+const stairsColumn = () => COLS - 2;
 const ROWS = 20;
-const WALL_ROWS = 3;       // 上面三行是墙
+const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
+const LOWER_LANDING = WALL_ROWS + 1;
+const UPPER_LANDING = ROWS - 1;
+const UPPER_WALL = -WALL_ROWS; // 二楼墙面用负数行，与既有地面坐标分开
 let W = COLS * T;
 const H = ROWS * T;
 
@@ -351,6 +370,7 @@ const NEEDS = [
   { key: 'hunger', name: '饱腹', color: '#ef9a4f' },
   { key: 'fun',    name: '快乐', color: '#ec6a8a' },
   { key: 'social', name: '社交', color: '#6aa9ec' },
+  { key: 'bladder', name: '如厕', color: '#a48cce' },
 ];
 
 // decay: 每游戏小时下降量；like: 偏好的活动加分；speed: 走路速度(格/秒)
@@ -392,7 +412,7 @@ const PERSONAS = {
     speed: 2.6, decay: { energy: 4, hunger: 3, fun: 4, social: 8 },
     like: { chat: 50, cat: 15, dance: 12, read: -15 },
     dur: { chat: 1.5, read: 0.5 },
-    chat: ['我跟你说个八卦！', '你今天发型好好看！', '周末一起出去玩吧～', '你最近怎么样呀？'],
+    chat: ['我跟你说个八卦！', '你今天发型好好看！', '有空一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
   },
 };
@@ -461,24 +481,32 @@ const FLOORS = [
 ];
 
 const DEFAULT_SAVE = {
-  wall: 'cream', floor: 'oak', time: 8 * 60, day: 1,
+  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1,
+  inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, toilet: 1, washstand: 1, pawRug: 1, knitting: 1 },
   furniture: [
-    // 卧室（0~6 列）
-    { id: 'window', x: 1, y: 0 }, { id: 'painting', x: 4, y: 1 },
-    { id: 'bigbed', x: 0, y: 3 }, { id: 'lamp', x: 3, y: 3 }, { id: 'bed', x: 4, y: 3 }, { id: 'plant', x: 6, y: 3 },
-    { id: 'rug2', x: 2, y: 7 }, { id: 'bath', x: 0, y: 10 },
-    // 客厅（7 列以后）
-    { id: 'door', x: 9, y: 1 }, { id: 'clock', x: 11, y: 1 }, { id: 'window', x: 12, y: 0 }, { id: 'poster', x: 15, y: 0 },
-    { id: 'shelf', x: 7, y: 3 }, { id: 'fridge', x: 10, y: 3 }, { id: 'stove', x: 11, y: 3 }, { id: 'plant', x: 12, y: 3 },
-    { id: 'tv', x: 13, y: 3 }, { id: 'arcade', x: 15, y: 3 },
-    { id: 'table', x: 9, y: 7 }, { id: 'chair', x: 8, y: 7 }, { id: 'chair', x: 11, y: 7 },
-    { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
+    // 二楼：左边是深色卧室，右边是明亮的书房。
+    { id: 'bunnyPicture', x: 1, y: -2 }, { id: 'shelfwall', x: 4, y: -2 },
+    { id: 'moonLamp', x: 3, y: -2 },
+    { id: 'cloudBed', x: 1, y: 14 }, { id: 'mirror', x: 4, y: 15 },
+    { id: 'lamp', x: 6, y: 14 }, { id: 'pawRug', x: 2, y: 17 },
+    { id: 'window', x: 10, y: -3 }, { id: 'painting', x: 14, y: -2 },
+    { id: 'shelf', x: 8, y: 13 }, { id: 'desk', x: 11, y: 14 },
+    { id: 'arcade', x: 13, y: 14 }, { id: 'plant', x: 15, y: 14 },
+    { id: 'rug', x: 10, y: 17 },
+    // 一楼：左边是粉色卧室，右边是客餐厅。
+    { id: 'bunnyPicture', x: 6, y: 1 }, { id: 'cloudMobile', x: 3, y: 0 },
+    { id: 'bigbed', x: 1, y: 5 }, { id: 'lamp', x: 0, y: 5 }, { id: 'mirror', x: 5, y: 6 },
+    { id: 'tulips', x: 6, y: 6 }, { id: 'rug', x: 2, y: 8 },
+    { id: 'window', x: 10, y: 0 }, { id: 'shelfwall', x: 11, y: 2 }, { id: 'door', x: 15, y: 1 },
+    { id: 'piano', x: 8, y: 4 }, { id: 'sofa', x: 10, y: 8 }, { id: 'table', x: 12, y: 6 },
+    { id: 'fridge', x: 15, y: 7 }, { id: 'stove', x: 14, y: 7 },
+    { id: 'rug', x: 9, y: 9 },
   ],
   dolls: [
-    { pid: 'p-tao', zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { pid: 'p-lan', zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { pid: 'p-jing', zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { pid: 'p-tuan', zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', tx: 5, ty: 18, zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', tx: 10, ty: 17, zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', tx: 4, ty: 9, zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', tx: 13, ty: 10, zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
 };
 
@@ -511,8 +539,7 @@ function shade(hex, amt) {
 function rnd(seed) { const s = Math.sin(seed * 9301 + 49297) * 233280; return s - Math.floor(s); }
 
 /* ---------------- 墙纸与地板 ---------------- */
-function drawWall(c, wall) {
-  const h = WALL_ROWS * T;
+function drawWall(c, wall, h = WALL_ROWS * T) {
   R(c, 0, 0, W, h, wall.base);
   const a = wall.alt;
   if (wall.pat === 'stripe') for (let x = 0; x < W; x += 8) R(c, x, 0, 3, h, a);
@@ -526,13 +553,13 @@ function drawWall(c, wall) {
   R(c, 0, h - 4, W, 4, shade(wall.base, -0.25)); R(c, 0, h - 4, W, 1, shade(wall.base, 0.1)); R(c, 0, h, W, 1, INK);
 }
 
-function drawFloor(c, floor) {
-  const y0 = WALL_ROWS * T + 1, h = H - y0;
+function drawFloor(c, floor, y0 = WALL_ROWS * T + 1, end = H) {
+  const h = end - y0;
   R(c, 0, y0, W, h, floor.base);
   const a = floor.alt;
-  if (floor.pat === 'plank') for (let y = y0; y < H; y += 6) { R(c, 0, y + 5, W, 1, a); for (let x = (rnd(y) * 30) | 0; x < W; x += 30) R(c, x, y, 1, 5, a); }
-  if (floor.pat === 'check') for (let y = y0; y < H; y += 8) for (let x = ((y - y0) / 8 % 2) * 8; x < W; x += 16) R(c, x, y, 8, 8, a);
-  if (floor.pat === 'tile') for (let y = y0; y < H; y += 16) for (let x = 0; x < W; x += 16) { R(c, x, y, 16, 1, a); R(c, x, y, 1, 16, a); R(c, x + 2, y + 2, 2, 1, '#ffffff55'); }
+  if (floor.pat === 'plank') for (let y = y0; y < end; y += 6) { R(c, 0, y + 5, W, 1, a); for (let x = (rnd(y) * 30) | 0; x < W; x += 30) R(c, x, y, 1, 5, a); }
+  if (floor.pat === 'check') for (let y = y0; y < end; y += 8) for (let x = ((y - y0) / 8 % 2) * 8; x < W; x += 16) R(c, x, y, 8, 8, a);
+  if (floor.pat === 'tile') for (let y = y0; y < end; y += 16) for (let x = 0; x < W; x += 16) { R(c, x, y, 16, 1, a); R(c, x, y, 1, 16, a); R(c, x + 2, y + 2, 2, 1, '#ffffff55'); }
   if (floor.pat === 'carpet') for (let i = 0; i < 260; i++) R(c, rnd(i) * W, y0 + rnd(i + 999) * h, 1, 1, a);
   if (floor.pat === 'grass') for (let i = 0; i < 200; i++) { const x = rnd(i) * W, y = y0 + rnd(i + 7) * h; R(c, x, y, 1, 2, a); if (i % 23 === 0) R(c, x, y, 2, 2, i % 2 ? '#fff6a0' : '#f6b0c8'); }
   // 墙脚阴影
@@ -544,32 +571,29 @@ function drawFloor(c, floor) {
    高家具会往上画超出占地格；f 是家具实例（f.active 表示有人在用，f.occ 是躺/坐上去的小人回调） */
 const WOOD = '#b0743f', WOOD_L = '#c98d55', WOOD_D = '#8a5530';
 
+function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
+  const w = double ? 48 : 32;
+  R(c, x + 2, y + 29, w - 4, 3, '#3b2a2f29');
+  R(c, x + 2, y + 7, w - 4, 16, '#654e51');
+  R(c, x + 3, y + 8, w - 6, 2, double ? '#d9b091' : '#85738d');
+  R(c, x + 5, y + 11, w - 10, 5, double ? '#c59a86' : '#534963');
+  box(c, x + 2, y + 14, w - 4, 14, '#fff4e9', '#614d56');
+  const centers = double ? [13, 35] : [16];
+  for (const [slot, center] of centers.entries()) {
+    box(c, x + center - 7, y + 14, 14, 6, '#f8e8de', '#bdadae');
+    f?.occ?.(slot, x + center, y + 19);
+  }
+  R(c, x + 3, y + 20, w - 6, 8, linen);
+  R(c, x + 3, y + 20, w - 6, 1, shade(linen, .18));
+  for (let px = x + 7; px < x + w - 5; px += 6) R(c, px, y + 23, 1, 3, shade(linen, -.10));
+  R(c, x + 2, y + 28, w - 4, 2, '#695354');
+  R(c, x + 4, y + 30, 2, 2, '#695354');
+  R(c, x + w - 6, y + 30, 2, 2, '#695354');
+}
+
 const DRAW = {
-  bed(c, x, y, f) {
-    box(c, x, y - 8, 32, 12, WOOD);                 // 床头板
-    R(c, x + 3, y - 6, 26, 2, WOOD_L);
-    box(c, x + 1, y + 2, 30, 28, '#fff6ea');         // 床垫
-    box(c, x + 6, y + 4, 20, 8, '#ffffff', '#cbbfae'); // 枕头
-    if (f && f.occ) f.occ(0, x + 16, y + 11);
-    const bl = f && f.color || '#e26d7d';
-    box(c, x + 1, y + 13, 30, 17, bl);              // 被子
-    R(c, x + 2, y + 14, 28, 2, shade(bl, 0.15));
-    for (let i = 0; i < 4; i++) R(c, x + 5 + i * 7, y + 20, 3, 3, shade(bl, -0.12));
-    R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 29, y + 29, 3, 3, WOOD_D);
-  },
-  bigbed(c, x, y, f) {
-    box(c, x, y - 9, 48, 13, WOOD);                 // 床头板，中间一颗小爱心
-    R(c, x + 3, y - 7, 42, 2, WOOD_L);
-    R(c, x + 22, y - 5, 2, 2, '#e26d7d'); R(c, x + 25, y - 5, 2, 2, '#e26d7d'); R(c, x + 22, y - 4, 5, 2, '#e26d7d'); R(c, x + 23, y - 2, 3, 1, '#e26d7d'); R(c, x + 24, y - 1, 1, 1, '#e26d7d');
-    box(c, x + 1, y + 2, 46, 28, '#fff6ea');
-    box(c, x + 4, y + 4, 18, 8, '#ffffff', '#cbbfae'); box(c, x + 26, y + 4, 18, 8, '#ffffff', '#cbbfae');
-    if (f && f.occ) { f.occ(0, x + 13, y + 11); f.occ(1, x + 35, y + 11); }
-    const bl = '#8a7fe0';
-    box(c, x + 1, y + 13, 46, 17, bl);
-    R(c, x + 2, y + 14, 44, 2, shade(bl, 0.15));
-    for (let i = 0; i < 5; i++) { const hx = x + 6 + i * 8, hy = y + 20 + (i % 2) * 3; R(c, hx, hy, 1, 1, '#f6b0c8'); R(c, hx + 2, hy, 1, 1, '#f6b0c8'); R(c, hx, hy + 1, 3, 1, '#f6b0c8'); R(c, hx + 1, hy + 2, 1, 1, '#f6b0c8'); }
-    R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 45, y + 29, 3, 3, WOOD_D);
-  },
+  bed(c, x, y, f) { drawBed(c, x, y, f, false); },
+  bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
     const col = '#5bb8b0', l = shade(col, 0.12), d = shade(col, -0.18);
     box(c, x + 2, y - 8, 28, 13, col); R(c, x + 3, y - 7, 26, 2, l);
@@ -739,7 +763,7 @@ const DRAW = {
 };
 
 // 家具在 y 方向的视觉顶部（用于选中高亮、图标裁切）
-const TALL = { bed: 8, bigbed: 9, sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
+const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
 function furnitureIcon(id, size = 56) {
@@ -1223,7 +1247,11 @@ const SaveManager = (() => {
 })();
 </script>
 <script>
-function countHouseDay(kind, label) {
+function formatSavedPaper(paper) {
+  return paper.replace(/^第 (\d+) 天 · [^\n]+/, (_, cycle) => monthLabel(Number(cycle)));
+}
+
+function countHouseActivity(kind, label) {
   const counters = (G.daily[kind] ||= {});
   const count=Object.hasOwn(counters,label)?counters[label]:0;
   Object.defineProperty(counters,label,{value:count+1,enumerable:true,writable:true,configurable:true});
@@ -1245,9 +1273,9 @@ function helpWithMeal(d, table) {
   addLog(`🍲 ${text}`);
 }
 
-function finishHouseDay() {
-  const lines = [`第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`];
-  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容' };
+function finishHouseMonth() {
+  const lines = [monthLabel(G.day)];
+  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友' };
   for (const [kind,title] of Object.entries(labels)) {
     const top = Object.entries(G.daily[kind] || {}).sort((a,b)=>b[1]-a[1])[0];
     if (top) lines.push(`${title}　${top[0]} · ${top[1]} 次`);
@@ -1262,9 +1290,9 @@ function finishHouseDay() {
   G.dayRelations=now;
   for (const entry of G.log.filter(entry=>entry.d===G.day).slice(-8)) lines.push(entry.text);
   const residents=G.dolls.filter(d=>d.state!=='away');
-  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们今天把日子过成了恋综。');
-  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们今天各忙各的，小屋格外安静。');
-  if (lines.length===1) lines.push('今天小屋里很安静。');
+  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们本月把日子过成了恋综。');
+  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们本月各忙各的，小屋格外安静。');
+  if (lines.length===1) lines.push('本月小屋里很安静。');
   G.paper.push(lines.join('\n'));
   if (G.paper.length>30) G.paper.shift();
   G.daily={};
@@ -1274,12 +1302,12 @@ function finishHouseDay() {
 
 function updateHousePaperButton(){
   const button=document.getElementById('dailyPaper');
-  if(button)button.textContent=G.paper.length?`📰 小屋日报 · ${G.paper.length}`:'📰 小屋日报';
+  if(button)button.textContent=G.paper.length?`📰 小屋月报 · ${G.paper.length}`:'📰 小屋月报';
 }
 
 function showHousePaper() {
   const dialog=document.getElementById('paperDialog');
-  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`第 ${G.day} 天的日报将在游戏时间 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋日报」回看。`;
+  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`${monthLabel(G.day)}的月报将在下月 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋月报」回看。`;
   document.getElementById('paperCopy').disabled=!G.paper.length;
   if (!dialog.open) dialog.showModal();
 }
@@ -1306,7 +1334,7 @@ const SAVE_KEY = 'pixel-dollhouse-v1';
 const MIN_PER_SEC = 4;               // 现实 1 秒 = 游戏 4 分钟，一天约 6 分钟
 const HOOK = { refresh() {}, select() {}, toast() {}, logged() {} };
 
-// 像模拟人生那样的生活日志：每条记下第几天、几点、发生了什么
+// 像模拟人生那样的生活日志：每条记下年月、几点、发生了什么
 function addLog(text) {
   G.log.push({ d: G.day, t: Math.floor(G.time), text });
   if (G.log.length > 300) G.log.shift();
@@ -1314,7 +1342,7 @@ function addLog(text) {
 }
 
 // 躺下的家具：人藏起来，只在枕头上画个头
-const LIE = { bed: 1, bigbed: 1, bath: 1 };
+const LIE = { bed: 1, bigbed: 1, cloudBed: 1, bath: 1 };
 const lying = d => d.state === 'act' && d.act && d.act.onFurn && LIE[d.act.furn.id];
 function headPos(d) {
   const f = d.act.furn;
@@ -1335,7 +1363,7 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
     return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+      floorsV: 1, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -1350,17 +1378,18 @@ function load() {
   applySave(s && s.furniture ? s : JSON.parse(JSON.stringify(DEFAULT_SAVE)));
 }
 function applySave(s) {
-  G.npcMemory = s.npcMemory; G.paper = s.paper || []; G.daily=s.daily || {};
+  G.npcMemory = s.npcMemory; G.paper = (s.paper || []).map(formatSavedPaper); G.daily=s.daily || {};
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
+  G.monthEvents = s.monthEvents ?? G.day;
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
-  if (!s.roomsV) migrateRooms();      // 老存档：给隔墙和门口腾地方
   if(!s.floorsV)for(const [id,x,y] of [['desk',2,13],['shelf',5,13],['mirror',10,13],['bed',2,17],['chair',5,16]]){
     if(canPlace(id,x,y))addFurniture(id,x,y);
   }
+  fitHouseFurniture();
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) addDoll(d);
   // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
@@ -1382,11 +1411,15 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
   if (x < 0 || x + d.w > COLS) return false;
-  if(L==='solid'&&x<=STAIRS_X&&x+d.w>STAIRS_X&&y<FLOOR_SPLIT+1&&y+d.h>FLOOR_SPLIT-1)return false;
+  if (L === 'solid' && blocksStairs({ id, x, y })) return false;
   if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
-  if (L === 'wall') { if (y < 0 || y + d.h > WALL_ROWS) return false; if (id === 'door' && y !== WALL_ROWS - 2) return false; }
+  if (L === 'wall') {
+    const start = y < 0 ? UPPER_WALL : 0;
+    if (y < start || y + d.h > start + WALL_ROWS) return false;
+    if (id === 'door' && y !== WALL_ROWS - 2) return false;
+  }
   else if (y < WALL_ROWS || y + d.h > ROWS) return false;
-  if (y < FLOOR_SPLIT && straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
+  if (straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
   if (L === 'solid') for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if (isDoorTile(x + i, y + j)) return false;
   for (const f of G.furniture) {
     if (f === ignore || layerOf(f.id) !== L) continue;
@@ -1414,20 +1447,23 @@ function rebuild() {
   for (const d of G.dolls) {
     if (d.state === 'away' || (d.state === 'act' && d.act.onFurn)) continue;
     if (BLOCK[d.tx] && BLOCK[d.tx][d.ty]) { const p = nearestFree(d.tx, d.ty); if (p) placeDollAt(d, p.x, p.y); }
+    if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
     d.path = []; if (d.state === 'walk') d.state = 'idle';
   }
 }
 const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !BLOCK[x][y];
 
-function nearestFree(x, y) {
-  x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(WALL_ROWS, Math.min(ROWS - 1, y));
+function nearestFree(x, y, floor) {
+  const first = floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
+  const end = floor === 1 ? FLOOR_SPLIT : ROWS;
+  x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(first, Math.min(end - 1, y));
   const seen = new Set([x + ',' + y]), q = [[x, y]];
   while (q.length) {
     const [cx, cy] = q.shift();
     if (free(cx, cy)) return { x: cx, y: cy };
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       const nx = cx + dx, ny = cy + dy, k = nx + ',' + ny;
-      if (nx < 0 || ny < WALL_ROWS || nx >= COLS || ny >= ROWS || seen.has(k)) continue;
+      if (nx < 0 || ny < first || nx >= COLS || ny >= end || seen.has(k)) continue;
       seen.add(k); q.push([nx, ny]);
     }
   }
@@ -1447,9 +1483,13 @@ function findPath(sx, sy, goals) {
       path.shift(); return path;
     }
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
-    for (const [dx, dy] of dirs) {
-      const nx = cx + dx, ny = cy + dy, nk = nx + ',' + ny;
-      if (!free(nx, ny) || prev.has(nk) || wallBetween(cx, cy, nx, ny)) continue;
+    const neighbors = dirs.map(([dx, dy]) => [cx + dx, cy + dy])
+      .filter(([nx, ny]) => !wallBetween(cx, cy, nx, ny));
+    if (cx === stairsColumn() && cy === LOWER_LANDING) neighbors.push([cx, UPPER_LANDING]);
+    if (cx === stairsColumn() && cy === UPPER_LANDING) neighbors.push([cx, LOWER_LANDING]);
+    for (const [nx, ny] of neighbors) {
+      const nk = nx + ',' + ny;
+      if (!free(nx, ny) || prev.has(nk)) continue;
       prev.set(nk, k); q.push([nx, ny]);
     }
   }
@@ -1459,8 +1499,15 @@ function findPath(sx, sy, goals) {
 // 使用家具时站的位置：优先家具正下方，其次左右两侧
 function approachTiles(f) {
   const d = FURNITURE[f.id], out = [];
-  for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
-  if (d.mode === 'on') for (let j = 0; j < d.h; j++) { out.push({ x: f.x - 1, y: f.y + j }); out.push({ x: f.x + d.w, y: f.y + j }); }
+  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : ROWS;
+  const front = f.y + d.h < end;
+  if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
+  if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
+    out.push({ x: f.x - 1, y: f.y + j }, { x: f.x + d.w, y: f.y + j });
+  }
+  if (!front && f.y - 1 >= (f.y < FLOOR_SPLIT ? WALL_ROWS : FLOOR_SPLIT)) {
+    for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y - 1 });
+  }
   return out;
 }
 
@@ -1477,6 +1524,7 @@ function addDoll(src) {
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
   };
+  d.needs.bladder ??= 85;
   G.dolls.push(d);
   if (!BLOCK) BLOCK = blockedMap();
   const p = nearestFree(2 + ((Math.random() * (COLS - 4)) | 0), WALL_ROWS + 1 + ((Math.random() * (ROWS - WALL_ROWS - 2)) | 0));
@@ -1491,7 +1539,12 @@ function placeDollAt(d, x, y) { d.tx = x; d.ty = y; d.x = x * T + 8; d.y = y * T
 function say(d, text, dur = 2.6) { if (text) { d.bubble = { text, t: dur, id: Math.random() }; SFX.play('pop'); } }
 const pick = a => a[(Math.random() * a.length) | 0];
 
+function takingStairs(d) {
+  return d.state === 'walk' && d.path.length > 0 && Math.abs(d.path[0].y - d.ty) > 1;
+}
+
 function endAct(d) {
+  if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
   const a = d.act;
   if (a && a.furn) {
     a.furn.users = a.furn.users.filter(u => u !== d);
@@ -1515,6 +1568,10 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (F.use === 'toilet') {
+      if (N.bladder >= 48) continue;
+      s += N.bladder < 20 ? 75 : 20;
+    }
     if (F.use === 'sleep') s += G.night ? 70 : (N.energy > 45 ? -60 : 0);
     else if (G.night && N.energy < 60) s -= 20;
     if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
@@ -1584,7 +1641,7 @@ function startAct(d, o) {
   const f = o.furn, F = FURNITURE[f.id];
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
-  const tiles = approachTiles(f).filter(tile=>F.use!=='meal'||!f.users.some(user=>{
+  const tiles = approachTiles(f).filter(tile=>!['meal', 'chess'].includes(F.use)||!f.users.some(user=>{
     const destination=user.path.at(-1)||user;
     return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
   }));
@@ -1615,7 +1672,7 @@ function arrive(d) {
   if (!G.furniture.includes(f)) { endAct(d); return; }
   if (PRICES[a.type] && !pay(d, PRICES[a.type], PRICE_NAME[a.type])) { say(d, '钱不够了……'); endAct(d); d.think = 4; return; }
   d.state = 'act';
-  a.t = a.type === 'sleep' ? 28 + Math.random() * 10 : 7 + Math.random() * 5;
+  a.t = a.type === 'toilet' ? 4 : a.type === 'sleep' ? 28 + Math.random() * 10 : 7 + Math.random() * 5;
   if (JOIN[a.type] && a.type !== 'read') { a.t = 16 + Math.random() * 8; nudgeAudience(d); }
   const PDur = PERSONAS[d.persona].dur; if (PDur && PDur[a.type]) a.t *= PDur[a.type];
   a.t *= durMul(d);   // J 型更专注，P 型更容易换下一件事
@@ -1635,16 +1692,24 @@ function arrive(d) {
     const cx = (f.x + F.w / 2) * T, cy = (f.y + F.h / 2) * T;
     face(d, cx, cy);
   }
-  countHouseDay(a.type,d.name);
+  countHouseActivity(a.type,d.name);
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
+  }
+  if (a.type === 'chess') {
+    const opponent = f.users.find(o => o !== d && o.state === 'act');
+    if (opponent) {
+      bump(d, opponent, 2);
+      countHouseActivity('chess', `${opponent.name} 和 ${d.name}`);
+      addLog(`♟ ${opponent.name} 和 ${d.name} 下了一局棋`);
+    }
   }
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
   if (mate && !(f.coupleLogAt > absNow() - 600)) { f.coupleLogAt = absNow(); addLog(`🛏 ${mate.name} 和 ${d.name} 一起睡了`); }   // 一晚只记一次
-  const snd = { snack: 'eat', cook: 'cook', piano: 'piano', game: 'game', bath: 'splash', cat: 'meow', water: 'splash' }[a.type];
+  const snd = { snack: 'eat', cook: 'cook', piano: 'piano', game: 'game', bath: 'splash', shower: 'splash', wash: 'splash', cat: 'meow', water: 'splash' }[a.type];
   if (snd) SFX.play(snd);
 }
 
@@ -1656,7 +1721,8 @@ function face(d, x, y) {
 /* ---------------- 每帧更新 ---------------- */
 function updateDoll(d, dt) {
   const P = PERSONAS[d.persona], N = d.needs;
-  for (const k in N) N[k] = Math.max(0, N[k] - P.decay[k] * decayMul(d, k) * MIN_PER_SEC / 60 * dt);
+  for (const k in P.decay) N[k] = Math.max(0, N[k] - P.decay[k] * decayMul(d, k) * MIN_PER_SEC / 60 * dt);
+  if (G.furniture.some(f => f.id === 'toilet')) N.bladder = Math.max(0, N.bladder - 11 * MIN_PER_SEC / 60 * dt);
   d.blinkT -= dt; if (d.blinkT < 0) { d.blink = 0.15; d.blinkT = 2 + Math.random() * 4; }
   if (d.blink > 0) d.blink -= dt;
   if (d.happy > 0) d.happy -= dt;
@@ -1672,8 +1738,10 @@ function updateDoll(d, dt) {
     if (!n) { arrive(d); return; }
     if (!free(n.x, n.y)) { d.path = []; if (d.act && d.act.furn) endAct(d); else { d.state = 'idle'; d.act = null; } return; }
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
-    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1);
-    if (dist > 0.01) face(d, gx, gy);
+    const onStairs = takingStairs(d);
+    const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (onStairs ? 2 : 1);
+    if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
+    else if (dist > 0.01) face(d, gx, gy);
     if (dist <= sp) { d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift(); if (!d.path.length) arrive(d); }
     else { d.x += dx / dist * sp; d.y += dy / dist * sp; }
     d.ft += dt; if (d.ft > 0.13) { d.ft = 0; d.frame = (d.frame + 1) % 4; }
@@ -1694,13 +1762,14 @@ function updateDoll(d, dt) {
       const mate = a.furn.users.find(u => u !== d && lying(u));
       if (mate && rel(d, mate).lovers) { const r = rel(d, mate); r.l = Math.min(100, r.l + 0.3 * dt); if (Math.random() < dt * 0.08) spawnHeart(d, '💕'); }
     }
-    if (a.type === 'piano' && Math.random() < dt * 3) SFX.play('piano');
+    if ((a.type === 'piano' || a.type === 'strum') && Math.random() < dt * 3) SFX.play('piano');
     if (a.type === 'exercise') { d.ft += dt; if (d.ft > 0.09) { d.ft = 0; d.frame = (d.frame + 1) % 4; } }
     if (a.type === 'paint' && d.job === 'artist') d.paintedDay = G.day;
     if (a.type === 'music' && Math.random() < dt * 2) SFX.play('game');
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
+    if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0 || wake) endAct(d);
     return;
   }
@@ -1711,7 +1780,7 @@ function updateDoll(d, dt) {
   if (d.persona === 'lazy' && Math.random() < dt * 0.04) { d.blink = 3; d.think += 3; say(d, pick(['💤 呼……', '（站着睡着了）', 'zzz'])); }
   if (Math.random() < dt * 0.04) {
     const low = Object.entries(N).sort((a, b) => a[1] - b[1])[0];
-    const sad = { energy: '好困……', hunger: '肚子咕咕叫', fun: '好无聊～', social: '有点寂寞' };
+    const sad = { bladder: '想去一下洗手间…', energy: '好困……', hunger: '肚子咕咕叫', fun: '好无聊～', social: '有点寂寞' };
     say(d, low[1] < 25 ? sad[low[0]] : (Math.random() < 0.3 && wishLine(d)) || pick(P.lines));
   }
   if (d.think <= 0) decide(d);
@@ -1719,8 +1788,7 @@ function updateDoll(d, dt) {
 
 const hearts = [];
 function spawnHeart(d, txt = '❤') {
-  const p = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 14 } : d;
-  hearts.push({ x: p.x + (Math.random() * 8 - 4), y: p.y - 24, t: 1, txt, id: Math.random() });
+  hearts.push({ doll: d, dx: Math.random() * 8 - 4, t: 1, txt });
 }
 
 function petDoll(d) {
@@ -1764,8 +1832,21 @@ function update(realDt) {
   const dt = realDt * G.speed;
   G.t += realDt;
   if (dt > 0 && !document.getElementById('paperDialog')?.open) {
+    if (G.monthEvents !== G.day) {
+      startHouseMonth();
+      save();
+    }
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); save(); SFX.play('newday'); }
+    if (G.time >= 1440) {
+      finishHouseMonth();
+      G.time -= 1440;
+      G.day++;
+      HOOK.toast(`☀️ ${monthLabel(G.day)}开始啦`);
+      nightlyBills();
+      startHouseMonth();
+      save();
+      SFX.play('newday');
+    }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
@@ -1945,7 +2026,7 @@ function startSocial(d, p) {
   // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
   const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
-  countHouseDay('social',d.name+' × '+p.name);
+  countHouseActivity('social',d.name+' × '+p.name);
   if(kind==='chat'&&Math.random()<.32)shareHouseNews(d,p);
   if (!routine && ['argue', 'hug', 'kiss', 'flirt', 'joke'].includes(kind)) {
     const outcome = kind === 'flirt' ? (flirtOk ? 'accepted' : 'rejected') : 'completed';
@@ -2142,7 +2223,7 @@ function arriveJoin(d) {
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
   if(a.what==='game'||a.what==='piano'){
-    countHouseDay(a.what==='piano'?'audience':'partners',o.name);
+    countHouseActivity(a.what==='piano'?'audience':'partners',o.name);
     NPCMemory.record(G,{type:'company',time:absNow(),participants:[o.pid,d.pid],outcome:a.what},[
       {person:o.pid,subject:d.pid,emotion:.55,impact:55,interpretation:`${d.name}来陪我${a.what==='game'?'玩游戏':'弹琴'}`},
       {person:d.pid,subject:o.pid,emotion:.55,impact:55,interpretation:`我和${o.name}一起${a.what==='game'?'玩游戏':'听钢琴'}`}
@@ -2174,23 +2255,21 @@ function socialDoing(d) {
 }
 </script>
 <script>
-// 职业与作息：到点从大门出门，在外面待一段时间，每天回家的时间都不太一样
-// 时间用“绝对分钟” abs = (第几天-1)*1440 + 当天分钟，这样夜班跨过午夜也好算
+// 职业与作息：到点从大门出门，在外面待一段时间，每月回家的时间都不太一样
+// 绝对分钟跨月连续累计，夜班在次月清晨结束。
 
-const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-const weekday = day => (day - 1) % 7;               // 第 1 天是周一
 const absNow = () => (G.day - 1) * 1440 + G.time;
 const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
-// start/end 是当天分钟；end < start 表示下班在第二天（夜班）；off 是休息的星期几
+// start/end 是时钟分钟，end < start 表示次月下班，off 是休息月份。
 const JOBS = {
-  student: { name: '学生', icon: '🎒', start: 480, end: 960, off: [5, 6], verb: '上学', wage: 40, wageName: '拿到零花钱',
+  student: { name: '学生', icon: '🎒', start: 480, end: 960, off: [7, 8], verb: '上学', wage: 40, wageName: '拿到零花钱',
     go: ['去上学啦！', '书包带了吗……带了！', '要迟到啦！'], back: ['放学啦～', '今天学了好多', '作业好多……'], tired: '今天考试……' },
-  office: { name: '上班族', icon: '💼', start: 540, end: 1080, off: [5, 6], verb: '上班', wage: 320,
+  office: { name: '上班族', icon: '💼', start: 540, end: 1080, off: [2], verb: '上班', wage: 320,
     go: ['上班去了……', '又是元气满满的一天（假的）', '挤地铁去咯'], back: ['终于下班了！', '我回来啦', '今天开了好多会'], tired: '加班好累……' },
-  baker: { name: '面包师', icon: '🥐', start: 330, end: 780, off: [0], verb: '烤面包', wage: 240,
+  baker: { name: '面包师', icon: '🥐', start: 330, end: 780, off: [1], verb: '烤面包', wage: 240,
     go: ['去烤面包！', '面团在等我', '早起的面包师有面包吃'], back: ['带了面包回来～', '香喷喷地回来啦', '今天的可颂很成功'], tired: '今天订单好多' },
-  barista: { name: '咖啡师', icon: '☕', start: 600, end: 1140, off: [2], verb: '做咖啡', wage: 210,
+  barista: { name: '咖啡师', icon: '☕', start: 600, end: 1140, off: [3], verb: '做咖啡', wage: 210,
     go: ['去咖啡店啦', '今天也要好好拉花', '出门咯～'], back: ['今天拉花很成功！', '一身咖啡香地回来了', '我回来啦～'], tired: '客人好多……' },
   night: { name: '夜班店员', icon: '🌙', start: 1320, end: 360, off: [6], verb: '值夜班', wage: 280,
     go: ['值夜班去了', '晚上见……不对，早上见', '出门啦'], back: ['困死了……', '天亮了，我回来了', '要去补觉了'], tired: '今晚好多客人' },
@@ -2198,7 +2277,7 @@ const JOBS = {
   none: { name: '宅在家', icon: '🏠', start: null, verb: '宅家' },
 };
 
-const isWorkday = (job, day) => job.start != null && !job.off.includes(weekday(day));
+const isWorkMonth = (job, cycle) => job.start != null && !job.off.includes(monthOf(cycle));
 const doorOf = () => G.furniture.find(f => f.id === 'door');
 function doorTile() {
   const d = doorOf();
@@ -2214,10 +2293,10 @@ function ensureDoor() {
   for (let x = 0; x < COLS; x++) if (canPlace('door', x, 1, null)) { addFurniture('door', x, 1); return; }
 }
 
-// 今天应该出门的时间（绝对分钟），不用上班返回 null
+// 本月应该出门的时间（绝对分钟），不用上班返回 null
 function leaveAbs(d) {
   const J = JOBS[d.job] || JOBS.none;
-  if (!isWorkday(J, G.day) || d.lastWorkDay === G.day) return null;
+  if (!isWorkMonth(J, G.day) || d.lastWorkDay === G.day) return null;
   return (G.day - 1) * 1440 + J.start - 30 + (d.leaveJitter || 0);
 }
 
@@ -2247,9 +2326,9 @@ function exitHome(d) {
   if (d.overtime) back += 120 + Math.random() * 60;
   else if (Math.random() < 0.15) back -= 60 + Math.random() * 40;
   d.awayUntil = Math.round(back);
-  d.leaveJitter = leaveJitterFor(d);  // 明天出门时间也稍微变一变：J 型准时，P 型常常踩点
+  d.leaveJitter = leaveJitterFor(d);  // 下月出门时间也稍微变一变：J 型准时，P 型常常踩点
   SFX.play('open');
-  HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${hhmm(d.awayUntil)} 回家`);
+  HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${returnTime(d)} 回家`);
   if (G.sel === d.uid) HOOK.select();
 }
 
@@ -2306,16 +2385,21 @@ function updateDoors(dt) { for (const f of G.furniture) if (f.openT > 0) f.openT
 function jobLine(d) {
   const J = JOBS[d.job] || JOBS.none;
   if (J.start == null) return `${J.icon} ${J.name}`;
-  const off = J.off.map(i => WEEKDAYS[i]).join('、');
-  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '日薪'} ${yuan(J.wage)}`;
+  const off = J.off.map(month => `${month} 月`).join('、');
+  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}`;
+}
+function returnTime(d) {
+  const cycle = Math.floor(d.awayUntil / 1440) + 1;
+  const time = hhmm(d.awayUntil);
+  return cycle > G.day ? `${monthLabel(cycle)} ${time}` : time;
 }
 function awayText(d) {
   const J = JOBS[d.job] || JOBS.none;
-  return `${J.verb}中，约 ${hhmm(d.awayUntil)} 回家`;
+  return `${J.verb}中，约 ${returnTime(d)} 回家`;
 }
 
 /* ---------------- 收入与储蓄 ----------------
-   上班的人每天下班领日薪（加班多拿 50%），学生有零花钱，自由画家偶尔卖画；
+   上班的人每月下班领月薪（加班多拿 50%），学生有零花钱，自由画家偶尔卖画；
    吃零食、买菜要花钱，每晚 0 点每人交房租水电。钱不够时，恋人或好朋友会帮忙付。 */
 const PRICES = { snack: 12, cook: 25 };
 const PRICE_NAME = { snack: '零食钱', cook: '买菜钱' };
@@ -2507,8 +2591,179 @@ Object.assign(ACT_NAMES,{meal:'用餐',groom:'整理仪容'});
 Object.assign(ACT_LINES,{meal:['今天的晚饭真香','一起吃吧'],groom:['理一理头发','今天这身不错']});
 </script>
 <script>
+// 小洋房家具：新增活动沿用住户的需求、寻路和家具占用逻辑。
+Object.assign(FURNITURE, {
+  toilet:       { name: '奶油马桶', w: 1, h: 1, use: 'toilet', mode: 'front', need: { bladder: 100 } },
+  washstand:    { name: '薄荷洗手台', w: 1, h: 1, use: 'wash', mode: 'front', need: { fun: 3 } },
+  shower:       { name: '贝壳淋浴间', w: 1, h: 1, use: 'shower', mode: 'front', need: { energy: 8, fun: 8 } },
+  cloudBed:     { name: '云朵床', w: 2, h: 2, use: 'sleep', mode: 'on', need: { energy: 26 } },
+  moonLamp:     { name: '月亮壁灯', w: 1, h: 1, layer: 'wall' },
+  bunnyPicture: { name: '兔兔挂画', w: 1, h: 1, layer: 'wall' },
+  cloudMobile:  { name: '星云吊饰', w: 2, h: 1, layer: 'wall' },
+  tulips:       { name: '郁金香花瓶', w: 1, h: 1 },
+  pawRug:       { name: '猫爪地毯', w: 2, h: 2, layer: 'floor' },
+  recordPlayer: { name: '蜜桃唱片机', w: 2, h: 1, use: 'music', mode: 'front', need: { fun: 17 } },
+  chessTable:   { name: '奶油棋桌', w: 2, h: 1, use: 'chess', mode: 'front', cap: 2, need: { fun: 16 } },
+  knitting:     { name: '草莓毛线篮', w: 1, h: 1, use: 'knit', mode: 'front', need: { fun: 13, energy: 3 } },
+  ukulele:      { name: '蜜糖尤克里里', w: 1, h: 1, use: 'strum', mode: 'front', need: { fun: 17 } },
+});
+
+Object.assign(TALL, { toilet: 10, washstand: 14, shower: 25, tulips: 11,
+  recordPlayer: 10, chessTable: 6, knitting: 2, ukulele: 16 });
+Object.assign(ACT_NAMES, {
+  toilet: '上厕所', wash: '洗手', shower: '淋浴', chess: '下棋', knit: '织毛线', strum: '弹尤克里里',
+});
+Object.assign(ACT_LINES, {
+  toilet: ['一会儿就好'], wash: ['洗干净啦'], shower: ['水温正好～'],
+  chess: ['下一步走哪儿？', '该你走啦'], knit: ['再织一行', '这团毛线真软'],
+  strum: ['试一段新和弦', '♪ 噔噔'],
+});
+Object.assign(PERSONAS.nerd.like, { chess: 22, knit: 8 });
+Object.assign(PERSONAS.lazy.like, { knit: 14 });
+Object.assign(PERSONAS.social.like, { strum: 17, chess: 12 });
+JOIN.strum = { verb: '听{n}弹尤克里里', like: 'strum', dance: .3,
+  lines: ['这段真好听', '🎵'], back: ['再来一小段～', '一起唱吧'] };
+
+const FURNITURE_OUTLINE = '#715d67';
+Object.assign(DRAW, {
+  toilet(c, x, y, f, t) {
+    box(c, x + 3, y - 10, 10, 13, '#fff3df', FURNITURE_OUTLINE);
+    R(c, x + 4, y - 9, 8, 2, '#fffdf3');
+    R(c, x + 9, y - 6, 2, 1, '#d5a6ae');
+    box(c, x + 1, y + 1, 14, 8, '#fff7e8', FURNITURE_OUTLINE);
+    R(c, x + 4, y + 4, 8, 3, f?.active ? '#95bdc2' : '#d8e2d7');
+    box(c, x + 5, y + 9, 7, 6, '#ead8cf', FURNITURE_OUTLINE);
+    if (f?.active && Math.floor(t * 4) % 2) R(c, x + 6, y + 4, 4, 1, '#d5f2f0');
+  },
+  washstand(c, x, y, f, t) {
+    box(c, x + 3, y - 14, 10, 11, '#c0dbd9', '#a18a7c');
+    R(c, x + 5, y - 12, 1, 6, '#f8fff3');
+    box(c, x + 2, y + 2, 12, 13, '#91c2ae', '#5b7a75');
+    R(c, x + 4, y + 6, 8, 1, '#bde2cc');
+    R(c, x + 7, y + 9, 2, 2, '#f4dfaa');
+    box(c, x, y - 1, 16, 6, '#fff1df', FURNITURE_OUTLINE);
+    R(c, x + 5, y + 1, 6, 2, '#b2d6ce');
+    R(c, x + 7, y - 4, 3, 3, '#a6a8a5');
+    if (f?.active) R(c, x + 9, y + Math.floor(t * 9) % 3, 1, 2, '#fbffff');
+  },
+  shower(c, x, y, f, t) {
+    box(c, x + 1, y - 22, 14, 36, '#d7e8df', '#778988');
+    R(c, x + 2, y - 20, 5, 31, '#adcfce');
+    R(c, x + 2, y - 19, 1, 29, '#e5f8ef');
+    R(c, x + 7, y - 18, 5, 2, '#f5d5b3');
+    R(c, x + 11, y - 20, 1, 5, '#a89384');
+    R(c, x + 9, y - 5, 3, 2, '#af9281');
+    R(c, x + 2, y + 10, 12, 3, '#e0c2c0');
+    R(c, x + 2, y + 11, 12, 1, '#f7ded1');
+    if (f?.active) for (let i = 0; i < 4; i++) {
+      R(c, x + 6 + i * 2, y - 15 + (Math.floor(t * 20) + i * 3) % 23, 1, 3, '#f6fffa');
+    }
+  },
+  cloudBed(c, x, y, f) {
+    drawBed(c, x, y, f, false, '#9eb7cf');
+    R(c, x + 5, y + 6, 8, 5, '#fff1e1');
+    R(c, x + 8, y + 4, 7, 6, '#fff1e1');
+    R(c, x + 13, y + 2, 8, 9, '#fff7e7');
+    R(c, x + 20, y + 5, 7, 6, '#fff1e1');
+    R(c, x + 6, y + 10, 20, 1, '#e4cdd1');
+  },
+  moonLamp(c, x, y) {
+    R(c, x + 6, y + 2, 5, 2, '#a68079');
+    R(c, x + 4, y + 4, 3, 7, '#ffdb8f');
+    R(c, x + 6, y + 3, 3, 5, '#fff0b9');
+    R(c, x + 6, y + 9, 7, 3, '#ffdb8f');
+    R(c, x + 7, y + 8, 7, 2, '#fff0b9');
+    R(c, x + 9, y + 12, 3, 1, '#c98e7d');
+    R(c, x + 11, y + 4, 2, 1, '#fff3ce');
+    R(c, x + 12, y + 3, 1, 3, '#fff3ce');
+  },
+  bunnyPicture(c, x, y) {
+    box(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
+    R(c, x + 3, y + 3, 10, 10, '#d5e2cd');
+    R(c, x + 5, y + 4, 2, 5, '#fff6e4');
+    R(c, x + 9, y + 4, 2, 5, '#fff6e4');
+    R(c, x + 4, y + 8, 8, 4, '#fff6e4');
+    R(c, x + 6, y + 9, 1, 1, '#71565f');
+    R(c, x + 9, y + 9, 1, 1, '#71565f');
+    R(c, x + 7, y + 11, 2, 1, '#d497a2');
+  },
+  cloudMobile(c, x, y, f, t) {
+    R(c, x + 15, y, 1, 4, '#806d78');
+    R(c, x + 5, y + 4, 22, 1, '#a58a8d');
+    for (const [i, dx] of [6, 15, 24].entries()) {
+      const dy = Math.round(Math.sin(t * 1.4 + i)), top = y + 5 + (i % 2) * 2;
+      R(c, x + dx, top, 1, 4 + dy, '#9e8589');
+      R(c, x + dx - 2, top + 4 + dy, 5, 3, ['#fff0bb', '#f6e5e7', '#d5e8ec'][i]);
+      R(c, x + dx, top + 3 + dy, 1, 5, '#fff0d6');
+    }
+  },
+  tulips(c, x, y) {
+    R(c, x + 5, y - 6, 1, 12, '#5b9679');
+    R(c, x + 8, y - 8, 1, 15, '#70a585');
+    R(c, x + 11, y - 5, 1, 11, '#5b9679');
+    R(c, x + 3, y - 6, 4, 3, '#e697a2');
+    R(c, x + 7, y - 10, 4, 4, '#f3c1ab');
+    R(c, x + 10, y - 5, 4, 3, '#e8adbf');
+    box(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
+    R(c, x + 6, y + 6, 1, 6, '#d5efdf');
+  },
+  pawRug(c, x, y) {
+    const patches = [[7, 11, 18, 15], [2, 3, 6, 11], [9, 0, 6, 10], [17, 0, 6, 10], [24, 4, 6, 10]];
+    for (const [dx, dy, w, h] of patches) {
+      R(c, x + dx, y + dy + 1, w, h, '#a87590');
+      R(c, x + dx + 1, y + dy + 2, w - 2, h - 3, '#efbccf');
+      R(c, x + dx + 2, y + dy + 3, w - 4, 3, '#f7d7df');
+    }
+  },
+  recordPlayer(c, x, y, f, t) {
+    box(c, x + 2, y - 10, 28, 12, '#d59a93', FURNITURE_OUTLINE);
+    R(c, x + 4, y - 8, 24, 7, '#f0c7b7');
+    R(c, x + 8, y - 7, 13, 5, '#77667a');
+    R(c, x + 11, y - 8, 7, 7, '#77667a');
+    R(c, x + 14, y - 6, 2, 2, '#f2cfaa');
+    if (f?.active) R(c, x + 11 + Math.floor(t * 8) % 8, y - 5, 1, 1, '#c3a6be');
+    R(c, x + 23, y - 7, 1, 4, '#96757d');
+    R(c, x + 20, y - 4, 4, 1, '#96757d');
+    box(c, x + 2, y + 1, 28, 8, '#efb3a7', FURNITURE_OUTLINE);
+    R(c, x + 5, y + 9, 2, 6, '#826667');
+    R(c, x + 25, y + 9, 2, 6, '#826667');
+  },
+  chessTable(c, x, y, f, t) {
+    R(c, x + 4, y + 5, 2, 10, '#846b65');
+    R(c, x + 26, y + 5, 2, 10, '#846b65');
+    box(c, x + 1, y - 5, 30, 12, '#f0d9b8', '#9a7e70');
+    for (let row = 0; row < 3; row++) for (let col = 0; col < 6; col++) {
+      if ((row + col) % 2) R(c, x + 7 + col * 3, y - 3 + row * 2, 3, 2, '#a18ca8');
+    }
+    const step = f?.active ? Math.floor(t * 2) % 3 : 0;
+    R(c, x + 12 + step * 2, y - 5, 2, 3, '#705571');
+    R(c, x + 19, y - 2, 2, 3, '#fff7e3');
+  },
+  knitting(c, x, y, f, t) {
+    box(c, x + 1, y + 5, 14, 10, '#d3a475', '#967364');
+    R(c, x + 2, y + 8, 12, 2, '#e7bd8b');
+    R(c, x + 2, y + 12, 12, 1, '#ad806d');
+    R(c, x + 3, y + 3, 5, 4, '#da879f');
+    R(c, x + 8, y + 2, 5, 5, '#b0cdbb');
+    const dy = f?.active ? Math.floor(t * 5) % 2 : 0;
+    R(c, x + 5, y - dy, 1, 5, '#f5d1a7');
+    R(c, x + 10, y - 2 + dy, 1, 6, '#f5d1a7');
+  },
+  ukulele(c, x, y, f, t) {
+    R(c, x + 3, y + 6, 1, 8, '#7c686a');
+    R(c, x + 11, y + 6, 1, 8, '#7c686a');
+    box(c, x + 4, y - 6, 8, 15, '#e6b175', '#946c5d');
+    R(c, x + 5, y + 3, 6, 4, '#f1ca8b');
+    R(c, x + 7, y - 14, 2, 17, '#9c735e');
+    R(c, x + 6, y - 16, 4, 4, '#bb9072');
+    R(c, x + 7, y - 2, 2, 3, '#765761');
+    if (f?.active) R(c, x + 10, y - 8 - Math.floor(t * 3) % 6, 2, 2, '#d9a7bb');
+  },
+});
+</script>
+<script>
 // 家庭基金、家具商店、仓库、扩建
-// 上班的人领工资时自动存 20% 进家庭基金；玩家每天还能号召一次大家凑钱。
+// 上班的人领工资时自动存 20% 进家庭基金；玩家每月还能号召一次大家凑钱。
 // 家具要用基金买，删掉的家具收进仓库可以再拿出来；扩建会让房子真的变宽，并解锁新家具。
 
 // [价格, 需要的房屋等级]
@@ -2517,9 +2772,22 @@ const SHOP = {
   stove: [1000, 1], shelf: [600, 1], tv: [1500, 1], arcade: [1300, 1], piano: [2500, 1], bath: [1600, 1],
   plant: [120, 1], lamp: [200, 1], catbed: [300, 1], rug: [250, 1], rug2: [200, 1],
   window: [500, 1], painting: [300, 1], clock: [150, 1], poster: [80, 1],
-  beanbag: [300, 1], coffee: [450, 1], aquarium: [700, 1], shelfwall: [180, 1],
+  beanbag: [300, 1], coffee: [450, 1], aquarium: [700, 1], shelfwall: [180, 1], mirror: [200, 1],
   desk: [500, 2], pc: [1600, 2], speaker: [900, 2], garland: [220, 2],
   easel: [800, 3], treadmill: [1800, 3],
+  toilet: [240, 1], washstand: [180, 1], shower: [520, 1], cloudBed: [740, 1],
+  moonLamp: [130, 1], bunnyPicture: [85, 1], cloudMobile: [120, 1], tulips: [95, 1], pawRug: [160, 1],
+  recordPlayer: [420, 1], chessTable: [360, 1], knitting: [140, 1], ukulele: [280, 1],
+};
+
+const FURNITURE_GROUPS = {
+  essentials: ['toilet', 'washstand', 'shower', 'bath', 'cloudBed', 'bed', 'bigbed',
+    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror'],
+  decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
+    'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
+    'shelfwall', 'garland', 'xmastree', 'lantern'],
+  hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
+    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill'],
 };
 
 const LEVELS = [null,
@@ -2552,7 +2820,7 @@ function stash(id) { G.inv[id] = (G.inv[id] || 0) + 1; }
 
 // 号召大家凑钱：每人按性格拿出“闲钱”（留 ¥300 生活费）的一部分
 function crowdfund() {
-  if (G.crowdDay === G.day) { HOOK.toast('今天已经凑过钱了，明天再来吧', true); return; }
+  if (G.crowdDay === G.day) { HOOK.toast('本月已经凑过钱了，下个月再来吧', true); return; }
   G.crowdDay = G.day;
   let total = 0; const parts = [];
   for (const d of G.dolls) {
@@ -2597,68 +2865,87 @@ function wishLine(d) {
 // 卧室：一面带门的隔墙把房子分成左边的卧室和右边的客厅
 // 门关上时外面看不到里面——花心的人会趁机把暧昧对象叫进卧室；恋人走进来就会撞破
 
-const BX = 7;           // 隔墙在第 7 列左边（0~6 列是卧室）
-const DY = 5;           // 门在第 5 行
-G.bedDoor = true;       // 卧室门：true 开着，false 关着
+const BX = 8;
+const DY = 5;
+const UPPER_DOOR_Y = 16;
+G.bedDoor = true;
 
-const roomOf = d => (d.ty >= FLOOR_SPLIT ? 'upstairs' : d.tx < BX ? 'bed' : 'living');
+const roomOf = d => d.ty >= FLOOR_SPLIT ? (d.tx < BX ? 'upperBedroom' : 'study') : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
-// 两个人能不能看见对方：同一个房间，或者门开着
-const canSee = (a, b) => roomOf(a) === roomOf(b) || (roomOf(a) !== 'upstairs' && roomOf(b) !== 'upstairs' && G.bedDoor);
-// 两个相邻格子之间有没有墙挡着（只有门那一行能穿过去）
-const wallBetween = (x1, y1, x2, y2) => (Math.min(y1,y2) === FLOOR_SPLIT - 1 && Math.max(y1,y2) === FLOOR_SPLIT && x1 !== STAIRS_X) || (y1 < FLOOR_SPLIT && y2 < FLOOR_SPLIT && Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== DY);
-// 门两边的格子要留出来，不能放实心家具
-const isDoorTile = (x, y) => y === DY && (x === BX - 1 || x === BX);
+const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty < FLOOR_SPLIT && G.bedDoor);
+const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
+const wallBetween = (x1, y1, x2, y2) =>
+  ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
+  (Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== passageRow(y1));
+const isDoorTile = (x, y) => y === passageRow(y) && (x === BX - 1 || x === BX);
 const straddles = (x, w) => x < BX && x + w > BX;
+
+function blocksStairs(f) {
+  const { w, h } = FURNITURE[f.id], column = stairsColumn();
+  return f.x <= column && column < f.x + w &&
+    [LOWER_LANDING, UPPER_LANDING].some(row => f.y <= row && row < f.y + h);
+}
+
+function fitHouseFurniture() {
+  for (const f of [...G.furniture]) {
+    const F = FURNITURE[f.id], layer = layerOf(f.id);
+    const wall = layer === 'wall';
+    const upper = f.y < 0 || f.y >= FLOOR_SPLIT;
+    const first = wall ? (upper ? UPPER_WALL : 0) : (upper ? FLOOR_SPLIT : WALL_ROWS);
+    const end = wall ? first + WALL_ROWS : (upper ? ROWS : FLOOR_SPLIT);
+    const byDoor = layer === 'solid' && [DY, UPPER_DOOR_Y].some(y =>
+      f.y <= y && y < f.y + F.h && f.x <= BX && f.x + F.w > BX - 1);
+    if (!straddles(f.x, F.w) && !byDoor && !(layer === 'solid' && blocksStairs(f))) continue;
+
+    let best = null;
+    for (let y = first; y + F.h <= end; y++) for (let x = 0; x + F.w <= COLS; x++) {
+      const distance = Math.abs(x - f.x) + Math.abs(y - f.y);
+      if ((!best || distance < best.distance) && canPlace(f.id, x, y, f)) best = { x, y, distance };
+    }
+    if (best) {
+      f.x = best.x; f.y = best.y;
+      addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}移到了同层的空位`);
+    } else {
+      G.furniture = G.furniture.filter(other => other !== f);
+      stash(f.id);
+      addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}收进了仓库`);
+    }
+  }
+}
 
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }
 
-// 隔墙按行切成几段，参与“按 y 排序”的绘制，这样小人在墙前墙后都能正确遮挡
-function partitionDrawables(c) {
-  const out = [], bx = BX * T, ws = WALLS.find(w => w.id === G.wall) || WALLS[0];
-  const face = shade(ws.base, -0.12), cap = shade(ws.base, 0.08);
-  for (let r = WALL_ROWS; r < FLOOR_SPLIT; r++) {
-    if (r === DY) {
-      out.push({ y: (r + 1) * T - 0.1, draw: () => {
-        R(c, bx - 3, r * T, 6, 2, INK);                                  // 门框上沿
-        if (doorOpenNow()) { R(c, bx - 14, r * T + 2, 12, 3, INK); R(c, bx - 13, r * T + 3, 10, 1, WOOD_L); }   // 门往卧室里开着
-        else { R(c, bx - 3, r * T + 2, 6, T - 2, INK); R(c, bx - 2, r * T + 2, 4, T - 3, WOOD); R(c, bx + 1, r * T + 8, 1, 2, '#f2c33a'); }
-      } });
-      continue;
-    }
-    out.push({ y: (r + 1) * T - 0.1, draw: () => {
-      const top = r === WALL_ROWS ? r * T - 1 : r * T;
-      R(c, bx - 3, top, 6, (r + 1) * T - top, INK);
-      R(c, bx - 2, top, 4, (r + 1) * T - top, face);
-      R(c, bx - 2, top, 1, (r + 1) * T - top, cap);
-      if (r === DY - 1 || r === DY + 1) R(c, bx - 3, r === DY - 1 ? (r + 1) * T - 1 : r * T, 6, 1, INK);
-    } });
-  }
-  return out;
+// The dividing wall is shown as a full-height cut edge. Its door and
+// threshold stay at the real crossing tile further inside the room.
+function bedroomDoorRect() {
+  const floor = STOREYS[0];
+  return { x: HOUSE_X + BX * T, y: houseY(DY * T, floor) };
 }
 
-// 生活模式下点门：开 / 关
-function hitBedDoor(p) { return Math.abs(p.x - BX * T) <= 6 && p.y >= DY * T - 2 && p.y <= (DY + 1) * T + 2; }
+function partitionDrawables(c) {
+  const { x, y } = bedroomDoorRect();
+  return [{ y: y + FLOOR_STEP, draw: () => {
+    R(c, x - 5, y + 2, 10, 2, '#b29a81');
+    if (!doorOpenNow()) {
+      R(c, x - 5, y - 16, 6, 18, '#78645d');
+      R(c, x - 4, y - 15, 4, 16, '#bf9a7f');
+      R(c, x - 2, y - 7, 1, 1, '#f7d390');
+    }
+  } }];
+}
+
+function hitBedDoor(p) {
+  const { x, y } = bedroomDoorRect();
+  return Math.abs(p.x - x) <= 7 && p.y >= y - 16 && p.y <= y + 7;
+}
 function toggleBedDoor() {
   G.bedDoor = !G.bedDoor;
   SFX.play(G.bedDoor ? 'pick' : 'place');
   HOOK.toast(G.bedDoor ? '🚪 卧室门打开了' : '🚪 卧室门关上了', true);
 }
 
-// 老存档：把挡住隔墙或门口的家具收进仓库
-function migrateRooms() {
-  const moved = [];
-  for (const f of [...G.furniture]) {
-    const F = FURNITURE[f.id], L = layerOf(f.id);
-    let bad = straddles(f.x, F.w);
-    if (L === 'solid') for (let i = 0; i < F.w; i++) for (let j = 0; j < F.h; j++) if (isDoorTile(f.x + i, f.y + j)) bad = true;
-    if (bad && f.id !== 'door') { G.furniture = G.furniture.filter(o => o !== f); stash(f.id); moved.push(FURNITURE[f.id].name); }
-  }
-  if (moved.length) addLog(`🧳 隔出卧室时，${moved.join('、')}被收进了仓库`);
-}
-
 /* ---------------- 卧室约会（地下情） ---------------- */
-function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f.x + FURNITURE.bigbed.w <= BX); }
+function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f.y < FLOOR_SPLIT && f.x + FURNITURE.bigbed.w <= BX); }
 // 卧室里除了这两个人没有别人（睡着的也算有人）
 function bedroomEmptyFor(a, b) { return !G.dolls.some(o => o !== a && o !== b && inBedroom(o)); }
 
@@ -2721,7 +3008,7 @@ function trystTick() {
 </script>
 <script>
 // 季节、天气、节日
-// 一年 28 天，每季 7 天；天气每半天换一次，窗外会下雨下雪；
+// 一年十二个月，季节影响窗外天气和房屋开销。
 // 冬天交暖气费、夏天交空调费；春节、中秋、圣诞有节日活动（圣诞树、灯笼可以在商店买）
 
 const SEASONS = [
@@ -2730,9 +3017,7 @@ const SEASONS = [
   { id: 'autumn', name: '秋', icon: '🍂', particle: '#e0a050' },
   { id: 'winter', name: '冬', icon: '⛄', particle: null },
 ];
-const SEASON_LEN = 7;
-const seasonOf = day => SEASONS[Math.floor((day - 1) / SEASON_LEN) % 4];
-const dayInSeason = day => (day - 1) % SEASON_LEN + 1;
+const seasonOf = cycle => SEASONS[(Math.floor(monthOf(cycle) / 3) + 3) % 4];
 
 const WEATHER = {
   sunny:  { name: '晴',   icon: '☀️' },
@@ -2748,11 +3033,11 @@ const WEATHER_ODDS = {
 };
 
 const HOLIDAYS = [
-  { season: 'spring', day: 2, name: '春节',   icon: '🧧', deco: 'lantern',  lines: ['新年快乐！', '恭喜发财～', '红包拿来！'] },
-  { season: 'autumn', day: 4, name: '中秋节', icon: '🥮', deco: 'lantern',  lines: ['月亮好圆', '月饼真好吃', '中秋快乐～'] },
-  { season: 'winter', day: 4, name: '圣诞节', icon: '🎄', deco: 'xmastree', lines: ['圣诞快乐！', '礼物呢礼物呢', '叮叮当～'] },
+  { month: 2, name: '春节',   icon: '🧧', deco: 'lantern',  lines: ['新年快乐！', '恭喜发财～', '红包拿来！'] },
+  { month: 9, name: '中秋节', icon: '🥮', deco: 'lantern',  lines: ['月亮好圆', '月饼真好吃', '中秋快乐～'] },
+  { month: 12, name: '圣诞节', icon: '🎄', deco: 'xmastree', lines: ['圣诞快乐！', '礼物呢礼物呢', '叮叮当～'] },
 ];
-const holidayOf = day => HOLIDAYS.find(h => h.season === seasonOf(day).id && h.day === dayInSeason(day)) || null;
+const holidayOf = cycle => HOLIDAYS.find(h => h.month === monthOf(cycle)) || null;
 
 /* ---------- 节日装饰 ---------- */
 Object.assign(FURNITURE, {
@@ -2836,14 +3121,16 @@ function seasonTick() {
   if (k) { G.sky = mixHex(G.sky, '#7a8696', k); G.dark = Math.min(0.6, G.dark + k * 0.12); }
 }
 
-// 新的一天开始时（0 点）：季节变化、节日
-function seasonNewDay() {
+// Run birthday and holiday events once for each started month.
+function startHouseMonth() {
+  if (G.monthEvents === G.day) return;
+  G.monthEvents = G.day;
   birthdayCheck();
   const S = seasonOf(G.day), prevS = seasonOf(G.day - 1);
   if (S !== prevS) { addLog(`${S.icon} ${S.name}天来了`); HOOK.toast(`${S.icon} ${S.name}天来了`, true); }
   const H = holidayOf(G.day);
   if (!H) return;
-  HOOK.toast(`${H.icon} 今天是${H.name}！`);
+  HOOK.toast(`${H.icon} 本月是${H.name}！`);
   const hasDeco = G.furniture.some(f => f.id === H.deco);
   for (const d of G.dolls) {
     d.needs.fun = Math.min(100, d.needs.fun + (hasDeco ? 30 : 15));
@@ -2964,13 +3251,12 @@ function compat(a, b) { return Math.max(0.7, Math.min(1.5, elementMatch(a, b) * 
 function compatStars(a, b) { const c = compat(a, b); return c < 0.9 ? '★☆☆☆' : c < 1.05 ? '★★☆☆' : c < 1.2 ? '★★★☆' : '★★★★'; }
 
 /* ---------- 生日 ---------- */
-const dayOfYear = day => (day - 1) % 28 + 1;
-const birthdayOf = d => 1 + Math.floor(ZODIAC.indexOf(zodiacOf(d)) * 28 / 12);   // 白羊座在春天第 1 天
+const birthdayOf = d => monthOf(ZODIAC.indexOf(zodiacOf(d)) + 3);
 function birthdayCheck() {
-  const today = dayOfYear(G.day);
+  const month = monthOf(G.day);
   for (const d of G.dolls) {
-    if (birthdayOf(d) !== today) continue;
-    HOOK.toast(`🎂 今天是 ${d.name} 的生日！`);
+    if (birthdayOf(d) !== month) continue;
+    HOOK.toast(`🎂 本月是 ${d.name} 的生日！`);
     d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
     for (const o of G.dolls) {
       if (o === d) continue;
@@ -2984,22 +3270,255 @@ function birthdayCheck() {
 // 状态卡上的一行介绍
 function astroLine(d) {
   const z = zodiacOf(d), E = ELEMENTS[z.el];
-  return `${z.icon} ${z.name}（${E.icon}${E.name}） · ${mb(d)} ${MBTI_NAMES[mb(d)]} · 🎂 第 ${birthdayOf(d)} 天`;
+  return `${z.icon} ${z.name}（${E.icon}${E.name}） · ${mb(d)} ${MBTI_NAMES[mb(d)]} · 🎂 ${birthdayOf(d)} 月`;
 }
 function randomZodiac() { return pick(ZODIAC).id; }
 function randomMbti() { return MBTI_AXES.map(a => a[Math.random() < 0.5 ? 0 : 1]).join(''); }
+</script>
+<script>
+// Two cutaway storeys over the existing simulation grid. The front edges
+// are shallow in screen space while the back walls and sprites stay upright.
+const HOUSE_X = 14;
+const HOUSE_HEIGHT = 266;
+const HOUSE_MARGIN = 60;
+const FLOOR_STEP = 3;
+const WALL_STEP = 18;
+const STOREYS = [
+  { wall: 165, back: 225, front: 252, row: WALL_ROWS, wallRow: 0,
+    rooms: ['#efc5c3', '#f4e6cb'], floors: ['#d7b6af', '#bf9d73'] },
+  { wall: 74, back: 134, front: 158, row: FLOOR_SPLIT, wallRow: UPPER_WALL,
+    rooms: ['#666780', '#d9c5cc'], floors: ['#655c70', '#a7b9aa'] },
+];
+const storeyOf = row => STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
+
+function houseY(y, storey) {
+  return storey.back + (y - storey.row * T) * FLOOR_STEP / T;
+}
+
+function stairPoint(progress) {
+  const x = HOUSE_X + stairsColumn() * T + 8;
+  const edge = HOUSE_X + W;
+  const top = houseY(UPPER_LANDING * T + 14, STOREYS[1]);
+  const bottom = houseY(LOWER_LANDING * T + 14, STOREYS[0]);
+  if (progress < .2) return { x: mixNum(x, edge + 8, progress / .2), y: top };
+  if (progress > .8) return { x: mixNum(edge + 28, x, (progress - .8) / .2), y: bottom };
+  const t = (progress - .2) / .6;
+  return { x: mixNum(edge + 8, edge + 28, t), y: mixNum(top, bottom, t) };
+}
+
+function houseDollPoint(d) {
+  if (d.state === 'lift') return { x: d.liftX, y: d.liftY };
+  if (takingStairs(d)) {
+    return stairPoint((UPPER_LANDING * T + 14 - d.y) / ((UPPER_LANDING - LOWER_LANDING) * T));
+  }
+  if (d.act?.onFurn) {
+    const f = d.act.furn;
+    return { x: HOUSE_X + d.x, y: houseFurnitureRect(f).y + d.y - f.y * T };
+  }
+  return { x: HOUSE_X + d.x, y: houseY(d.y, storeyOf(d.ty)) };
+}
+
+function houseFurnitureRect(f) {
+  const F = FURNITURE[f.id], storey = storeyOf(f.y);
+  const x = HOUSE_X + f.x * T, w = F.w * T;
+  const layer = layerOf(f.id);
+  const wall = layer === 'wall';
+  const bottom = wall ? storey.wall + 5 + (f.y - storey.wallRow) * WALL_STEP + F.h * T : houseY((f.y + F.h) * T, storey);
+  const y = bottom - F.h * (layer === 'floor' ? FLOOR_STEP : T);
+  return { x, y, w, bottom, top: y - (layer === 'solid' ? TALL[f.id] || 0 : 0), storey };
+}
+
+function houseTile(p, id) {
+  const storey = p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
+  const F = id && FURNITURE[id];
+  const wall = F && layerOf(id) === 'wall';
+  const x = F ? Math.round((p.x - HOUSE_X) / T - F.w / 2) : Math.floor((p.x - HOUSE_X) / T);
+  if (p.x < HOUSE_X || p.x >= HOUSE_X + W || p.y < storey.wall || p.y >= storey.front) return null;
+  if (wall) {
+    if (p.y >= storey.back) return null;
+    const row = Math.round((p.y - storey.wall - 5 - F.h * T / 2) / WALL_STEP);
+    return { x, y: storey.wallRow + Math.max(0, Math.min(WALL_ROWS - F.h, row)) };
+  }
+  if (p.y < storey.back) return null;
+  const y = storey.row + (p.y - storey.back) / FLOOR_STEP;
+  const end = storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
+  return { x, y: F ? Math.max(storey.row, Math.min(end - F.h, Math.round(y - F.h / 2))) : Math.floor(y) };
+}
+
+function housePath(c, points) {
+  c.beginPath();
+  c.moveTo(...points[0]);
+  for (const point of points.slice(1)) c.lineTo(...point);
+  c.closePath();
+}
+
+function housePoly(c, color, ...points) {
+  c.fillStyle = color;
+  housePath(c, points);
+  c.fill();
+}
+
+function drawHouseGarden(c, left, right) {
+  const width = W + HOUSE_MARGIN;
+  R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
+  R(c, 0, 231, width, HOUSE_HEIGHT - 231, '#a6b597');
+  R(c, 0, 259, width, 7, '#bdc7a6');
+  R(c, left - 5, 258, right - left + 44, 4, '#83947e');
+  for (const [x, y] of [[4, 38], [right + 12, 62], [right - 28, 14]]) {
+    R(c, x, y + 6, 22, 4, '#f4f6ebbb');
+    R(c, x + 4, y + 2, 14, 6, '#f4f6ebbb');
+    R(c, x + 8, y, 6, 3, '#f4f6ebbb');
+  }
+  for (let i = 0; i < 34; i++) {
+    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 5;
+    R(c, x, y, 2, 1, i % 5 === 0 ? '#e9d1a5' : '#97a885');
+  }
+}
+
+function drawHouseRoof(c, left, right) {
+  const peak = left + Math.round(W * .58), eave = 70;
+  housePoly(c, '#60545b', [left - 7, eave], [peak, 7], [right + 9, 32], [right + 9, eave]);
+  housePoly(c, '#946d70', [left - 4, eave], [peak, 11], [right + 6, 36], [right + 6, eave]);
+  housePoly(c, '#e5c9a8', [left + 2, eave], [peak, 19], [right - 1, 41], [right - 1, eave]);
+  housePoly(c, '#f4e0c3', [left + 13, eave], [peak, 23], [right - 8, 44], [right - 8, eave]);
+  housePoly(c, '#cfad8c', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
+  R(c, left + 65, 49, 3, 21, '#a38877');
+  R(c, left + 69, 62, W - 76, 8, '#d7b18c');
+  for (let y = 63; y < eave; y += 2) R(c, left + 69, y, W - 76, 1, '#c5a07f');
+  for (const [x, y, w, h] of [[peak - 48, 52, 24, 14], [peak - 22, 45, 15, 21], [peak - 3, 41, 22, 25], [right - 42, 54, 18, 12], [right - 23, 48, 15, 18]]) {
+    R(c, x, y, w, h, '#b9916c');
+    R(c, x, y, w, 2, '#d2ab81');
+    R(c, x + w - 5, y + 2, 5, h - 2, '#987457');
+    R(c, x + 3, y + 3, w - 10, 1, '#d9b489');
+  }
+  box(c, peak + 26, 31, 13, 15, '#f5e9d5', '#9b8074');
+  R(c, peak + 28, 33, 9, 10, G.sky);
+  R(c, peak + 32, 33, 1, 10, '#f5e9d5');
+  R(c, peak + 28, 37, 9, 1, '#f5e9d5');
+  R(c, peak + 24, 46, 17, 2, '#b38e76');
+}
+
+function drawRoomDetails(c, x, right, top, back, storey, i) {
+  if (i === 0) {
+    const upper = storey === STOREYS[1];
+    const start = x + 10, stop = right - 10, y = top + 11;
+    const fabric = upper ? '#4a4963' : '#fff1e5';
+    for (let j = 0; j < 3; j++) {
+      const a = start + (stop - start) * j / 3, b = start + (stop - start) * (j + 1) / 3;
+      housePoly(c, fabric, [a, y], [a + 6, y + 4], [b - 6, y + 4], [b, y],
+        [b - 5, y + 7], [a + 5, y + 7]);
+      R(c, a - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
+    }
+    R(c, stop - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
+    if (!upper) {
+      R(c, x + 14, back - 31, 42, 4, '#cc8d97');
+      housePoly(c, '#fff2e5', [x + 14, back - 28], [x + 19, back - 28],
+        [x + 18, back - 11], [x + 13, back - 9]);
+      housePoly(c, '#fff2e5', [x + 51, back - 28], [x + 56, back - 28],
+        [x + 57, back - 9], [x + 52, back - 11]);
+    }
+  } else {
+    const ink = storey === STOREYS[1] ? '#f2e0df' : '#fff2db';
+    for (let px = x + 12; px + 19 < right; px += 32) {
+      R(c, px, top + 15, 18, 1, ink);
+      R(c, px, top + 15, 1, 26, ink);
+      R(c, px + 17, top + 15, 1, 26, ink);
+    }
+  }
+}
+
+function drawStorey(c, storey, wall, floor) {
+  const left = HOUSE_X, right = left + W, mid = left + BX * T;
+  const { back, front, wall: top } = storey;
+  for (const [i, x, end] of [[0, left, mid], [1, mid, right]]) {
+    const base = wall.id === 'cream' ? storey.rooms[i] : shade(wall.base, i ? .01 : -.05);
+    const alt = wall.id === 'cream' ? shade(base, .045) : wall.alt;
+    const floorBase = floor.id === 'oak' ? storey.floors[i] : floor.base;
+    const inset = 9;
+
+    c.save();
+    housePath(c, [[x, front], [x + inset, back], [end - inset, back], [end, front]]);
+    c.clip();
+    c.translate(left, back);
+    c.scale(1, FLOOR_STEP / T);
+    c.translate(0, -storey.row * T);
+    drawFloor(c, { ...floor, base: floorBase, alt: shade(floorBase, -.06) },
+      storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
+    c.restore();
+
+    R(c, x, top, end - x, back - top, base);
+    c.save();
+    c.beginPath();
+    c.rect(x + inset, top, end - x - inset * 2, back - top - 1);
+    c.clip();
+    c.translate(left, top);
+    drawWall(c, { ...wall, base, alt }, back - top);
+    c.restore();
+    housePoly(c, shade(base, -.10), [x, top], [x + inset, top + 6], [x + inset, back], [x, front]);
+    housePoly(c, shade(base, -.045), [end, top], [end - inset, top + 6], [end - inset, back], [end, front]);
+    R(c, x + inset, back - 12, end - x - inset * 2, 10, shade(base, .085));
+    for (let px = x + inset + 3; px < end - inset; px += 5) R(c, px, back - 10, 1, 7, shade(base, -.025));
+    R(c, x + inset, back - 13, end - x - inset * 2, 1, shade(base, -.09));
+    R(c, x + inset, back - 2, end - x - inset * 2, 2, shade(base, -.13));
+    R(c, x, top, end - x, 3, '#49364d28');
+    if (wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
+  }
+  R(c, mid - 2, top, 5, front - top, '#928482');
+  R(c, mid - 2, top, 1, front - top, '#c7b5a9');
+  R(c, mid + 2, top, 1, front - top, '#6f656c');
+}
+
+function drawHouseStairs(c) {
+  const edge = HOUSE_X + W;
+  const top = stairPoint(0).y, bottom = stairPoint(1).y;
+  R(c, edge + 4, top - 10, 29, bottom - top + 15, '#b6a596');
+  R(c, edge + 33, top - 10, 3, 252 - top + 10, '#897a77');
+  R(c, edge + 33, top - 10, 1, 252 - top + 10, '#c5b2a2');
+  R(c, edge - 5, top - 1, 17, 4, '#c4a384');
+  R(c, edge - 5, bottom - 1, 38, 4, '#c4a384');
+  housePoly(c, '#a08272', [edge + 2, top], [edge + 14, top],
+    [edge + 33, bottom], [edge + 22, bottom]);
+  for (let i = 0; i <= 16; i++) {
+    const p = stairPoint(.2 + .6 * i / 16);
+    R(c, p.x - 5, p.y - 1, 11, 2, '#f2d1a9');
+    R(c, p.x - 5, p.y + 1, 11, 2, '#957768');
+    if (i % 4 === 0) R(c, p.x + 4, p.y - 9, 1, 9, '#826b63');
+  }
+  housePoly(c, '#76625e', [edge + 12, top - 10], [edge + 32, bottom - 10],
+    [edge + 32, bottom - 8], [edge + 12, top - 8]);
+}
+
+function drawHouseShell(c, wall, floor) {
+  const l = HOUSE_X, r = l + W;
+  drawHouseGarden(c, l, r);
+  drawHouseRoof(c, l, r);
+  for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
+  for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
+    R(c, l - 4, y, W + 8, h, '#807471');
+    R(c, l - 3, y + 1, W + 6, 2, '#c6b6ab');
+    R(c, l - 3, y + 3, W + 6, 1, '#a3948d');
+    if (h > 5) for (let x = l + 1; x < r; x += 9) R(c, x, y + 4, 1, 2, '#938480');
+  }
+  for (const x of [l - 4, r]) {
+    R(c, x, STOREYS[1].wall, 4, STOREYS[0].front - STOREYS[1].wall, '#958684');
+    R(c, x + 1, STOREYS[1].wall, 1, STOREYS[0].front - STOREYS[1].wall, '#c7b5a9');
+  }
+  drawHouseStairs(c);
+}
 </script>
 <script>
 // 画面渲染 + 指针交互（拎小人、摆家具）
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const lightCv = document.createElement('canvas'); lightCv.width = W; lightCv.height = H;
+const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
-  cv.width = W; cv.height = H; lightCv.width = W; lightCv.height = H; ctx.imageSmoothingEnabled = false;
-  document.getElementById('stage').style.aspectRatio = `${W} / ${H}`;
+  cv.width = lightCv.width = W + HOUSE_MARGIN;
+  cv.height = lightCv.height = HOUSE_HEIGHT;
+  ctx.imageSmoothingEnabled = false;
+  document.getElementById('stage').style.aspectRatio = `${cv.width} / ${cv.height}`;
 };
 const overlay = document.getElementById('overlay');
 
@@ -3015,7 +3534,8 @@ function dollPose(d) {
   return 'stand';
 }
 function drawDollObj(c, d) {
-  drawDoll(c, d.x, d.y, d.look, {
+  const { x, y } = houseDollPoint(d);
+  drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
     blink: d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
@@ -3024,44 +3544,34 @@ function drawDollObj(c, d) {
 
 function render() {
   const c = ctx, t = G.t;
-  drawWall(c, wallSpec());
-  drawFloor(c, floorSpec());
-  c.fillStyle='#4c3543';
-  c.fillRect(0,FLOOR_SPLIT*T-2,STAIRS_X*T,4);
-  c.fillRect((STAIRS_X+1)*T,FLOOR_SPLIT*T-2,W-(STAIRS_X+1)*T,4);
-  c.fillStyle='#cda277';
-  for(let i=0;i<5;i++)c.fillRect(STAIRS_X*T+1,(FLOOR_SPLIT-1)*T+i*6,T-2,3);
-  c.fillStyle='#4c3543';
-  c.font='10px sans-serif';
-  c.fillText('一楼',3,(FLOOR_SPLIT-1)*T);
-  c.fillText('二楼',3,(FLOOR_SPLIT+1)*T);
-  const placing = G.build.placing;
+  drawHouseShell(c, wallSpec(), floorSpec());
 
-  for (const f of G.furniture) if (layerOf(f.id) === 'wall') DRAW[f.id](c, f.x * T, f.y * T, f, t);
-  for (const f of G.furniture) if (layerOf(f.id) === 'floor') DRAW[f.id](c, f.x * T, f.y * T, f, t);
+  for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);
 
   if (G.mode === 'build') {
-    c.fillStyle = 'rgba(59,42,47,.08)';
-    for (let x = 1; x < COLS; x++) c.fillRect(x * T, 0, 1, H);
-    for (let y = 1; y < ROWS; y++) c.fillRect(0, y * T, W, 1);
+    for (const storey of STOREYS) {
+      const { back, front } = storey;
+      R(c, HOUSE_X, back, W, front - back, '#48323810');
+      for (let x = T; x < W; x += T) R(c, HOUSE_X + x, back, 1, front - back, '#48323824');
+      for (let y = back + FLOOR_STEP; y < front; y += FLOOR_STEP) R(c, HOUSE_X, y, W, 1, '#48323824');
+    }
   }
 
-  // 家具 + 小人 按“脚底 y”排序，越靠下越后画
+  // Sort by projected feet so characters and objects can pass behind each other.
   const list = [];
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
-    const F = FURNITURE[f.id];
+    const { bottom } = houseFurnitureRect(f);
     const sleepers = f.users.filter(u => lying(u) && u.act.furn === f);
     f.occ = sleepers.length ? (slot, hx, hy) => {
-      const s = sleepers.find(u => (u.act.seat || 0) === slot);
-      if (s) drawDoll(c, hx, hy + 1, s.look, { pose: 'head', dir: 'down' });
+      const sleeper = sleepers.find(u => (u.act.seat || 0) === slot);
+      if (sleeper) drawDoll(c, hx, hy + 1, sleeper.look, { pose: 'head', dir: 'down' });
     } : null;
-    list.push({ y: (f.y + F.h) * T, draw: () => DRAW[f.id](c, f.x * T, f.y * T, f, t) });
+    list.push({ y: bottom, draw: () => drawHouseFurniture(c, f, t) });
   }
   for (const d of G.dolls) {
-    if (d.state === 'lift' || d.state === 'away') continue;
-    if (lying(d)) continue;
-    const y = d.state === 'act' && d.act && d.act.onFurn ? (d.act.furn.y + 1) * T + 0.5 : d.y;
+    if (d.state === 'lift' || d.state === 'away' || lying(d)) continue;
+    const y = d.act?.onFurn ? houseFurnitureRect(d.act.furn).bottom + .5 : houseDollPoint(d).y;
     list.push({ y, draw: () => drawDollObj(c, d) });
   }
   list.push(...partitionDrawables(c));
@@ -3070,8 +3580,8 @@ function render() {
   // 夜晚：整体压暗，台灯/电视/游戏机处“挖洞”透光
   if (G.dark > 0.01) {
     lctx.globalCompositeOperation = 'source-over';
-    lctx.clearRect(0, 0, W, H);
-    lctx.fillStyle = `rgba(18,14,48,${G.dark})`; lctx.fillRect(0, 0, W, H);
+    lctx.clearRect(0, 0, cv.width, cv.height);
+    lctx.fillStyle = `rgba(18,14,48,${G.dark})`; lctx.fillRect(0, 0, cv.width, cv.height);
     lctx.globalCompositeOperation = 'destination-out';
     const hole = (x, y, r, a = 1) => {
       const g = lctx.createRadialGradient(x, y, 2, x, y, r);
@@ -3079,23 +3589,33 @@ function render() {
       lctx.fillStyle = g; lctx.fillRect(x - r, y - r, r * 2, r * 2);
     };
     for (const f of G.furniture) {
-      if (f.id === 'lamp') hole(f.x * T + 8, f.y * T - 10, 54);
-      if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(f.x * T + 4 + i * 6, f.y * T + 9, 16, .55);
-      if (f.id === 'aquarium') hole(f.x * T + 16, f.y * T - 6, 22, .5);
-      if (f.id === 'xmastree') hole(f.x * T + 8, f.y * T - 2, 30, .8);
-      if (f.id === 'lantern') hole(f.x * T + 8, f.y * T + 9, 22, .7);
-      if ((f.id === 'pc' || f.id === 'speaker') && f.active) hole(f.x * T + 12, f.y * T - 10, 24, .7);
-      if (f.id === 'tv' && f.active) hole(f.x * T + 16, f.y * T - 4, 34, .8);
-      if (f.id === 'arcade') hole(f.x * T + 8, f.y * T - 8, 20, f.active ? .8 : .4);
-      if (f.id === 'stove' && f.active) hole(f.x * T + 8, f.y * T - 6, 22, .7);
-      if (f.id === 'fridge' && f.active) hole(f.x * T + 8, f.y * T, 24, .7);
+      const { x, y, storey } = houseFurnitureRect(f);
+      lctx.save();
+      lctx.beginPath();
+      lctx.rect(HOUSE_X, storey.wall, W, storey.front - storey.wall);
+      lctx.clip();
+      if (f.id === 'lamp') hole(x + 8, y - 10, 54);
+      if (f.id === 'moonLamp') hole(x + 8, y + 8, 34, .85);
+      if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(x + 4 + i * 6, y + 9, 16, .55);
+      if (f.id === 'aquarium') hole(x + 16, y - 6, 22, .5);
+      if (f.id === 'xmastree') hole(x + 8, y - 2, 30, .8);
+      if (f.id === 'lantern') hole(x + 8, y + 9, 22, .7);
+      if ((f.id === 'pc' || f.id === 'speaker') && f.active) hole(x + 12, y - 10, 24, .7);
+      if (f.id === 'tv' && f.active) hole(x + 16, y - 4, 34, .8);
+      if (f.id === 'arcade') hole(x + 8, y - 8, 20, f.active ? .8 : .4);
+      if (f.id === 'stove' && f.active) hole(x + 8, y - 6, 22, .7);
+      if (f.id === 'fridge' && f.active) hole(x + 8, y, 24, .7);
+      lctx.restore();
     }
     c.drawImage(lightCv, 0, 0);
     c.globalCompositeOperation = 'lighter';
     for (const f of G.furniture) if (f.id === 'lamp') {
-      const g = c.createRadialGradient(f.x * T + 8, f.y * T - 10, 1, f.x * T + 8, f.y * T - 10, 36);
+      const { x, y, storey } = houseFurnitureRect(f);
+      const g = c.createRadialGradient(x + 8, y - 10, 1, x + 8, y - 10, 36);
       g.addColorStop(0, `rgba(255,190,90,${0.35 * G.dark})`); g.addColorStop(1, 'rgba(255,190,90,0)');
-      c.fillStyle = g; c.fillRect(f.x * T - 30, f.y * T - 48, 76, 76);
+      c.fillStyle = g;
+      const top = Math.max(storey.wall, y - 48);
+      c.fillRect(Math.max(HOUSE_X, x - 30), top, Math.min(HOUSE_X + W, x + 46) - Math.max(HOUSE_X, x - 30), Math.min(storey.front, y + 28) - top);
     }
     c.globalCompositeOperation = 'source-over';
   }
@@ -3103,8 +3623,8 @@ function render() {
   // 选中的小人头上跳动的小箭头
   const sel = G.dolls.find(d => d.uid === G.sel);
   if (sel && sel.state !== 'lift' && sel.state !== 'away' && G.mode === 'live') {
-    let ax = sel.x, ay = sel.y - 30 + Math.round(Math.sin(t * 6));
-    if (lying(sel)) { const h = headPos(sel); ax = h.x; ay = h.y - 6; }
+    const point = houseHeadPoint(sel);
+    const ax = point.x, ay = point.y - 7 + Math.round(Math.sin(t * 6));
     R(c, ax - 3, ay, 7, 1, INK); R(c, ax - 2, ay + 1, 5, 1, INK); R(c, ax - 1, ay + 2, 3, 1, INK); R(c, ax, ay + 3, 1, 1, INK);
     R(c, ax - 2, ay, 5, 1, '#ffd35c'); R(c, ax - 1, ay + 1, 3, 1, '#ffd35c');
   }
@@ -3113,46 +3633,69 @@ function render() {
 
   // 被拎起来的小人画在最上面
   for (const d of G.dolls) if (d.state === 'lift') {
-    R(c, d.x - 4, d.liftShadow - 1, 8, 2, 'rgba(0,0,0,.25)');
+    if (d.liftShadow) {
+      const { x, y } = houseDollPoint(d.liftShadow);
+      R(c, x - 4, y - 1, 8, 2, 'rgba(0,0,0,.25)');
+    }
     drawDollObj(c, d);
   }
   updateOverlay();
 }
 
-function furnTop(f) { const F = FURNITURE[f.id]; return f.y * T - (F.layer ? 0 : (TALL[f.id] || 0)); }
+function drawHouseFurniture(c, f, t) {
+  const { x, y, bottom } = houseFurnitureRect(f);
+  if (layerOf(f.id) === 'floor') {
+    c.save();
+    c.translate(x, bottom - FURNITURE[f.id].h * FLOOR_STEP);
+    c.scale(1, FLOOR_STEP / T);
+    DRAW[f.id](c, 0, 0, f, t);
+    c.restore();
+    return;
+  }
+  DRAW[f.id](c, x, y, f, t);
+}
+
+function houseHeadPoint(d) {
+  if (!lying(d)) {
+    const { x, y } = houseDollPoint(d);
+    return { x, y: y - 24 };
+  }
+  const f = d.act.furn, { y } = houseFurnitureRect(f);
+  return { x: HOUSE_X + headPos(d).x - (f.id === 'bath' ? 2 : 0), y: y + (f.id === 'bath' ? -6 : 11) };
+}
 
 function drawBuildOverlay(c, t) {
   const B = G.build, hv = B.hover;
   if (B.placing && hv) {
-    const F = FURNITURE[B.placing.id];
-    const ok = canPlace(B.placing.id, hv.x, hv.y, null);
-    c.globalAlpha = 0.75;
-    DRAW[B.placing.id](c, hv.x * T, hv.y * T, {}, t);
+    const id = B.placing.id, f = { id, ...hv };
+    const F = FURNITURE[id], rect = houseFurnitureRect(f);
+    const wall = layerOf(id) === 'wall';
+    const x = rect.x, w = rect.w, bottom = rect.bottom;
+    const h = F.h * (wall ? T : FLOOR_STEP);
+    const y = bottom - h;
+    const ok = canPlace(id, hv.x, hv.y, null);
+    c.globalAlpha = .75;
+    drawHouseFurniture(c, f, t);
     c.globalAlpha = 1;
-    c.fillStyle = ok ? 'rgba(124,197,118,.35)' : 'rgba(226,109,109,.45)';
-    c.fillRect(hv.x * T, hv.y * T, F.w * T, F.h * T);
-    c.fillStyle = ok ? '#4f9a4a' : '#c24d4d';
-    const x = hv.x * T, y = hv.y * T, w = F.w * T, h = F.h * T;
-    c.fillRect(x, y, w, 1); c.fillRect(x, y + h - 1, w, 1); c.fillRect(x, y, 1, h); c.fillRect(x + w - 1, y, 1, h);
-  } else if (hv && hv.furn) {
-    const f = hv.furn, F = FURNITURE[f.id], top = furnTop(f);
-    c.fillStyle = B.trash ? 'rgba(226,109,109,.4)' : 'rgba(255,211,92,.3)';
-    c.fillRect(f.x * T, top, F.w * T, (f.y + F.h) * T - top);
+    R(c, x, y, w, h, ok ? '#7cc57659' : '#e26d6d73');
+    c.strokeStyle = ok ? '#4f9a4a' : '#c24d4d';
+    c.strokeRect(x + .5, y + .5, w - 1, h - 1);
+  } else if (hv?.furn) {
+    const { x, w, top, bottom } = houseFurnitureRect(hv.furn);
+    R(c, x, top, w, bottom - top, B.trash ? '#e26d6d66' : '#ffd35c4d');
   }
 }
 
 /* ---------- DOM 浮层：对话气泡、名字、爱心 ---------- */
 const domBubbles = new Map();
 function updateOverlay() {
-  const s = cv.clientWidth / W;
+  const s = cv.clientWidth / cv.width;
   const alive = new Set();
   for (const d of G.dolls) {
     let el = domBubbles.get(d.uid);
     if (!el) { el = { b: document.createElement('div'), n: document.createElement('div'), id: null }; el.b.className = 'bubble'; el.n.className = 'nametag'; overlay.append(el.b, el.n); domBubbles.set(d.uid, el); }
     alive.add(d.uid);
-    let hx = d.x, hy = d.y - 24;
-    if (lying(d)) { const h = headPos(d); hx = h.x; hy = h.y - 2; }
-    else if (d.state === 'act' && d.act && d.act.onFurn) hy = d.y - 22;
+    const { x: hx, y: hy } = houseHeadPoint(d);
     if (d.bubble && d.state !== 'away') {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
@@ -3160,44 +3703,45 @@ function updateOverlay() {
     const showName = d.state !== 'away' && (d.uid === G.sel || d.uid === hoverDoll);
     el.n.style.display = showName ? '' : 'none';
     if (showName) {
-      const np = lying(d) ? { x: headPos(d).x, y: headPos(d).y + 17 } : d;
+      const np = lying(d) ? { x: hx, y: hy + 20 } : houseDollPoint(d);
       el.n.textContent = d.name; el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
     }
   }
   for (const [uid, el] of domBubbles) if (!alive.has(uid)) { el.b.remove(); el.n.remove(); domBubbles.delete(uid); }
   for (const h of hearts) {
-    if (!h.el) { h.el = document.createElement('div'); h.el.className = 'heart'; h.el.textContent = h.txt; overlay.append(h.el); h.el.style.left = h.x * s + 'px'; h.el.style.top = h.y * s + 'px'; }
+    if (!h.el) { h.el = document.createElement('div'); h.el.className = 'heart'; h.el.textContent = h.txt; overlay.append(h.el); const { x, y } = houseHeadPoint(h.doll); h.el.style.left = (x + h.dx) * s + 'px'; h.el.style.top = y * s + 'px'; }
   }
   for (const el of overlay.querySelectorAll('.heart')) if (!hearts.some(h => h.el === el)) el.remove();
 }
 
 /* ---------- 指针交互 ---------- */
 let hoverDoll = null, press = null;
-function toWorld(e) {
+function toScene(e) {
   const r = cv.getBoundingClientRect();
-  return { x: (e.clientX - r.left) / r.width * W, y: (e.clientY - r.top) / r.height * H };
+  return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height };
 }
+
 function dollAt(p) {
   let best = null;
   for (const d of G.dolls) {
     if (d.state === 'away') continue;
-    let x = d.x, y = d.y;
-    if (lying(d)) { const h = headPos(d); x = h.x; y = h.y + 14; }
-    if (p.x >= x - 7 && p.x <= x + 7 && p.y >= y - 22 && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
+    const { x, y: top } = houseHeadPoint(d);
+    const y = lying(d) ? top + 12 : houseDollPoint(d).y;
+    if (Math.abs(p.x - x) <= 7 && p.y >= top && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
   }
-  return best && best.d;
+  return best?.d;
 }
+
 function furnAt(p) {
-  const tx = Math.floor(p.x / T), ty = Math.floor(p.y / T);
-  const solid = G.furniture.filter(f => layerOf(f.id) === 'solid').sort((a, b) => (b.y + FURNITURE[b.id].h) - (a.y + FURNITURE[a.id].h));
-  for (const f of solid) { const F = FURNITURE[f.id]; if (p.x >= f.x * T && p.x < (f.x + F.w) * T && p.y >= furnTop(f) && p.y < (f.y + F.h) * T) return f; }
-  for (const L of ['wall', 'floor']) for (const f of G.furniture) {
-    if (layerOf(f.id) !== L) continue; const F = FURNITURE[f.id];
-    if (tx >= f.x && tx < f.x + F.w && ty >= f.y && ty < f.y + F.h) return f;
+  let best = null;
+  for (const f of G.furniture) {
+    const { x, w, top, bottom } = houseFurnitureRect(f);
+    if (p.x < x || p.x >= x + w || p.y < top || p.y >= bottom) continue;
+    const priority = { floor: 0, wall: 1, solid: 2 }[layerOf(f.id)];
+    if (!best || priority > best.priority || (priority === best.priority && bottom >= best.bottom)) best = { f, bottom, priority };
   }
-  return null;
+  return best?.f;
 }
-function ghostTile(p, id) { const F = FURNITURE[id]; return { x: Math.round(p.x / T - F.w / 2), y: Math.round(p.y / T - F.h / 2) }; }
 
 function removeFurniture(f) {
   for (const u of [...f.users]) endAct(u);
@@ -3206,7 +3750,7 @@ function removeFurniture(f) {
 
 cv.addEventListener('contextmenu', e => { e.preventDefault(); cancelPlacing(); });
 cv.addEventListener('pointerdown', e => {
-  const p = toWorld(e);
+  const p = toScene(e);
   cv.setPointerCapture(e.pointerId);
   if (G.mode === 'live') {
     const d = dollAt(p);
@@ -3217,8 +3761,8 @@ cv.addEventListener('pointerdown', e => {
   // 布置模式
   const B = G.build;
   if (B.placing) {
-    const g = ghostTile(p, B.placing.id);
-    if (canPlace(B.placing.id, g.x, g.y, null)) {
+    const g = houseTile(p, B.placing.id);
+    if (g && canPlace(B.placing.id, g.x, g.y, null)) {
       if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
       addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
       if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
@@ -3229,14 +3773,14 @@ cv.addEventListener('pointerdown', e => {
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = ghostTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
-  const p = toWorld(e);
+  const p = toScene(e);
   if (G.mode === 'build') {
     const B = G.build;
-    B.hover = B.placing ? ghostTile(p, B.placing.id) : { furn: furnAt(p) };
-    cv.style.cursor = B.placing ? 'copy' : B.hover.furn ? (B.trash ? 'not-allowed' : 'grab') : 'default';
+    B.hover = B.placing ? houseTile(p, B.placing.id) : { furn: furnAt(p) };
+    cv.style.cursor = B.placing ? 'copy' : B.hover?.furn ? (B.trash ? 'not-allowed' : 'grab') : 'default';
     return;
   }
   const hd = dollAt(p); hoverDoll = hd ? hd.uid : null;
@@ -3249,14 +3793,19 @@ cv.addEventListener('pointermove', e => {
     d.path = []; d.state = 'lift'; d.dir = 'down'; G.sel = d.uid; HOOK.select();
     say(d, pick(ACT_LINES.lift), 1.5); SFX.play('lift');
   }
-  if (press.moved) { d.x = p.x; d.y = p.y + 12; const g = nearestFree(Math.floor(p.x / T), Math.floor((p.y + 10) / T)); d.liftShadow = g ? g.y * T + 14 : d.y; }
+  if (press.moved) {
+    d.liftX = p.x;
+    d.liftY = p.y + 12;
+    const g = dropTile(p);
+    d.liftShadow = g && { x: g.x * T + 8, y: g.y * T + 14, ty: g.y };
+  }
 });
 cv.addEventListener('pointerup', e => {
   if (G.mode !== 'live' || !press) { press = null; return; }
-  const p = toWorld(e), d = press.d;
+  const p = toScene(e), d = press.d;
   if (d && press.moved) {
-    const g = nearestFree(Math.floor(p.x / T), Math.floor((p.y + 10) / T));
-    if (g) placeDollAt(d, g.x, g.y);
+    const g = dropTile(p);
+    placeDollAt(d, g?.x ?? d.tx, g?.y ?? d.ty);
     d.state = 'idle'; d.think = 1.5; d.frame = 0; SFX.play('drop');
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select();
@@ -3266,7 +3815,20 @@ cv.addEventListener('pointerup', e => {
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
+cv.addEventListener('pointercancel', () => {
+  const d = press?.d;
+  if (d?.state === 'lift') {
+    placeDollAt(d, d.tx, d.ty);
+    d.state = 'idle';
+  }
+  press = null;
+});
 cv.addEventListener('pointerleave', () => { hoverDoll = null; if (G.mode === 'build') G.build.hover = null; });
+
+function dropTile(p) {
+  const tile = houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
+  return tile && nearestFree(tile.x, tile.y, storeyOf(tile.y) === STOREYS[1] ? 2 : 1);
+}
 
 function cancelPlacing() {
   const B = G.build;
@@ -3380,7 +3942,7 @@ function renderLog() {
   let day = null;
   for (let i = G.log.length - 1; i >= 0; i--) {
     const e = G.log[i];
-    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', `第 ${e.d} 天 · ${WEEKDAYS[weekday(e.d)]}`)); }
+    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', monthLabel(e.d))); }
     box.append(el('div', 'log-item', `<time>${hhmm(e.t)}</time><span>${esc(e.text)}</span>`));
   }
 }
@@ -3410,18 +3972,25 @@ function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   const S = seasonOf(G.day), Hd = holidayOf(G.day);
-  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
+  $('#dayLabel').textContent = `${monthLabel(G.day)} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
   const sky = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
   $('#timeIcon').textContent = G.weather && G.weather !== 'sunny' ? WEATHER[G.weather].icon : sky;
   $('#timeIcon').title = WEATHER[G.weather || 'sunny'].name;
 }
 
 /* ---------- 布置面板 ---------- */
-let tab = 'furniture';
-document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
-  tab = b.dataset.tab;
-  document.querySelectorAll('.tab').forEach(o => o.classList.toggle('on', o === b));
-  G.build.placing = null; renderPalette(); SFX.play('click');
+let tab = 'essentials';
+const catalogTabs = document.querySelectorAll('#buildBar [data-tab]');
+catalogTabs.forEach(button => button.onclick = () => {
+  if (tab === button.dataset.tab) return;
+  if (G.build.placing) cancelPlacing();
+  tab = button.dataset.tab;
+  catalogTabs.forEach(option => {
+    option.classList.toggle('on', option === button);
+    option.setAttribute('aria-pressed', String(option === button));
+  });
+  renderPalette();
+  SFX.play('click');
 });
 $('#btnTrash').onclick = () => {
   if (G.build.placing) cancelPlacing();
@@ -3433,7 +4002,7 @@ $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
   const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
-  const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
+  const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -3441,17 +4010,20 @@ const iconCache = {};
 function renderPalette() {
   const pal = $('#palette'); pal.innerHTML = '';
   $('#btnTrash').classList.toggle('on', G.build.trash);
-  if (tab === 'furniture') {
-    for (const id of Object.keys(FURNITURE)) {
+  pal.dataset.category = tab;
+  const group = FURNITURE_GROUPS[tab];
+  if (group) {
+    for (const id of group) {
       const F = FURNITURE[id];
-      if (F.fixed) continue;
-      const [price, lv] = SHOP[id] || [0, 1], have = G.inv[id] || 0, locked = lv > G.level && !have;
+      const [price, lv] = SHOP[id], have = G.inv[id] || 0, locked = lv > G.level && !have;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
       const tag = have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
-      b.append(c, el('span', null, F.name), el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
-      b.title = F.use ? `${F.name} · ${ACT_NAMES[F.use] || ''}` : F.name;
+      const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
+      b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
+        el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
+      b.title = `${F.name} · ${purpose}`;
       b.onclick = () => {
         if (locked) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${F.name}`, true); SFX.play('deny'); return; }
         if (G.build.placing && G.build.placing.moved) cancelPlacing();
@@ -3653,7 +4225,7 @@ window.addEventListener('beforeunload', save);
 document.getElementById('dailyPaper').onclick=showHousePaper;
 document.getElementById('paperCopy').onclick=async event=>{
   try{await navigator.clipboard.writeText(document.getElementById('paperText').textContent);event.target.textContent='已复制';}
-  catch{event.target.textContent='请选中日报文字复制';}
+  catch{event.target.textContent='请选中月报文字复制';}
 };
 const paperAuto=document.getElementById('paperAuto');
 paperAuto.checked=true;
