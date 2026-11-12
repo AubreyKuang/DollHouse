@@ -61,13 +61,21 @@
     <h2 id="paperTitle">小屋月报</h2>
     <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
   </header>
-  <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
-  <label><input id="paperOffline" type="checkbox"> 关掉页面后，小屋继续过日子（最多补一天）</label>
-  <pre id="paperText" aria-live="polite"></pre>
+  <nav class="paper-issues" aria-label="月报期数">
+    <button id="paperOlder" class="btn small ghost" type="button">‹ 上一期</button>
+    <span id="paperMonth" aria-live="polite"></span>
+    <button id="paperNewer" class="btn small ghost" type="button">下一期 ›</button>
+  </nav>
+  <section id="paperText" aria-label="本期故事" aria-live="polite"></section>
   <div class="paper-actions">
-    <button type="button" id="paperCopy" class="btn small">复制月报</button>
-    <button type="button" id="paperCard" class="btn small">保存本期纪念卡</button>
+    <button type="button" id="paperCopy" class="btn small ghost">复制本期</button>
+    <button type="button" id="paperCard" class="btn small ghost">保存纪念卡</button>
   </div>
+  <details class="paper-settings">
+    <summary>设置</summary>
+    <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
+    <label><input id="paperOffline" type="checkbox"> 关掉页面后，小屋继续过日子（最多补一天）</label>
+  </details>
   <details class="rewind-box">
     <summary>🕰 时光回溯</summary>
     <p class="hint">每月开始时会留一份快照，最多保留 4 个月。回到那个月初后，之后的事会重新发生。</p>

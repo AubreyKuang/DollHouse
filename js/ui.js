@@ -478,9 +478,15 @@ requestAnimationFrame(loop);
 window.addEventListener('beforeunload', save);
 
 document.getElementById('dailyPaper').onclick=showHousePaper;
-document.getElementById('paperCopy').onclick=async event=>{
-  try{await navigator.clipboard.writeText(document.getElementById('paperText').textContent);event.target.textContent='已复制';}
-  catch{event.target.textContent='请选中月报文字复制';}
+document.getElementById('paperOlder').onclick = () => renderHousePaper(housePaperIndex - 1);
+document.getElementById('paperNewer').onclick = () => renderHousePaper(housePaperIndex + 1);
+document.getElementById('paperCopy').onclick = async () => {
+  const issue = currentHousePaper();
+  if (!issue) return;
+  try {
+    await navigator.clipboard.writeText(housePaperText(issue));
+    HOOK.toast('已复制本期月报', true);
+  } catch { HOOK.toast('可以选中月报文字手动复制', true); }
 };
 const paperAuto=document.getElementById('paperAuto');
 const paperPreference = TEST_MODE ? 'house-test-paper-auto' : 'house-paper-auto';
@@ -492,9 +498,9 @@ updateHousePaperButton();
 const paperOffline=document.getElementById('paperOffline');
 paperOffline.checked=offlineEnabled();
 paperOffline.onchange=()=>{try{localStorage.setItem(OFFLINE_KEY,paperOffline.checked?'on':'off');}catch{}};
-document.getElementById('paperCard').onclick=()=>{
-  const latest=G.paper.at(-1);
-  if(latest)saveHousePaperCard(latest,`小屋月报-${latest.split('\n')[0]}.png`);
+document.getElementById('paperCard').onclick = () => {
+  const issue = currentHousePaper();
+  if (issue) saveHousePaperCard(issue);
 };
 function renderRewind(){
   const list=document.getElementById('rewindList');

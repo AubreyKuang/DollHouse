@@ -1,4 +1,5 @@
 function formatSavedPaper(paper) {
+  if (typeof paper !== 'string') return paper;
   return paper.replace(/^第 (\d+) 天 · [^\n]+/, (_, cycle) => monthLabel(Number(cycle)));
 }
 
@@ -25,55 +26,94 @@ function helpWithMeal(d, table) {
   if(typeof addTrust==='function')addTrust(guest,d,10);
 }
 
+const PAPER_EVENTS = [
+  [/分手|变心/, '关系转折', '💔', 105],
+  [/撞见|闹翻/, '关系转折', '💢', 100],
+  [/在一起了/, '感情动态', '💕', 95],
+  [/表白|偷偷暧昧/, '感情动态', '💗', 90],
+  [/搬进来|入住申请|搬走了/, '新面孔', '🏡', 82],
+  [/成了.*搭子|成为挚友/, '新交情', '🤝', 76],
+  [/生日/, '小屋庆祝', '🎂', 72],
+  [/派对|邀请.+来玩/, '串门聚会', '🎉', 68],
+  [/给饿着的|帮忙付了|终于去找了份工作|画卖出去了/, '生活片段', '🌷', 63],
+  [/听成了|吵了一架/, '小屋插曲', '💬', 58],
+  [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
+];
+
+function paperLogStory(text) {
+  const match = PAPER_EVENTS.find(([pattern]) => pattern.test(text));
+  if (!match) return null;
+  const [, label, icon, score] = match;
+  return { label, icon, score, text: text.replace(/^\s*[^\p{L}\p{N}]+/u, '').trim() };
+}
+
+function paperCast(text) {
+  // Prefer the longest name at each position, so 小桃 is not counted again as 桃.
+  const people = [...new Map([...(G.community?.friends || []), ...G.dolls].map(d => [d.pid, d])).values()]
+    .filter(d => d.name && d.look).sort((a, b) => b.name.length - a.name.length);
+  const names = [...new Set(people.map(d => d.name))];
+  const cast = [];
+  for (let i = 0; i < text.length && cast.length < 3; i++) {
+    const name = names.find(n => text.startsWith(n, i));
+    if (!name) continue;
+    const matches = people.filter(d => d.name === name);
+    if (matches.length === 1 && !cast.some(d => d.name === name)) cast.push({ name, look: { ...matches[0].look } });
+    i += name.length - 1;
+  }
+  return cast;
+}
+
+function selectPaperStories(candidates) {
+  const stories = [];
+  for (const story of candidates.sort((a, b) => b.score - a.score)) {
+    if (stories.some(s => s.label === story.label || s.text === story.text)) continue;
+    const { label, icon, text } = story;
+    stories.push({ label, icon, text });
+    if (stories.length === 3) break;
+  }
+  return stories.length ? stories : [{ label: '', icon: '🌙', text: '小屋平静地过了一个月。' }];
+}
+
+function paperIssue(saved) {
+  if (typeof saved !== 'string') return saved;
+  const [month, ...lines] = formatSavedPaper(saved).split('\n');
+  const candidates = [];
+  for (const line of lines) {
+    if (line.startsWith('头条　')) candidates.push({ label: '头条', icon: '📰', score: 105, text: line.slice(3) });
+    else if (line.startsWith('【特别版】')) candidates.push({ label: '特别版', icon: '✨', score: 80, text: line.slice(5) });
+    else if (/^(新发现|小屋趣闻|集体用餐)　/.test(line)) {
+      const [label, text] = line.split('　', 2);
+      candidates.push({ label, icon: '✨', score: 40, text });
+    } else if (!line.includes('　')) {
+      const story = paperLogStory(line);
+      if (story) candidates.push(story);
+    }
+  }
+  return { month, stories: selectPaperStories(candidates) };
+}
+
 function finishHouseMonth() {
-  const lines = [monthLabel(G.day)];
-  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友', routine:'住户日常', visitors:'来访与派对' };
-  for (const [kind,title] of Object.entries(labels)) {
-    const top = Object.entries(G.daily[kind] || {}).sort((a,b)=>b[1]-a[1])[0];
-    if (top) lines.push(`${title}　${top[0]} · ${top[1]} 次`);
+  const monthLog = G.log.filter(entry => entry.d === G.day);
+  const candidates = monthLog.slice().reverse().map(e => paperLogStory(e.text)).filter(Boolean);
+  const residents = G.dolls.filter(d => !d.guest && d.state !== 'away');
+  if (residents.length >= 2 && residents.every(d => d.heart === 'fickle') && monthLog.some(e => /表白|暧昧|分手/.test(e.text))) {
+    candidates.push({ label: '特别版', icon: '💌', score: 61, text: '恋综现场：这屋的花心室友又有新剧情了。' });
+  } else if (residents.length >= 2 && residents.every(d => d.mbti?.startsWith('I')) && !Object.keys(G.daily.social || {}).length) {
+    candidates.push({ label: '特别版', icon: '📚', score: 61, text: '各自安好：内向的室友们本月各忙各的。' });
   }
-  const now=houseRelations();
-  for(const [key,friendship] of Object.entries(now)){
-    const delta=friendship-(G.dayRelations[key]??friendship);
-    if(!Number.isFinite(delta)||Math.abs(delta)<8)continue;
-    const people=key.split('|').map(id=>G.dolls.find(person=>person.pid===id)?.name);
-    if(people.every(Boolean))lines.push(`关系变化　${people.join('与')}：友好 ${delta>0?'+':''}${Math.round(delta)}`);
-  }
-  G.dayRelations=now;
-  if(typeof housePaperExtras==='function')housePaperExtras(lines);
-  for (const entry of G.log.filter(entry=>entry.d===G.day).slice(-8)) lines.push(entry.text);
-  const residents=G.dolls.filter(d=>d.state!=='away');
-  const monthLog=G.log.filter(e=>e.d===G.day);
-  // 稀有特别版：整屋都是花心的人，或整屋都是内向的人
-  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&monthLog.some(e=>/表白|暧昧|分手/.test(e.text))){
-    const count=pattern=>monthLog.filter(e=>pattern.test(e.text)).length;
-    lines.splice(1,0,'【特别版】恋综现场');
-    lines.push('小屋趣闻　花心室友们本月把日子过成了恋综。',
-      `恋综数据　表白 ${count(/表白/)} 次 · 被撞见 ${count(/撞见/)} 次 · 分手 ${count(/分手/)} 次 · 吃醋 ${count(/吃醋/)} 次`);
-  }
-  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length){
-    lines.splice(1,0,'【特别版】各自安好');
-    lines.push('小屋趣闻　内向的室友们本月各忙各的，小屋格外安静。',
-      `尴尬时刻　${residents.map(d=>d.name).join('、')} 在客厅撞见时只点了点头，又各自回去看书。大家还不太熟。`);
-  }
-  if (lines.length===1) lines.push('本月小屋里很安静。');
-  G.paper.push(lines.join('\n'));
-  if (G.paper.length>30) G.paper.shift();
-  G.daily={};
+  if (typeof housePaperExtras === 'function') candidates.push(...housePaperExtras());
+  G.dayRelations = houseRelations();
+  const stories = selectPaperStories(candidates).map(story => ({ ...story, people: paperCast(story.text) }));
+  G.paper.push({ month: monthLabel(G.day), stories });
+  if (G.paper.length > 30) G.paper.shift();
+  G.daily = {};
   updateHousePaperButton();
   if (document.getElementById('paperAuto')?.checked) showHousePaper();
 }
 
-function updateHousePaperButton(){
-  const button=document.getElementById('dailyPaper');
-  if(button)button.textContent=G.paper.length?`📰 小屋月报 · ${G.paper.length}`:'📰 小屋月报';
-}
-
-function showHousePaper() {
-  const dialog=document.getElementById('paperDialog');
-  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`${monthLabel(G.day)}的月报将在下月 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋月报」回看。`;
-  document.getElementById('paperCopy').disabled=!G.paper.length;
-  if (!dialog.open) dialog.showModal();
+function updateHousePaperButton() {
+  const button = document.getElementById('dailyPaper');
+  if (button) button.textContent = G.paper.length ? `📰 小屋月报 · ${G.paper.length}` : '📰 小屋月报';
 }
 
 function shareHouseNews(speaker, listener) {
