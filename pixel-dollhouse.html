@@ -286,6 +286,12 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 
 
 .community-panel{display:grid;gap:6px}
+.picnic-notice{margin:8px 0 0;padding:8px 10px;background:var(--panel);border:1px solid var(--line);border-radius:7px;font-size:13px}
+#picnicPlans{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.neighbor-porch{min-height:134px;display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:16px 12px 10px;border:2px solid #956d60;border-top:8px solid #9d605c;border-radius:8px;background:repeating-linear-gradient(90deg,#ba9272 0 1px,transparent 1px 17px) bottom/100% 28px no-repeat,linear-gradient(#f2d4b2 0 76%,#dcab83 76%);color:#513b3a}
+.neighbor-porch figure{display:grid;justify-items:center;margin:0;font-size:12px;font-weight:700}
+.neighbor-porch canvas{width:60px;height:72px;image-rendering:pixelated}
+#neighborTie{margin:8px 0}
 .community-status{font-size:12px;line-height:1.4;margin:0;padding:7px 9px;border-radius:7px;background:var(--panel);color:var(--ink)}
 .guest-tag{font-size:10px;font-style:normal;font-weight:600;border-radius:5px;padding:2px 5px;background:#ecd6f3;color:#59355e}
 .community-dialog h3{margin:14px 0 6px;font-size:15px}
@@ -336,6 +342,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
       </div>
     </div>
     <p id="hint" class="hint">点小人看状态，再点家具安排活动。拖到另一位身边可互动。</p>
+    <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
+      <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
+      <div id="picnicPlans"></div>
+    </section>
   </div>
 
   <details id="side">
@@ -345,6 +355,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <div id="dollInfo" class="card" hidden></div>
     <div class="community-panel">
       <button id="btnCommunity" class="btn ghost" aria-haspopup="dialog">🎉 串门与派对</button>
+      <button id="btnNeighbor" class="btn ghost" aria-haspopup="dialog">🏡 隔壁麦麦家</button>
       <p id="communityStatus" class="community-status" aria-live="polite" hidden></p>
     </div>
     <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
@@ -391,6 +402,18 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   <select id="communityHost" class="mbti-picker"></select>
   <p id="communityHelp" class="hint" aria-live="polite"></p>
   <div id="communityChoices" class="community-choices"></div>
+</dialog>
+<dialog id="neighborDialog" class="paper-dialog community-dialog" aria-labelledby="neighborTitle">
+  <header class="paper-head">
+    <h2 id="neighborTitle">麦麦家</h2>
+    <form method="dialog"><button class="btn small ghost">关闭</button></form>
+  </header>
+  <div class="neighbor-porch" id="neighborPorch" aria-label="隔壁家门廊"></div>
+  <p id="neighborStatus" aria-live="polite"></p>
+  <label for="neighborVisitor">去串门的住户</label>
+  <select id="neighborVisitor" class="mbti-picker"></select>
+  <p id="neighborTie" class="hint"></p>
+  <button id="neighborGo" type="button" class="btn small">去麦麦家坐坐</button>
 </dialog>
 <dialog id="applicationsDialog" class="paper-dialog community-dialog" aria-labelledby="applicationsTitle">
   <header class="paper-head">
@@ -1501,7 +1524,9 @@ const PAPER_EVENTS = [
   [/搬进来|入住申请|搬走了/, '新面孔', '🏡', 82],
   [/成了.*搭子|成为挚友/, '新交情', '🤝', 76],
   [/生日/, '小屋庆祝', '🎂', 72],
-  [/派对|邀请.+来玩/, '串门聚会', '🎉', 68],
+  [/野餐搬进|撑伞|雨里继续野餐|野餐重新开场|收起野餐篮|安静的书房聊熟/, '雨天插曲', '🌧', 74],
+  [/邻居.*(面包|螺丝刀|回赠|约.+家里|吃完一顿饭)/, '邻里往来', '🍞', 65],
+  [/派对|邀请.+来玩|参加院子野餐/, '串门聚会', '🎉', 68],
   [/给饿着的|帮忙付了|终于去找了份工作|画卖出去了/, '生活片段', '🌷', 63],
   [/听成了|吵了一架/, '小屋插曲', '💬', 58],
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
@@ -1921,7 +1946,14 @@ function applySave(s) {
   G.wall = s.wall; G.floor = s.floor; G.bathroom = s.bathroom === true; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
   G.community = restoreCommunity(s.community);
-  if (G.community.active) G.community.active.reserved = {};
+  if (G.community.active) {
+    const event = G.community.active;
+    event.reserved = {};
+    if (!event.leavingAt && (event.kind === 'picnic' || (event.exchange && !event.exchangeDone))) {
+      event.credited ||= [...event.joined];
+      event.joined = [];
+    }
+  }
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
@@ -2228,6 +2260,7 @@ function startAct(d, o) {
 function arrive(d) {
   const a = d.act;
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
+  if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
   if (a?.type === 'visitGather') { arriveAtGathering(d); return; }
   if (a && Object.hasOwn(ROUTINES, a.type)) { beginRoutine(d); return; }
   if (a && a.type === 'join') { arriveJoin(d); return; }
@@ -2993,6 +3026,7 @@ function comeHome(d) {
 // 每帧在 updateDoll 里调用；返回 true 表示这帧不用再做别的
 function workTick(d, dt) {
   if (d.guest) return false;
+  if (d.state === 'away' && G.community?.outing?.pid === d.pid && G.community.outing.phase === 'visiting') return true;
   const N = d.needs;
   if (d.state === 'away') {
     // 在外面：会累、会饿，但和同事也算有社交
@@ -3027,6 +3061,7 @@ function returnTime(d) {
   return cycle > G.day ? `${monthLabel(cycle)} ${time}` : time;
 }
 function awayText(d) {
+  if (G.community?.outing?.pid === d.pid && G.community.outing.phase === 'visiting') return `在麦麦家做客，约 ${returnTime(d)} 回家`;
   const J = JOBS[d.job] || JOBS.none;
   return `${J.verb}中，约 ${returnTime(d)} 回家`;
 }
@@ -4249,6 +4284,7 @@ const GET_TOGETHERS = {
   tea: { name: '茶点派对', minutes: 175, icon: '🫖', places: ['teaTray', 'table', 'coffee', 'sofa'] },
   music: { name: '音乐派对', minutes: 175, icon: '🎵', places: ['recordPlayer', 'speaker', 'piano', 'ukulele'] },
   games: { name: '游戏派对', minutes: 175, icon: '🎲', places: ['chessTable', 'arcade', 'table'] },
+  picnic: { name: '院子野餐', minutes: 175, icon: '🧺', places: ['picnicTable'] },
 };
 
 Object.assign(ACT_NAMES, { visitGather: '去见朋友', visitStay: '和朋友相聚', visitLeave: '准备回家' });
@@ -4261,6 +4297,9 @@ function restoreCommunity(saved) {
     active: saved?.active || null,
     lastRoll: saved?.lastRoll || 0,
     nextEventAt: saved?.nextEventAt || 0,
+    neighbor: saved?.neighbor || { ties: {}, lastMonth: 0, visits: 0 },
+    outing: saved?.outing ? { ...saved.outing, resume: saved.outing.phase === 'leaving' } : null,
+    deferredPicnic: saved?.deferredPicnic || null,
   };
 }
 
@@ -4277,49 +4316,53 @@ function availableHosts() {
 }
 
 function friendFor(host) {
-  let friend = G.community.friends.find(f => f.hostPid === host.pid && !communityDoll(f.pid));
+  let friend = G.community.friends.find(f => f.pid !== NEIGHBOR_PID && f.hostPid === host.pid && !communityDoll(f.pid));
   if (friend) return friend;
   friend = { ...newcomerProfile(), pid: `friend-${host.pid}-${G.uid++}-${absNow() | 0}`, hostPid: host.pid, visits: 0 };
   G.community.friends.push(friend);
   return friend;
 }
 
-function gatheringTiles(kind, origin) {
+function gatheringTiles(kind, origin, inside = false) {
   const style = GET_TOGETHERS[kind];
-  const furniture = style.places.map(id => G.furniture.find(f => f.id === id && roomOf({ tx: f.x, ty: f.y }) === 'living')).find(Boolean);
-  const anchor = furniture ? { x: furniture.x, y: furniture.y + 1 } : { x: BX + 2, y: WALL_ROWS + 3 };
+  const outside = kind === 'picnic' && !inside;
+  const room = outside ? 'yard' : 'living';
+  const ids = kind === 'picnic' && inside ? GET_TOGETHERS.tea.places : style.places;
+  const furniture = ids.map(id => G.furniture.find(f => f.id === id && roomOf({ tx: f.x, ty: f.y }) === room)).find(Boolean);
+  const anchor = furniture ? { x: furniture.x, y: furniture.y + 1 } : { x: BX + 2, y: outside ? ROWS + 3 : WALL_ROWS + 3 };
   const tiles = [];
-  for (let y = WALL_ROWS + 1; y < FLOOR_SPLIT; y++) for (let x = BX; x < COLS; x++) {
+  for (let y = outside ? ROWS + 1 : WALL_ROWS + 1; y < (outside ? YARD_END : FLOOR_SPLIT); y++) for (let x = outside ? 0 : BX; x < COLS; x++) {
     if (!free(x, y) || isDoorTile(x, y) || (x === stairsColumn() && y === LOWER_LANDING)) continue;
     tiles.push({ x, y, distance: Math.abs(x - anchor.x) + Math.abs(y - anchor.y) - (y - anchor.y) * 1.5 });
   }
   return tiles.sort((a, b) => a.distance - b.distance).slice(0, 22).filter(tile => findPath(origin.x, origin.y, [tile])).slice(0, 8);
 }
 
-function startGetTogether(host, kind) {
+function startGetTogether(host, kind, { friend, exchange, rescheduled = false } = {}) {
   const style = GET_TOGETHERS[kind], community = G.community;
-  if (!style || !availableHosts().includes(host) || community.active || absNow() < community.nextEventAt) return false;
+  if (!style || !availableHosts().includes(host) || community.active || community.outing || absNow() < community.nextEventAt) return false;
   const door = doorTile();
   const entry = free(door.x, door.y) ? door : nearestFree(door.x, door.y, 1);
   if (!entry) return false;
   const tiles = gatheringTiles(kind, entry);
   if (tiles.length < 2 || !findPath(host.tx, host.ty, tiles)) return false;
 
-  const friend = friendFor(host);
+  friend ||= friendFor(host);
   const guest = addDoll({ ...friend, guest: true, tx: entry.x, ty: entry.y,
     needs: { energy: 84, hunger: 80, fun: 74, social: 63, bladder: 90 } });
   const friendship = rel(host, guest);
-  if (!friend.visits) friendship.f = 52;
+  if (!friend.visits) friendship.f = friend.pid === NEIGHBOR_PID ? 28 : 52;
   friend.visits++;
   community.active = { kind, hostPid: host.pid, guestPid: guest.pid, endsAt: absNow() + style.minutes,
-    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {} };
+    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {}, exchange };
+  if (kind === 'picnic') preparePicnic(community.active, rescheduled);
   community.nextEventAt = community.active.endsAt + 45;
   guest.think = .5;
   const entrance = doorOf();
   if (entrance) entrance.openT = .8;
   say(guest, '我来串门啦！');
   countHouseActivity('visitors', `${guest.name} · ${style.name}`);
-  HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + style.name}了`);
+  if (!exchange) HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + style.name}了`);
   HOOK.select();
   save();
   return true;
@@ -4327,16 +4370,22 @@ function startGetTogether(host, kind) {
 
 function joinGetTogether(d) {
   const event = G.community.active;
-  if (!event || event.leavingAt || event.joined.includes(d.pid) || d.needs.energy < 34 || d.needs.hunger < 25
+  if (!event || event.leavingAt || event.rainDeadline || event.joined.includes(d.pid) || d.needs.energy < 34 || d.needs.hunger < 25
     || (d.needs.bladder < 18 && G.furniture.some(f => f.id === 'toilet'))) return false;
   const principal = d.pid === event.hostPid || d.pid === event.guestPid;
   const participants = new Set([...event.joined, ...Object.keys(event.reserved)]);
   const otherCount = [...participants].filter(pid => pid !== event.hostPid && pid !== event.guestPid).length;
-  if (!principal && (event.kind === 'visit' || otherCount >= 3
+  const quiet = event.quietPids?.includes(d.pid);
+  if (!principal && !quiet && (event.kind === 'visit' || otherCount >= 3
     || (!isE(d) && d.needs.social > 58) || (isE(d) && d.needs.social > 88))) return false;
+  if (event.rainMode === 'umbrella' && !principal && ['tidy', 'lazy'].includes(d.persona)) {
+    event.declined ||= [];
+    if (!event.declined.includes(d.pid)) { event.declined.push(d.pid); say(d, '雨有点大，我在屋里等你们。'); }
+    return false;
+  }
   if (absNow() + 12 >= event.endsAt) return false;
   const occupied = Object.values(event.reserved);
-  const open = event.tiles.filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
+  const open = (quiet ? event.quietTiles : event.tiles).filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
   const spaced = open.filter(tile => !occupied.some(spot => spot.x === tile.x && Math.abs(spot.y - tile.y) < 3));
   let route = null;
   for (const tile of new Set([...spaced, ...open])) {
@@ -4358,11 +4407,13 @@ function arriveAtGathering(d) {
   const guest = communityDoll(event.guestPid);
   const host = communityDoll(event.hostPid);
   const companion = d === guest ? host : guest;
-  if (companion) bump(d, companion, d === guest || d === host ? 4 : 2);
+  event.credited ||= [...event.joined];
+  if (companion && !event.credited.includes(d.pid) && !event.quietPids?.includes(d.pid)) bump(d, companion, d === guest || d === host ? 4 : 2);
+  if (!event.credited.includes(d.pid)) event.credited.push(d.pid);
   event.joined.push(d.pid);
   d.state = 'act';
   d.ft = 0;
-  const gain = event.kind === 'tea' ? { fun: 9, social: 12, hunger: 9 } : { fun: 11, social: 15 };
+  const gain = ['tea', 'picnic'].includes(event.kind) ? { fun: 9, social: 12, hunger: 9 } : { fun: 11, social: 15 };
   d.act = { type: 'visitStay', t: event.kind === 'visit' ? 12 : 20,
     gain, theme: event.kind, dance: event.kind === 'music' && (isE(d) || d.persona === 'genki') };
   const lines = {
@@ -4371,7 +4422,9 @@ function arriveAtGathering(d) {
     music: d.act.dance ? '这首歌好适合跳舞！' : '我在旁边听一会儿',
     games: '这局谁先来？我想试试！',
   };
-  say(d, lines[event.kind]);
+  if (event.kind === 'picnic') arrivePicnic(d, event);
+  else say(d, lines[event.kind]);
+  if (event.exchange && host?.act?.type === 'visitStay' && guest?.act?.type === 'visitStay') finishNeighborExchange(event, host, guest);
   if (event.kind === 'music' && d === host) SFX.play('piano');
   if (event.kind === 'games') SFX.play('game');
   HOOK.community();
@@ -4412,7 +4465,7 @@ function endGetTogether() {
   if (!event || event.leavingAt) return;
   const guest = communityDoll(event.guestPid), host = communityDoll(event.hostPid);
   const friend = community.friends.find(f => f.pid === event.guestPid);
-  if (guest && host && friend && event.joined.includes(guest.pid) &&
+  if (guest && guest.pid !== NEIGHBOR_PID && !event.postponed && host && friend && event.joined.includes(guest.pid) &&
     (event.joined.includes(host.pid) || rel(guest, host).f >= event.friendshipAtStart + 4)) {
     const friendship = rel(guest, host).f;
     if (friendship >= 53 && guest.needs.fun >= 55 && !community.applications.some(a => a.pid === guest.pid) &&
@@ -4434,6 +4487,7 @@ function endGetTogether() {
 
 function communityTick() {
   const community = G.community;
+  tickNeighborOuting();
   const event = community.active;
   if (event) {
     const guest = communityDoll(event.guestPid);
@@ -4441,9 +4495,11 @@ function communityTick() {
     if (event.leavingAt) {
       if (absNow() >= event.leavingAt) finishGuestDeparture();
       else if (guest.act?.type !== 'visitLeave' && guest.state !== 'lift') sendGuestHome(guest);
-    } else if (absNow() >= event.endsAt || !communityDoll(event.hostPid)) endGetTogether();
+    } else if (!communityDoll(event.hostPid)) endGetTogether();
+    else if (!tickPicnicWeather(event) && absNow() >= event.endsAt) endGetTogether();
     return;
   }
+  if (community.outing || resumePicnic() || tickNeighborVisit()) return;
   if (G.time < 17.5 * 60 || G.time >= 21 * 60 || community.lastRoll === G.day || absNow() < community.nextEventAt) return;
   const hosts = availableHosts();
   if (!hosts.length) return;
@@ -4455,6 +4511,7 @@ function communityTick() {
     ['tea', ['foodie', 'lazy'].includes(host.persona) ? 3 : 1],
     ['music', ['genki', 'social', 'stylist'].includes(host.persona) ? 3 : 1],
     ['games', ['nerd', 'genki'].includes(host.persona) ? 3 : 1],
+    ['picnic', G.weather === 'snow' ? 0 : 2],
   ]) : 'visit';
   startGetTogether(host, kind);
 }
@@ -4476,6 +4533,312 @@ function moveInApplicant(pid) {
     finishGuestDeparture();
   }
   return doll;
+}
+</script>
+<script>
+// 麦麦住在隔壁，出门做事的时段与关系进度独立于小屋住户。
+const NEIGHBOR_PID = 'neighbor-maimai';
+const NEIGHBOR_PROFILE = {
+  pid: NEIGHBOR_PID, name: '麦麦', persona: 'maker', zodiac: 'virgo', mbti: 'ISFJ', job: 'baker',
+  gender: 'f', heart: 'normal', money: 1500, visits: 0,
+  look: { skin: 1, hair: 'bob', hairColor: 2, top: 'overall', topColor: 5, bottom: 'shorts', bottomColor: 6, shoes: 1, acc: 'flower' },
+};
+
+function neighborProfile() {
+  return G.community.friends.find(f => f.pid === NEIGHBOR_PID) || NEIGHBOR_PROFILE;
+}
+
+function neighborSchedule() {
+  const neighbor = communityDoll(NEIGHBOR_PID);
+  if (neighbor) return neighbor.guest ? '正在小屋串门' : '已经搬进小屋';
+  if (G.time < 10 * 60 || G.time >= 20 * 60) return '在家休息';
+  if (G.time < 14 * 60) return '在面包店忙';
+  return '在家，可以串门';
+}
+
+function neighborTie(d) {
+  return G.community.neighbor.ties[d.pid];
+}
+
+function contactNeighbor(d, other, meal = false) {
+  const ties = G.community.neighbor.ties;
+  const tie = (ties[d.pid] ||= { months: 0, meals: 0, lastMonth: 0, lastMeal: 0 });
+  if (tie.lastMonth !== G.day) { tie.lastMonth = G.day; tie.months++; }
+  if (meal && tie.lastMeal !== G.day) { tie.lastMeal = G.day; tie.meals++; }
+  bump(d, other, meal ? 8 : 5);
+  const r = rel(d, other);
+  if (tie.meals >= 3 && !r.tags?.meal) {
+    (r.tags ||= {}).meal = true;
+    HOOK.toast(`🍚 ${d.name}和邻居${other.name}成了饭搭子！`);
+  }
+  if (tie.months >= 4 && tie.meals >= 2 && r.f >= 60 && !G.community.applications.some(a => a.pid === other.pid)) {
+    G.community.applications.push({ pid: other.pid, requestedAt: absNow() });
+    HOOK.toast(`📮 邻居${other.name}熟悉了小屋的生活，主动留下了入住申请。`);
+  }
+  return tie;
+}
+
+function tickNeighborVisit() {
+  const n = G.community.neighbor;
+  if (communityDoll(NEIGHBOR_PID) || G.community.outing || G.time < 14 * 60 || G.time >= 17 * 60 ||
+      n.lastMonth === G.day || absNow() < G.community.nextEventAt) return false;
+  const host = availableHosts().filter(d => d.act?.type !== 'leave' && d.needs.energy >= 34 && d.needs.hunger >= 25).sort((a, b) => {
+    const interest = d => (G.rel[relKey(d, NEIGHBOR_PROFILE)]?.f ?? 25) + (['social', 'foodie', 'maker'].includes(d.persona) ? 8 : 0);
+    return interest(b) - interest(a);
+  })[0];
+  if (!host) return false;
+  let friend = neighborProfile();
+  if (friend === NEIGHBOR_PROFILE) {
+    friend = { ...NEIGHBOR_PROFILE, look: { ...NEIGHBOR_PROFILE.look } };
+    G.community.friends.push(friend);
+  }
+  const exchange = n.borrowed ? 'returnTool' : n.visits % 3 === 1 ? 'borrow' : 'bread';
+  if (!startGetTogether(host, 'visit', { friend, exchange })) return false;
+  n.lastMonth = G.day;
+  n.visits++;
+  save();
+  return true;
+}
+
+function finishNeighborExchange(event, host, guest) {
+  if (event.exchangeDone) return;
+  event.exchangeDone = true;
+  const state = G.community.neighbor;
+  const tie = contactNeighbor(host, guest);
+  const lines = {
+    bread: '今天烤多了，给你们带了一袋面包。',
+    borrow: '我想修一下橱柜，可以借把螺丝刀吗？',
+    returnTool: '螺丝刀还给你们。橱柜的门终于不响啦！',
+  };
+  if (event.exchange === 'borrow') state.borrowed = true;
+  if (event.exchange === 'returnTool') state.borrowed = false;
+  say(guest, lines[event.exchange]);
+  addLog(`🏡 邻居${guest.name}对${host.name}说：「${lines[event.exchange]}」`);
+  if (event.exchange === 'bread') {
+    host.needs.hunger = Math.min(100, host.needs.hunger + 10);
+    if (['foodie', 'social', 'tidy'].includes(host.persona)) {
+      say(host, '你等等，我也给你装一份点心。');
+      bump(host, guest, 4);
+      addLog(`🎁 ${host.name}给邻居${guest.name}回赠了一盒点心。`);
+    }
+  }
+  if (tie.months === 2 && !tie.invited) {
+    tie.invited = true;
+    tie.inviteMonth = G.day + 1;
+    say(guest, '下个月有空来我家坐坐吧。');
+    addLog(`🏡 邻居${guest.name}约${host.name}下个月来家里吃点东西。`);
+  }
+  save();
+}
+
+function canVisitNeighbor(d) {
+  const tie = d && neighborTie(d);
+  return !!tie && tie.invited && tie.lastMeal !== G.day && G.day >= (tie.inviteMonth || 0) &&
+    availableHosts().includes(d) && !G.community.outing && !G.community.active && !communityDoll(NEIGHBOR_PID) &&
+    G.time >= 14 * 60 && G.time < 20 * 60;
+}
+
+function neighborExitRoute(d) {
+  const door = doorTile();
+  const entry = free(door.x, door.y) ? door : nearestFree(door.x, door.y, 1);
+  return entry && findPath(d.tx, d.ty, [entry]);
+}
+
+function startNeighborOuting(d) {
+  if (!canVisitNeighbor(d)) return false;
+  const route = neighborExitRoute(d);
+  if (!route) return false;
+  if (d.act) endAct(d);
+  G.community.outing = { pid: d.pid, phase: 'leaving' };
+  d.path = route;
+  d.state = route.length ? 'walk' : 'arrive';
+  d.act = { type: 'neighborLeave' };
+  HOOK.community();
+  save();
+  return true;
+}
+
+function arriveNeighborOuting(d) {
+  const outing = G.community.outing;
+  if (outing?.pid !== d.pid) { endAct(d); return; }
+  outing.phase = 'visiting';
+  outing.until = absNow() + 95;
+  d.awayUntil = outing.until;
+  d.state = 'away'; d.path = []; d.act = null; d.bubble = null;
+  const door = doorOf();
+  if (door) door.openT = .8;
+  addLog(`🚪 ${d.name}去邻居麦麦家串门了。`);
+  HOOK.select();
+  save();
+}
+
+function tickNeighborOuting() {
+  const outing = G.community.outing;
+  if (!outing) {
+    if (G.time >= 17.25 * 60 && G.time < 19 * 60) {
+      const visitor = residents().filter(d => d.state === 'idle' && d.needs.energy >= 34 && canVisitNeighbor(d))
+        .sort((a, b) => (G.rel[relKey(b, NEIGHBOR_PROFILE)]?.f || 0) - (G.rel[relKey(a, NEIGHBOR_PROFILE)]?.f || 0))[0];
+      if (visitor) startNeighborOuting(visitor);
+    }
+    return;
+  }
+  const d = communityDoll(outing.pid);
+  if (!d || communityDoll(NEIGHBOR_PID)?.guest === false) {
+    if (d?.state === 'away' && outing.phase === 'visiting') returnFromNeighbor(d, false);
+    else G.community.outing = null;
+    return;
+  }
+  if (outing.phase === 'leaving') {
+    if (outing.resume) {
+      delete outing.resume;
+      G.community.outing = null;
+      startNeighborOuting(d);
+    } else if (d.act?.type !== 'neighborLeave') G.community.outing = null;
+    return;
+  }
+  if (absNow() >= outing.until) returnFromNeighbor(d, true);
+}
+
+function returnFromNeighbor(d, sharedMeal) {
+  G.community.outing = null;
+  const door = doorTile();
+  const entry = nearestFree(door.x, door.y, 1);
+  if (entry) placeDollAt(d, entry.x, entry.y);
+  d.state = 'idle'; d.dir = 'down'; d.awayUntil = 0; d.think = 2;
+  if (sharedMeal) {
+    contactNeighbor(d, neighborProfile(), true);
+    d.needs.hunger = Math.min(100, d.needs.hunger + 23);
+    d.needs.social = Math.min(100, d.needs.social + 16);
+    addLog(`🍞 ${d.name}和邻居麦麦在隔壁吃完一顿饭，回到了小屋。`);
+  }
+  const entrance = doorOf();
+  if (entrance) entrance.openT = .8;
+  HOOK.select();
+  save();
+}
+</script>
+<script>
+// A picnic keeps its host and guest when the weather changes its plans.
+const PICNIC_PLANS = {
+  inside: '搬进客厅',
+  postpone: '改天再野餐',
+  umbrella: '撑伞继续',
+};
+
+function preparePicnic(event, rescheduled) {
+  if (!rescheduled && G.weather !== 'rain' && seasonOf(G.day).id !== 'winter' && Math.random() < .28) {
+    event.showerAt = absNow() + 65;
+  }
+}
+
+function tickPicnicWeather(event) {
+  if (event.kind !== 'picnic' || event.rainMode) return false;
+  const now = absNow();
+  if (!event.rainDeadline && (G.weather === 'rain' || (event.showerAt && now >= event.showerAt))) {
+    event.rainDeadline = now + 72;
+    event.endsAt = Math.max(event.endsAt, event.rainDeadline + 25);
+    HOOK.toast('🌧 院子野餐遇上下雨了，主人要改计划。');
+    HOOK.community();
+    save();
+  }
+  if (!event.rainDeadline) return false;
+  if (now >= event.rainDeadline) {
+    const host = communityDoll(event.hostPid);
+    const plan = ['genki', 'active'].includes(host?.persona) ? 'umbrella' :
+      ['tidy', 'lazy'].includes(host?.persona) ? 'postpone' : 'inside';
+    if (!choosePicnicPlan(plan)) choosePicnicPlan('postpone');
+  }
+  return true;
+}
+
+function picnicQuietPair(event, host, guest) {
+  const quiet = d => !isE(d) || ['nerd', 'lazy'].includes(d.persona);
+  if (!quiet(guest)) return;
+  const resident = availableHosts().filter(d => d !== host && quiet(d))
+    .sort((a, b) => Number(b.persona === 'nerd') - Number(a.persona === 'nerd'))[0];
+  if (!resident) return;
+  const tiles = [];
+  for (let y = FLOOR_SPLIT; y < ROWS; y++) for (let x = BX; x < COLS; x++) {
+    if (free(x, y) && !isDoorTile(x, y) && !(x === stairsColumn() && y === UPPER_LANDING)) tiles.push({ x, y });
+  }
+  const corner = tiles.find(tile => tiles.some(other => other.y === tile.y && other.x === tile.x + 1) &&
+    [resident, guest].every(d => findPath(d.tx, d.ty, [tile, { x: tile.x + 1, y: tile.y }])));
+  if (!corner) return;
+  event.quietPids = [resident.pid, guest.pid];
+  event.quietTiles = [corner, { x: corner.x + 1, y: corner.y }];
+}
+
+function choosePicnicPlan(plan) {
+  const event = G.community.active;
+  if (!event?.rainDeadline || !Object.hasOwn(PICNIC_PLANS, plan)) return false;
+  const host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
+  if (!host || !guest) return false;
+  if (plan === 'inside') {
+    const tiles = gatheringTiles('picnic', { x: guest.tx, y: guest.ty }, true);
+    if (tiles.length < 2 || !findPath(host.tx, host.ty, tiles)) return false;
+    event.tiles = tiles;
+    picnicQuietPair(event, host, guest);
+  }
+  event.rainMode = plan;
+  delete event.rainDeadline;
+  const result = {
+    inside: '把野餐搬进了客厅，点心还是一样好吃。',
+    postpone: '收起野餐篮，约好等雨停了再聚。',
+    umbrella: '给大家分了伞，决定在雨里继续野餐。',
+  };
+  HOOK.toast(`🧺 ${host.name}${result[plan]}`);
+  if (plan === 'postpone') {
+    event.postponed = true;
+    G.community.deferredPicnic = { hostPid: host.pid, guestPid: guest.pid, at: absNow() + 95 };
+    endGetTogether();
+    return true;
+  }
+  event.endsAt = Math.max(event.endsAt, absNow() + 140);
+  G.community.nextEventAt = event.endsAt + 45;
+  event.credited ||= [...event.joined];
+  for (const d of G.dolls) if (['visitGather', 'visitStay'].includes(d.act?.type)) endAct(d);
+  event.joined = [];
+  event.reserved = {};
+  HOOK.community();
+  save();
+  return true;
+}
+
+function resumePicnic() {
+  const pending = G.community.deferredPicnic;
+  if (!pending) return false;
+  const host = communityDoll(pending.hostPid);
+  const friend = G.community.friends.find(f => f.pid === pending.guestPid);
+  if (!host || !friend || communityDoll(friend.pid)) { G.community.deferredPicnic = null; return false; }
+  if (absNow() < pending.at || absNow() < G.community.nextEventAt || G.time < 10 * 60 || G.time >= 19 * 60 ||
+      G.weather === 'rain' || G.weather === 'snow') return false;
+  if (!startGetTogether(host, 'picnic', { friend, rescheduled: true })) return false;
+  G.community.deferredPicnic = null;
+  addLog(`🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`);
+  HOOK.community();
+  save();
+  return true;
+}
+
+function arrivePicnic(d, event) {
+  if (!event.quietPids?.includes(d.pid)) {
+    d.act.theme = event.rainMode === 'umbrella' ? 'umbrella' : 'picnic';
+    say(d, event.rainMode === 'umbrella' ? '把伞靠过来一点，点心别淋湿了。' : '来吃点三明治吧！');
+    return;
+  }
+  d.act.theme = 'quiet';
+  d.act.gain = { fun: 12, social: 14 };
+  say(d, '楼上安静多了。');
+  const other = communityDoll(event.quietPids.find(pid => pid !== d.pid));
+  if (event.quietDone || other?.act?.theme !== 'quiet' || other.state !== 'act') return;
+  event.quietDone = true;
+  bump(d, other, 10);
+  addTrust(d, other, 5); addTrust(other, d, 5);
+  const text = `${d.name}和${other.name}躲到二楼，在安静的书房聊熟了。`;
+  NPCMemory.record(G, { type: 'rain-quiet-chat', time: absNow(), participants: [d.pid, other.pid], outcome: 'bonded' },
+    [d, other].map(p => ({ person: p.pid, subject: p === d ? other.pid : d.pid, emotion: .65, impact: 65, interpretation: text })));
+  addLog(`🌧 ${text}`);
+  say(other, '原来你也喜欢安静一点。');
 }
 </script>
 <script>
@@ -4602,6 +4965,13 @@ function drawHouseGarden(c, left, right) {
     if (Math.abs(x - gate - 8) < 18) continue;
     R(c, x, y, 2, 1, i % 4 === 0 ? '#fff0cf' : shade(grass, -.14));
     if (i % 4 === 0) R(c, x, y + 1, 1, 2, shade(grass, -.18));
+  }
+  const picnic = G.community?.active;
+  if (G.weather === 'rain' || (picnic?.showerAt && absNow() >= picnic.showerAt)) {
+    for (let i = 0; i < 26; i++) {
+      const x = rnd(i + 460) * width, y = 252 + (rnd(i + 361) * 58 + G.t * 85) % 58;
+      R(c, x, y, 1, 5, '#d7e6eeaa');
+    }
   }
 }
 
@@ -4870,9 +5240,14 @@ function drawDollObj(c, d) {
     } else if (d.act.theme === 'games') {
       box(c, px, py, 5, 5, '#f8e6c7', '#8e6d82');
       R(c, px + 2, py + 2, 1, 1, '#a67696');
-    } else if (d.act.theme === 'tea') {
+    } else if (d.act.theme === 'tea' || d.act.theme === 'picnic') {
       box(c, px, py, 6, 5, '#ffefdc', '#a0747e');
       R(c, px + 6, py + 1, 2, 2, '#f6c8b5');
+    } else if (d.act.theme === 'umbrella') {
+      R(c, x + 6, y - 28, 1, 13, '#76564f');
+      R(c, x - 7, y - 30, 24, 4, '#e4879d');
+      R(c, x - 3, y - 33, 16, 4, '#f6b2bf');
+      R(c, x + 2, y - 35, 6, 3, '#fbd2d5');
     }
   }
   const motion = ROUTINES[d.act?.type]?.motion;
@@ -5412,7 +5787,12 @@ HOOK.toast = (msg, quiet) => {
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
-  if (d.act?.type === 'visitStay') return GET_TOGETHERS[G.community.active?.kind]?.name || '和朋友相聚';
+  if (d.act?.type === 'visitStay') {
+    if (d.act.theme === 'quiet') return '在二楼书房聊天';
+    if (d.act.theme === 'umbrella') return '撑着伞野餐';
+    return GET_TOGETHERS[G.community.active?.kind]?.name || '和朋友相聚';
+  }
+  if (d.act?.type === 'neighborLeave') return '准备去麦麦家';
   if (d.state === 'lift') return '被你拎在手里';
   if (d.state === 'wait') return '在等人过来';
   if (d.state === 'away') return awayText(d);
@@ -5785,13 +6165,78 @@ function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'
 function updateCommunityStatus() {
   const event = G.community.active;
   const status = $('#communityStatus');
-  status.hidden = !event;
-  if (!event) return;
+  const pending = G.community.deferredPicnic;
+  const outing = G.community.outing;
+  status.hidden = !event && !pending && !outing;
+  $('#picnicNotice').hidden = !event?.rainDeadline;
+  if ($('#neighborDialog').open) updateNeighborDialog();
+  if (!event) {
+    status.textContent = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}` : pending ? '🧺 野餐已改期，等天晴再开场' : '';
+    return;
+  }
   const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
-  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${style.name} · ${host?.name || '住户'}邀请了${guest?.name || '朋友'} · ${event.joined.length} 人参与`;
+  const plan = event.rainMode && PICNIC_PLANS[event.rainMode];
+  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${event.exchange ? '邻居来访' : style.name} · ${host?.name || '住户'}和${guest?.name || '朋友'} · ${event.joined.length} 人参与${plan ? ' · ' + plan : ''}`;
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
+
+for (const [plan, label] of Object.entries(PICNIC_PLANS)) {
+  const button = el('button', 'btn small', label);
+  button.type = 'button';
+  button.onclick = () => {
+    if (!choosePicnicPlan(plan)) HOOK.toast('现在客厅没有足够的可达空位，可以换一个安排。', true);
+  };
+  $('#picnicPlans').append(button);
+}
+
+function updateNeighborDialog() {
+  const select = $('#neighborVisitor');
+  const d = communityDoll(select.value), tie = d && neighborTie(d);
+  const outing = G.community.outing;
+  const visitor = outing?.phase === 'visiting' && communityDoll(outing.pid);
+  const neighbor = communityDoll(NEIGHBOR_PID) || neighborProfile();
+  const text = visitor ? `${visitor.name}正在门廊陪麦麦吃点心。` : neighborSchedule();
+  $('#neighborStatus').textContent = text;
+  const porch = $('#neighborPorch');
+  const key = JSON.stringify([text, neighbor.look, visitor && visitor.look]);
+  if (porch.dataset.scene !== key) {
+    porch.dataset.scene = key;
+    const cast = [neighbor, visitor].filter(Boolean);
+    porch.replaceChildren(...cast.map(person => {
+      const figure = el('figure');
+      const portrait = el('canvas');
+      portrait.width = 20; portrait.height = 24;
+      dollPortrait(portrait, person.look, 'down', 0, visitor ? 'sit' : 'stand');
+      const caption = el('figcaption'); caption.textContent = person.name;
+      figure.append(portrait, caption);
+      return figure;
+    }));
+  }
+  $('#neighborTie').textContent = tie
+    ? `来往了 ${tie.months} 个月 · 一起吃过 ${tie.meals} 次饭${tie.invited && G.day < tie.inviteMonth ? ' · 下个月可以赴约' : ''}`
+    : '麦麦下午回家，有时会来送面包或借工具。';
+  $('#neighborGo').disabled = !canVisitNeighbor(d);
+}
+
+$('#btnNeighbor').onclick = () => {
+  const select = $('#neighborVisitor');
+  select.replaceChildren(...residents().map(d => {
+    const option = el('option'); option.value = d.pid; option.textContent = d.name; return option;
+  }));
+  const selected = residents().find(d => d.uid === G.sel);
+  if (selected) select.value = selected.pid;
+  else {
+    const acquainted = residents().find(d => neighborTie(d)?.invited);
+    if (acquainted) select.value = acquainted.pid;
+  }
+  updateNeighborDialog();
+  $('#neighborDialog').showModal();
+};
+$('#neighborVisitor').onchange = updateNeighborDialog;
+$('#neighborGo').onclick = () => {
+  if (!startNeighborOuting(communityDoll($('#neighborVisitor').value))) HOOK.toast('现在走不到门口，稍后再去吧。', true);
+};
 
 $('#btnCommunity').onclick = () => {
   const hosts = availableHosts();
@@ -5803,7 +6248,7 @@ $('#btnCommunity').onclick = () => {
   }
   if (hosts.some(d => d.uid === G.sel)) select.value = hosts.find(d => d.uid === G.sel).pid;
   const event = G.community.active;
-  const ready = !event && absNow() >= G.community.nextEventAt && hosts.length > 0;
+  const ready = !event && !G.community.outing && absNow() >= G.community.nextEventAt && hosts.length > 0;
   $('#communityHelp').textContent = event ? `正在进行${GET_TOGETHERS[event.kind].name}，结束后可以再邀请朋友。`
     : !hosts.length ? '现在没有在家且醒着的住户。'
     : !ready ? '刚送走朋友，让小屋休息一会儿吧。'
@@ -5872,7 +6317,7 @@ function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   update(dt); render();
   uiT += dt;
-  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); }
+  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }
   requestAnimationFrame(loop);
 }
