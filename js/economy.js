@@ -25,8 +25,9 @@ const FURNITURE_GROUPS = {
   decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
     'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
     'shelfwall', 'garland', 'xmastree', 'lantern', 'corkboard', 'plushRabbit', 'paperLantern'],
-  hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
+  hobbies: ['recordPlayer', 'chessTable', 'puzzleDesk', 'knitting', 'ukulele', 'piano', 'shelf',
     'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill', 'yogaMat', 'punchingBag', 'craftBench', 'toolbox', 'scrapbook', 'herbStand'],
+  yard: ['gardenSwing', 'gardenBench', 'flowerBox', 'picnicTable'],
 };
 
 const LEVELS = [null,

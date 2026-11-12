@@ -71,11 +71,12 @@ function render() {
   for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);
 
   if (G.mode === 'build') {
-    for (const storey of STOREYS) {
+    for (const storey of [...STOREYS, YARD]) {
       const { back, front } = storey;
       R(c, HOUSE_X, back, W, front - back, '#48323810');
       for (let x = T; x < W; x += T) R(c, HOUSE_X + x, back, 1, front - back, '#48323824');
-      for (let y = back + FLOOR_STEP; y < front; y += FLOOR_STEP) R(c, HOUSE_X, y, W, 1, '#48323824');
+      const step = storey.step || FLOOR_STEP;
+      for (let y = back + step; y < front; y += step) R(c, HOUSE_X, y, W, 1, '#48323824');
     }
   }
 
@@ -193,7 +194,7 @@ function drawBuildOverlay(c, t) {
     const F = FURNITURE[id], rect = houseFurnitureRect(f);
     const wall = layerOf(id) === 'wall';
     const x = rect.x, w = rect.w, bottom = rect.bottom;
-    const h = F.h * (wall ? T : FLOOR_STEP);
+    const h = F.h * (wall ? T : rect.storey.step || FLOOR_STEP);
     const y = bottom - h;
     const ok = canPlace(id, hv.x, hv.y, null);
     c.globalAlpha = .75;
@@ -269,7 +270,7 @@ function dropInteraction(point, carried) {
   if (column < 0 || column >= COLS) return null;
   let target = null, closest = Infinity;
   for (const d of G.dolls) {
-    if (d === carried || ['away', 'lift'].includes(d.state) || takingStairs(d)) continue;
+    if (d === carried || ['away', 'lift'].includes(d.state) || takingStairs(d) || takingYardPath(d)) continue;
     if (d === direct) { target = d; break; }
     if (direct || roomOf(d) !== roomOf({ tx: column, ty: d.ty })) continue;
     const head = houseHeadPoint(d);
@@ -382,7 +383,7 @@ cv.addEventListener('pointerup', e => {
       HOOK.select();
     } else if (invite) HOOK.toast(invite.reason, true);
   } else if (d) {
-    G.sel = d.uid; SFX.play('click'); HOOK.select();
+    G.sel = d.uid; SFX.play('click'); HOOK.select(true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
@@ -406,7 +407,7 @@ cv.addEventListener('pointerleave', () => { hoverDoll = null; if (G.mode === 'bu
 const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {
   const tile = rawDropTile(p);
-  return tile && nearestFree(tile.x, tile.y, storeyOf(tile.y) === STOREYS[1] ? 2 : 1);
+  return tile && nearestFree(tile.x, tile.y, tile.y >= ROWS ? 3 : tile.y >= FLOOR_SPLIT ? 2 : 1);
 }
 
 function cancelPlacing() {

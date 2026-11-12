@@ -8,7 +8,7 @@ const BATH_X = 4;
 const BATH_DOOR_Y = 17;
 G.bedDoor = true;
 
-const roomOf = d => d.ty >= FLOOR_SPLIT
+const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
   : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
@@ -16,13 +16,14 @@ const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty 
 const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
 const crossesDivider = (x1, x2, divider) => Math.min(x1, x2) === divider - 1 && Math.max(x1, x2) === divider;
 const wallBetween = (x1, y1, x2, y2) =>
+  ((y1 >= ROWS || y2 >= ROWS) ? (y1 >= ROWS) !== (y2 >= ROWS) :
   ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
   (crossesDivider(x1, x2, BX) && y1 !== passageRow(y1)) ||
-  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y);
+  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y));
 const isDoorTile = (x, y) => (y === passageRow(y) && (x === BX - 1 || x === BX)) ||
   (G.bathroom && y === BATH_DOOR_Y && (x === BATH_X - 1 || x === BATH_X));
-const straddles = (x, y, w) => (x < BX && x + w > BX) ||
-  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X);
+const straddles = (x, y, w) => y < ROWS && ((x < BX && x + w > BX) ||
+  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X));
 
 function blocksDoor({ x, y }, { w, h }) {
   for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {

@@ -116,7 +116,10 @@ function tickInfo() {
   }
 }
 
-HOOK.select = () => { renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus(); };
+HOOK.select = (reveal = false) => {
+  if (reveal) $('#side').open = true;
+  renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
+};
 
 /* ---------- 生活日志 ---------- */
 function renderLog() {
@@ -138,7 +141,7 @@ function setMode(m) {
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '布置模式：小人们会继续生活，放好家具 TA 们就会去用' : '点小人查看状态，按住拖到另一位身边可以让他们互动。';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点小人看状态，再点家具安排活动。拖到另一位身边可互动。';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }

@@ -4,6 +4,8 @@ let COLS = 16;              // 房子宽度，扩建时会变大
 const FLOOR_SPLIT = 12;
 const stairsColumn = () => COLS - 2;
 const ROWS = 20;
+const YARD_END = 26;
+const yardGate = x => x >= 9 && x <= 11;
 const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
 const LOWER_LANDING = WALL_ROWS + 1;
 const UPPER_LANDING = ROWS - 1;
