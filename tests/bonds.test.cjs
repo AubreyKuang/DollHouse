@@ -84,21 +84,17 @@ test('vain residents get a stable trait and a strong pull toward the mirror', ()
   assert.equal(typeof fresh.vain, 'boolean');
 });
 
-test('the monthly paper gains a headline, new habits, piano crowds, trust changes and rumors', () => {
+test('monthly highlights pick a new hobby and the piano crowd while keeping simulation snapshots', () => {
   const { G, ctx, doll } = load();
   const a = doll('a', '阿懒'), b = doll('b', '团子');
   G.dayTrust = {}; G.lastDaily = { study: { 阿懒: 1 } };
   G.daily = { study: { 阿懒: 4 }, social: { '阿懒 × 团子': 3 }, crowdMax: { name: '团子', count: 4 }, rumor: 2, rumorWrong: 1 };
   ctx.addTrust(b, a, -12);
   G.log.push({ d: 5, text: '💕 阿懒 和 团子 在一起了！' });
-  const lines = ['1 年 5 月'];
-  ctx.housePaperExtras(lines);
-  const text = lines.join('\n');
-  assert.equal(lines[1], '头条　阿懒 和 团子 在一起了！');
-  assert.match(text, /新发现　阿懒 开始频繁使用书桌/);
-  assert.match(text, /团子 弹钢琴时，4 位住户围了过来/);
-  assert.match(text, /团子 对 阿懒 的信任下降了/);
-  assert.match(text, /传了 2 条闲话，其中 1 条传岔了/);
+  const highlights = ctx.housePaperExtras();
+  assert.equal(highlights.length, 2);
+  assert.match(highlights[0].text, /阿懒 本月迷上了使用书桌/);
+  assert.match(highlights[1].text, /团子 一弹琴，就有 4 位住户围了过来/);
   assert.equal(G.lastDaily.study.阿懒, 4);
   assert.equal(G.dayTrust['b>a'], -12);
 });

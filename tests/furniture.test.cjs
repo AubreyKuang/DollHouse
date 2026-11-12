@@ -261,7 +261,7 @@ test('the calendar starts in January, celebrates a birthday once, and crosses a 
     G.paper = [];
     update(.05);
     assert.equal(monthLabel(G.day), '2 年 1 月');
-    assert.match(G.paper[0], /^1 年 12 月/);
+    assert.equal(G.paper[0].month, '1 年 12 月');
     assert.equal(notifications.filter(text => text.includes('眼镜君 的生日')).length, 2);
     assert.equal(formatSavedPaper('第 13 天 · 周六\\n旧内容'), '2 年 1 月\\n旧内容');
     assert.equal(seasonOf(3).id, 'spring');
