@@ -12,6 +12,8 @@ function paperPortrait(person) {
 }
 
 function showHousePaper() {
+  G.paperPending = false;
+  updateHousePaperButton();
   const dialog = document.getElementById('paperDialog');
   renderHousePaper(G.paper.length - 1);
   if (!dialog.open) dialog.showModal();

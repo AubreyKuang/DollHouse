@@ -267,7 +267,8 @@ function dollAt(p, exclude) {
     if (d === exclude || d.state === 'away' || d.state === 'lift') continue;
     const { x, y: top } = houseHeadPoint(d);
     const y = lying(d) ? top + 12 : houseDollPoint(d).y;
-    if (Math.abs(p.x - x) <= 7 && p.y >= top && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
+    // 点击判定比小人本身大一圈：小人只有 16×24 像素，照着画很难点中
+    if (Math.abs(p.x - x) <= 11 && p.y >= top - 6 && p.y <= y + 3 && (!best || y > best.y)) best = { d, y };
   }
   return best?.d;
 }
@@ -317,6 +318,30 @@ function removeFurniture(f) {
   G.furniture = G.furniture.filter(o => o !== f);
 }
 
+// 玩家正在操作吗？月报等不该在这时候抢焦点
+function playerBusy() {
+  if (press) return true;
+  if (G.dolls.some(d => d.state === 'lift')) return true;
+  const wd = document.getElementById('wardrobe');
+  if (wd && wd.hidden === false) return true;
+  return typeof document.querySelector === 'function' && !!document.querySelector('dialog[open]');
+}
+
+// 把拎着的小人放到一件家具上：先站到家具旁边的空位，再让 TA 去用
+// 成功返回 null；失败返回原因，小人会回到原处，不会悄悄弹回去
+function dropOnFurniture(d, f) {
+  const F = FURNITURE[f.id];
+  if (d.guest && F.use === 'sleep') return '访客不在这里睡觉哦';
+  const spot = approachTiles(f).find(t => free(t.x, t.y) &&
+    !G.dolls.some(o => o !== d && o.state !== 'away' && o.tx === t.x && o.ty === t.y));
+  if (!spot) return `${F.name}旁边没有空位`;
+  const ox = d.tx, oy = d.ty;
+  placeDollAt(d, spot.x, spot.y);
+  d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null;
+  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return '过不去呀…'; }
+  return null;
+}
+
 cv.addEventListener('contextmenu', e => { e.preventDefault(); cancelPlacing(); });
 cv.addEventListener('pointerdown', e => {
   if (press || e.button !== 0) return;
@@ -333,8 +358,21 @@ cv.addEventListener('pointerdown', e => {
   if (B.placing) {
     const g = houseTile(p, B.placing.id);
     if (g && canPlace(B.placing.id, g.x, g.y, null)) {
+      // 要花钱的新家具：第一次点只是确认意向，第二次点同一格才真的扣钱
+      const price = B.placing.moved ? 0 : purchasePrice(B.placing.id);
+      if (price > 0 && !(B.placing.confirm && B.placing.confirm.x === g.x && B.placing.confirm.y === g.y)) {
+        B.placing.confirm = { x: g.x, y: g.y };
+        const hint = document.getElementById('buildHint');
+        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置，右键取消`;
+        HOOK.toast(`再点一次确认购买「${FURNITURE[B.placing.id].name}」${yuan(price)}`, true);
+        SFX.play('click');
+        return;
+      }
+      B.placing.confirm = null;
       if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
       addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
+      const hint = document.getElementById('buildHint');
+      if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
       if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
     } else SFX.play('deny');
     return;
@@ -376,25 +414,52 @@ cv.addEventListener('pointerup', e => {
   if (!press || press.pointerId !== e.pointerId) return;
   if (G.mode !== 'live') { cancelDollDrag(e); return; }
   const p = toScene(e), d = press.d;
+  // 拖得很快、中间没触发 pointermove 时：落点离按下处够远也算一次拖拽
+  if (d && !press.moved && Math.hypot(p.x - press.p.x, p.y - press.p.y) > 6) {
+    press.moved = true;
+    if (d.act) endAct(d);
+    d.path = []; d.state = 'lift'; d.dir = 'down'; G.sel = d.uid; HOOK.select();
+  }
   if (d && press.moved) {
+    // 落点规则：先看是不是拖到另一位身边（互动）；
+    // 再看是不是家具（能用的就安排活动）；再看是不是空地（放下）；
+    // 都不是就回到原处，并告诉玩家为什么。
     const invite = dropInteraction(p, d);
-    let g = invite?.spot || dropTile(p);
-    // Don't leave a doll stacked on the target when an invitation can't start.
-    if (invite && !invite.spot && g?.x === invite.target.tx && g.y === invite.target.ty) g = null;
-    placeDollAt(d, g?.x ?? d.tx, g?.y ?? d.ty);
-    d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null; SFX.play('drop');
+    const furn = invite ? null : furnAt(p);
+    const settle = () => { d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null; SFX.play('drop'); };
     if (invite?.spot) {
+      placeDollAt(d, invite.spot.x, invite.spot.y);
+      settle();
       const partner = invite.target;
       if (partner.act) endAct(partner);
       placeDollAt(partner, partner.tx, partner.ty);
       startSocial(d, partner, true);
       HOOK.select();
-    } else if (invite) HOOK.toast(invite.reason, true);
+    } else if (invite) {
+      placeDollAt(d, d.tx, d.ty);
+      settle();
+      HOOK.toast(invite.reason, true);
+    } else if (furn && FURNITURE[furn.id].use) {
+      const reason = dropOnFurniture(d, furn);
+      if (reason) { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast(reason, true); }
+      else { SFX.play('drop'); HOOK.toast(`✅ ${d.name}去${ACT_NAMES[FURNITURE[furn.id].use] || FURNITURE[furn.id].name}`, true); }
+    } else if (furn) {
+      placeDollAt(d, d.tx, d.ty);
+      settle();
+      HOOK.toast(`「${FURNITURE[furn.id].name}」只是摆设，不能用哦`, true);
+    } else {
+      const g = dropTile(p);
+      if (g) { placeDollAt(d, g.x, g.y); settle(); HOOK.toast(`📍 已把${d.name}放到这里`, true); }
+      else { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast('这里放不下，TA 回到了原处', true); }
+    }
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select(true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
+  } else if (press.furn) {
+    HOOK.toast('先点一位居民，再点家具安排活动', true);
+    SFX.play('deny');
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
@@ -426,5 +491,7 @@ function cancelPlacing() {
     rebuild();
   }
   B.placing = null; HOOK.refresh();
+  const hint = document.getElementById('buildHint');
+  if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
 }
 window.addEventListener('keydown', e => { if (e.key === 'Escape') cancelPlacing(); });

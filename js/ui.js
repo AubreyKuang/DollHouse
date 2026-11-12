@@ -148,7 +148,7 @@ function setMode(m) {
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点小人看状态，再点家具安排活动。拖到另一位身边可互动。';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
@@ -271,9 +271,10 @@ $('#wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardr
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#wardrobe').hidden) closeWardrobe(); });
 document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); });
 $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.value.trim() || '无名'; renderWdTabs(); } };
+$('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  d.look = randomLook(); SFX.play('love'); renderWardrobe();
+  d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -305,7 +306,7 @@ function renderWardrobe() {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
       const b = el('button', 'chip' + (d.look[key] === k ? ' on' : ''), name);
-      b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); };
+      b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     }
     return w;
@@ -315,7 +316,7 @@ function renderWardrobe() {
     cols.forEach((col, i) => {
       const b = el('button', 'swatch' + (d.look[key] === i ? ' on' : ''));
       b.style.background = col; b.setAttribute('aria-label', col);
-      b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); };
+      b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     });
     return w;
@@ -323,7 +324,7 @@ function renderWardrobe() {
   const pers = el('div', 'chips');
   for (const [k, P] of Object.entries(PERSONAS)) {
     const b = el('button', 'chip' + (d.persona === k ? ' on' : ''), `${P.icon} ${P.name}<small>${P.desc}</small>`);
-    b.onclick = () => { d.persona = k; SFX.play('pop'); say(d, pick(P.lines)); renderWardrobe(); };
+    b.onclick = () => { d.persona = k; SFX.play('pop'); say(d, pick(P.lines)); renderWardrobe(); wdSaved(); };
     pers.append(b);
   }
   section('性格', pers);
@@ -334,7 +335,7 @@ function renderWardrobe() {
     b.onclick = () => {
       d.job = k; SFX.play('pop');
       if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
-      renderWardrobe();
+      renderWardrobe(); wdSaved();
     };
     jobs.append(b);
   }
@@ -342,14 +343,14 @@ function renderWardrobe() {
   const gen = el('div', 'chips');
   for (const [k, n] of Object.entries(GENDERS)) {
     const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
-    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     gen.append(b);
   }
   section('性别', gen);
   const zs = el('div', 'chips');
   for (const z of ZODIAC) {
     const b = el('button', 'chip' + (d.zodiac === z.id ? ' on' : ''), `${z.icon} ${z.name}<small>${ELEMENTS[z.el].icon}${ELEMENTS[z.el].name}</small>`);
-    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     zs.append(b);
   }
   section('星座', zs);
@@ -361,14 +362,14 @@ function renderWardrobe() {
     mbtiPicker.append(option);
   }
   mbtiPicker.value = mb(d);
-  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); };
+  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); wdSaved(); };
   const mbtiBox = el('div', 'mbti-settings');
   mbtiBox.append(mbtiPicker, el('small', 'hint', `常见偏好 · ${MBTI_INTERESTS[mb(d)].map(use => ACT_NAMES[use]).join('、')}`));
   section('MBTI', mbtiBox);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
-    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     hearts.append(b);
   }
   section('感情观', hearts);
@@ -384,6 +385,16 @@ function renderWardrobe() {
   drawWdPreview();
 }
 function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, 'walk'); }
+
+// 衣橱里每次换装都在预览下方显示一句确认，1.5 秒后消失
+let wdSavedTimer = 0;
+function wdSaved() {
+  const s = $('#wdSaved');
+  if (!s) return;
+  s.textContent = '✓ 已换好';
+  clearTimeout(wdSavedTimer);
+  wdSavedTimer = setTimeout(() => { s.textContent = ''; }, 1500);
+}
 
 /* ---------- 串门、派对与入住 ---------- */
 function updateCommunityStatus() {
@@ -540,6 +551,8 @@ let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   update(dt); render();
+  // 月报曾因玩家正忙（拖小人、衣橱、别的弹窗）而挂起：等空闲了再弹出来
+  if (G.paperPending && typeof playerBusy === 'function' && !playerBusy()) { G.paperPending = false; updateHousePaperButton(); showHousePaper(); }
   uiT += dt;
   if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }

@@ -47,6 +47,12 @@ function setWorldSize(cols) {
 }
 
 // 放一件家具前调用：优先用仓库里的，否则从基金里买
+// purchasePrice：放这件家具要花多少钱；仓库有货、测试模式、或不花钱时返回 0
+function purchasePrice(id) {
+  if (TEST_MODE) return 0;
+  if ((G.inv[id] || 0) > 0) return 0;
+  return SHOP[id] ? SHOP[id][0] : 0;
+}
 function acquire(id) {
   if (TEST_MODE) return Object.hasOwn(SHOP, id);
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }

@@ -83,6 +83,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #cv{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
 #overlay{position:absolute;inset:0;pointer-events:none}
 .hint{font-size:13px;color:var(--muted);margin:10px 2px 0}
+/* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
+#hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
+  border:2px solid var(--line);border-radius:6px;padding:7px 10px}
 
 .bubble{
   position:absolute;transform:translate(-50%,-100%);
@@ -190,7 +193,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .wd-tabs button{background:var(--panel-2);border:2px solid var(--line);border-radius:6px;padding:3px 10px}
 .wd-tabs button.on{background:var(--sel);color:#3b2a2f}
 .wd-body{display:flex;gap:16px;padding:14px;overflow:auto;flex-wrap:wrap}
-.wd-preview{flex:0 0 200px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 auto}
+.wd-preview{flex:0 0 200px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 auto;
+  position:sticky;top:0;align-self:flex-start;background:var(--panel);z-index:1;padding-bottom:8px}
+.wd-saved{min-height:18px;font-size:13px;font-weight:700;color:#4f9a4a}
 #wdCanvas{width:200px;height:240px;image-rendering:pixelated;border:2px solid var(--line);border-radius:6px;
   background:repeating-conic-gradient(var(--panel-2) 0 25%,var(--panel) 0 50%) 0 0/20px 20px}
 .wd-dir{display:flex;gap:4px}
@@ -341,7 +346,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
         <div id="overlay"></div>
       </div>
     </div>
-    <p id="hint" class="hint">点小人看状态，再点家具安排活动。拖到另一位身边可互动。</p>
+    <p id="hint" class="hint">👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动</p>
     <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
       <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
       <div id="picnicPlans"></div>
@@ -458,6 +463,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <div class="wd-body">
       <div class="wd-preview">
         <canvas id="wdCanvas" width="20" height="24"></canvas>
+        <div id="wdSaved" class="wd-saved" aria-live="polite"></div>
         <div class="wd-dir">
           <button data-dir="left">◀</button>
           <button data-dir="down">●</button>
@@ -1648,12 +1654,19 @@ function finishHouseMonth() {
   if (G.paper.length > 30) G.paper.shift();
   G.daily = {};
   updateHousePaperButton();
-  if (document.getElementById('paperAuto')?.checked) showHousePaper();
+  // 月报不要打断正在进行的操作（拖小人、衣橱、别的弹窗）：先挂起，
+  // 等玩家空闲时由主循环打开；顶栏按钮会提示有新一期，也可以手动点开
+  if (document.getElementById('paperAuto')?.checked) {
+    if (typeof playerBusy === 'function' && playerBusy()) { G.paperPending = true; updateHousePaperButton(); }
+    else showHousePaper();
+  }
 }
 
 function updateHousePaperButton() {
   const button = document.getElementById('dailyPaper');
-  if (button) button.textContent = G.paper.length ? `📰 小屋月报 · ${G.paper.length}` : '📰 小屋月报';
+  if (!button) return;
+  button.textContent = G.paperPending ? '📰 小屋月报 · 新一期到啦'
+    : G.paper.length ? `📰 小屋月报 · ${G.paper.length}` : '📰 小屋月报';
 }
 
 function shareHouseNews(speaker, listener) {
@@ -1861,7 +1874,7 @@ const G = {
   wall: 'cream', floor: 'oak', time: 480, day: 1, speed: 1, mode: 'live',
   furniture: [], dolls: [], sel: null, sky: '#9fd3f0', night: false, dark: 0,
   build: { placing: null, trash: false, hover: null }, rel: {}, log: [],
-  fund: 800, level: 1, inv: {}, crowdDay: 0,
+  fund: 800, level: 1, inv: {}, crowdDay: 0, paperPending: false,
   t: 0, uid: 1,
 };
 
@@ -2486,7 +2499,9 @@ function update(realDt) {
     G.night = h >= 21 || h < 6;
     seasonTick();
     communityTick();
-    for (const d of G.dolls) updateDoll(d, dt);
+    // 有小人被拎在手里时，其他人先定住不动：落点目标不会自己跑开
+    const carrying = G.dolls.some(d => d.state === 'lift');
+    for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
   if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); bondsTick(dt); }
@@ -3613,6 +3628,12 @@ function setWorldSize(cols) {
 }
 
 // 放一件家具前调用：优先用仓库里的，否则从基金里买
+// purchasePrice：放这件家具要花多少钱；仓库有货、测试模式、或不花钱时返回 0
+function purchasePrice(id) {
+  if (TEST_MODE) return 0;
+  if ((G.inv[id] || 0) > 0) return 0;
+  return SHOP[id] ? SHOP[id][0] : 0;
+}
 function acquire(id) {
   if (TEST_MODE) return Object.hasOwn(SHOP, id);
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }
@@ -5465,7 +5486,8 @@ function dollAt(p, exclude) {
     if (d === exclude || d.state === 'away' || d.state === 'lift') continue;
     const { x, y: top } = houseHeadPoint(d);
     const y = lying(d) ? top + 12 : houseDollPoint(d).y;
-    if (Math.abs(p.x - x) <= 7 && p.y >= top && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
+    // 点击判定比小人本身大一圈：小人只有 16×24 像素，照着画很难点中
+    if (Math.abs(p.x - x) <= 11 && p.y >= top - 6 && p.y <= y + 3 && (!best || y > best.y)) best = { d, y };
   }
   return best?.d;
 }
@@ -5515,6 +5537,30 @@ function removeFurniture(f) {
   G.furniture = G.furniture.filter(o => o !== f);
 }
 
+// 玩家正在操作吗？月报等不该在这时候抢焦点
+function playerBusy() {
+  if (press) return true;
+  if (G.dolls.some(d => d.state === 'lift')) return true;
+  const wd = document.getElementById('wardrobe');
+  if (wd && wd.hidden === false) return true;
+  return typeof document.querySelector === 'function' && !!document.querySelector('dialog[open]');
+}
+
+// 把拎着的小人放到一件家具上：先站到家具旁边的空位，再让 TA 去用
+// 成功返回 null；失败返回原因，小人会回到原处，不会悄悄弹回去
+function dropOnFurniture(d, f) {
+  const F = FURNITURE[f.id];
+  if (d.guest && F.use === 'sleep') return '访客不在这里睡觉哦';
+  const spot = approachTiles(f).find(t => free(t.x, t.y) &&
+    !G.dolls.some(o => o !== d && o.state !== 'away' && o.tx === t.x && o.ty === t.y));
+  if (!spot) return `${F.name}旁边没有空位`;
+  const ox = d.tx, oy = d.ty;
+  placeDollAt(d, spot.x, spot.y);
+  d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null;
+  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return '过不去呀…'; }
+  return null;
+}
+
 cv.addEventListener('contextmenu', e => { e.preventDefault(); cancelPlacing(); });
 cv.addEventListener('pointerdown', e => {
   if (press || e.button !== 0) return;
@@ -5531,8 +5577,21 @@ cv.addEventListener('pointerdown', e => {
   if (B.placing) {
     const g = houseTile(p, B.placing.id);
     if (g && canPlace(B.placing.id, g.x, g.y, null)) {
+      // 要花钱的新家具：第一次点只是确认意向，第二次点同一格才真的扣钱
+      const price = B.placing.moved ? 0 : purchasePrice(B.placing.id);
+      if (price > 0 && !(B.placing.confirm && B.placing.confirm.x === g.x && B.placing.confirm.y === g.y)) {
+        B.placing.confirm = { x: g.x, y: g.y };
+        const hint = document.getElementById('buildHint');
+        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置，右键取消`;
+        HOOK.toast(`再点一次确认购买「${FURNITURE[B.placing.id].name}」${yuan(price)}`, true);
+        SFX.play('click');
+        return;
+      }
+      B.placing.confirm = null;
       if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
       addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
+      const hint = document.getElementById('buildHint');
+      if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
       if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
     } else SFX.play('deny');
     return;
@@ -5574,25 +5633,52 @@ cv.addEventListener('pointerup', e => {
   if (!press || press.pointerId !== e.pointerId) return;
   if (G.mode !== 'live') { cancelDollDrag(e); return; }
   const p = toScene(e), d = press.d;
+  // 拖得很快、中间没触发 pointermove 时：落点离按下处够远也算一次拖拽
+  if (d && !press.moved && Math.hypot(p.x - press.p.x, p.y - press.p.y) > 6) {
+    press.moved = true;
+    if (d.act) endAct(d);
+    d.path = []; d.state = 'lift'; d.dir = 'down'; G.sel = d.uid; HOOK.select();
+  }
   if (d && press.moved) {
+    // 落点规则：先看是不是拖到另一位身边（互动）；
+    // 再看是不是家具（能用的就安排活动）；再看是不是空地（放下）；
+    // 都不是就回到原处，并告诉玩家为什么。
     const invite = dropInteraction(p, d);
-    let g = invite?.spot || dropTile(p);
-    // Don't leave a doll stacked on the target when an invitation can't start.
-    if (invite && !invite.spot && g?.x === invite.target.tx && g.y === invite.target.ty) g = null;
-    placeDollAt(d, g?.x ?? d.tx, g?.y ?? d.ty);
-    d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null; SFX.play('drop');
+    const furn = invite ? null : furnAt(p);
+    const settle = () => { d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null; SFX.play('drop'); };
     if (invite?.spot) {
+      placeDollAt(d, invite.spot.x, invite.spot.y);
+      settle();
       const partner = invite.target;
       if (partner.act) endAct(partner);
       placeDollAt(partner, partner.tx, partner.ty);
       startSocial(d, partner, true);
       HOOK.select();
-    } else if (invite) HOOK.toast(invite.reason, true);
+    } else if (invite) {
+      placeDollAt(d, d.tx, d.ty);
+      settle();
+      HOOK.toast(invite.reason, true);
+    } else if (furn && FURNITURE[furn.id].use) {
+      const reason = dropOnFurniture(d, furn);
+      if (reason) { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast(reason, true); }
+      else { SFX.play('drop'); HOOK.toast(`✅ ${d.name}去${ACT_NAMES[FURNITURE[furn.id].use] || FURNITURE[furn.id].name}`, true); }
+    } else if (furn) {
+      placeDollAt(d, d.tx, d.ty);
+      settle();
+      HOOK.toast(`「${FURNITURE[furn.id].name}」只是摆设，不能用哦`, true);
+    } else {
+      const g = dropTile(p);
+      if (g) { placeDollAt(d, g.x, g.y); settle(); HOOK.toast(`📍 已把${d.name}放到这里`, true); }
+      else { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast('这里放不下，TA 回到了原处', true); }
+    }
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select(true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
+  } else if (press.furn) {
+    HOOK.toast('先点一位居民，再点家具安排活动', true);
+    SFX.play('deny');
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
@@ -5624,6 +5710,8 @@ function cancelPlacing() {
     rebuild();
   }
   B.placing = null; HOOK.refresh();
+  const hint = document.getElementById('buildHint');
+  if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
 }
 window.addEventListener('keydown', e => { if (e.key === 'Escape') cancelPlacing(); });
 </script>
@@ -5642,6 +5730,8 @@ function paperPortrait(person) {
 }
 
 function showHousePaper() {
+  G.paperPending = false;
+  updateHousePaperButton();
   const dialog = document.getElementById('paperDialog');
   renderHousePaper(G.paper.length - 1);
   if (!dialog.open) dialog.showModal();
@@ -5924,7 +6014,7 @@ function setMode(m) {
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点小人看状态，再点家具安排活动。拖到另一位身边可互动。';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
@@ -6047,9 +6137,10 @@ $('#wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardr
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#wardrobe').hidden) closeWardrobe(); });
 document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); });
 $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.value.trim() || '无名'; renderWdTabs(); } };
+$('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  d.look = randomLook(); SFX.play('love'); renderWardrobe();
+  d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -6081,7 +6172,7 @@ function renderWardrobe() {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
       const b = el('button', 'chip' + (d.look[key] === k ? ' on' : ''), name);
-      b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); };
+      b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     }
     return w;
@@ -6091,7 +6182,7 @@ function renderWardrobe() {
     cols.forEach((col, i) => {
       const b = el('button', 'swatch' + (d.look[key] === i ? ' on' : ''));
       b.style.background = col; b.setAttribute('aria-label', col);
-      b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); };
+      b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     });
     return w;
@@ -6099,7 +6190,7 @@ function renderWardrobe() {
   const pers = el('div', 'chips');
   for (const [k, P] of Object.entries(PERSONAS)) {
     const b = el('button', 'chip' + (d.persona === k ? ' on' : ''), `${P.icon} ${P.name}<small>${P.desc}</small>`);
-    b.onclick = () => { d.persona = k; SFX.play('pop'); say(d, pick(P.lines)); renderWardrobe(); };
+    b.onclick = () => { d.persona = k; SFX.play('pop'); say(d, pick(P.lines)); renderWardrobe(); wdSaved(); };
     pers.append(b);
   }
   section('性格', pers);
@@ -6110,7 +6201,7 @@ function renderWardrobe() {
     b.onclick = () => {
       d.job = k; SFX.play('pop');
       if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
-      renderWardrobe();
+      renderWardrobe(); wdSaved();
     };
     jobs.append(b);
   }
@@ -6118,14 +6209,14 @@ function renderWardrobe() {
   const gen = el('div', 'chips');
   for (const [k, n] of Object.entries(GENDERS)) {
     const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
-    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     gen.append(b);
   }
   section('性别', gen);
   const zs = el('div', 'chips');
   for (const z of ZODIAC) {
     const b = el('button', 'chip' + (d.zodiac === z.id ? ' on' : ''), `${z.icon} ${z.name}<small>${ELEMENTS[z.el].icon}${ELEMENTS[z.el].name}</small>`);
-    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.zodiac = z.id; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     zs.append(b);
   }
   section('星座', zs);
@@ -6137,14 +6228,14 @@ function renderWardrobe() {
     mbtiPicker.append(option);
   }
   mbtiPicker.value = mb(d);
-  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); };
+  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); wdSaved(); };
   const mbtiBox = el('div', 'mbti-settings');
   mbtiBox.append(mbtiPicker, el('small', 'hint', `常见偏好 · ${MBTI_INTERESTS[mb(d)].map(use => ACT_NAMES[use]).join('、')}`));
   section('MBTI', mbtiBox);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
-    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); };
+    b.onclick = () => { d.heart = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     hearts.append(b);
   }
   section('感情观', hearts);
@@ -6160,6 +6251,16 @@ function renderWardrobe() {
   drawWdPreview();
 }
 function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, 'walk'); }
+
+// 衣橱里每次换装都在预览下方显示一句确认，1.5 秒后消失
+let wdSavedTimer = 0;
+function wdSaved() {
+  const s = $('#wdSaved');
+  if (!s) return;
+  s.textContent = '✓ 已换好';
+  clearTimeout(wdSavedTimer);
+  wdSavedTimer = setTimeout(() => { s.textContent = ''; }, 1500);
+}
 
 /* ---------- 串门、派对与入住 ---------- */
 function updateCommunityStatus() {
@@ -6316,6 +6417,8 @@ let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
   update(dt); render();
+  // 月报曾因玩家正忙（拖小人、衣橱、别的弹窗）而挂起：等空闲了再弹出来
+  if (G.paperPending && typeof playerBusy === 'function' && !playerBusy()) { G.paperPending = false; updateHousePaperButton(); showHousePaper(); }
   uiT += dt;
   if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }

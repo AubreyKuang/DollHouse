@@ -24,7 +24,7 @@ const G = {
   wall: 'cream', floor: 'oak', time: 480, day: 1, speed: 1, mode: 'live',
   furniture: [], dolls: [], sel: null, sky: '#9fd3f0', night: false, dark: 0,
   build: { placing: null, trash: false, hover: null }, rel: {}, log: [],
-  fund: 800, level: 1, inv: {}, crowdDay: 0,
+  fund: 800, level: 1, inv: {}, crowdDay: 0, paperPending: false,
   t: 0, uid: 1,
 };
 
@@ -649,7 +649,9 @@ function update(realDt) {
     G.night = h >= 21 || h < 6;
     seasonTick();
     communityTick();
-    for (const d of G.dolls) updateDoll(d, dt);
+    // 有小人被拎在手里时，其他人先定住不动：落点目标不会自己跑开
+    const carrying = G.dolls.some(d => d.state === 'lift');
+    for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
   if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); bondsTick(dt); }

@@ -158,12 +158,19 @@ function finishHouseMonth() {
   if (G.paper.length > 30) G.paper.shift();
   G.daily = {};
   updateHousePaperButton();
-  if (document.getElementById('paperAuto')?.checked) showHousePaper();
+  // 月报不要打断正在进行的操作（拖小人、衣橱、别的弹窗）：先挂起，
+  // 等玩家空闲时由主循环打开；顶栏按钮会提示有新一期，也可以手动点开
+  if (document.getElementById('paperAuto')?.checked) {
+    if (typeof playerBusy === 'function' && playerBusy()) { G.paperPending = true; updateHousePaperButton(); }
+    else showHousePaper();
+  }
 }
 
 function updateHousePaperButton() {
   const button = document.getElementById('dailyPaper');
-  if (button) button.textContent = G.paper.length ? `📰 小屋月报 · ${G.paper.length}` : '📰 小屋月报';
+  if (!button) return;
+  button.textContent = G.paperPending ? '📰 小屋月报 · 新一期到啦'
+    : G.paper.length ? `📰 小屋月报 · ${G.paper.length}` : '📰 小屋月报';
 }
 
 function shareHouseNews(speaker, listener) {

@@ -567,3 +567,73 @@ test('rain can reroute a quiet visitor upstairs, keep a picnic outdoors, or post
     }
   `);
 });
+
+test('dropping a resident on the piano assigns piano time instead of snapping back', () => {
+  runGame(`
+    load();
+    const [carried] = G.dolls;
+    G.dolls = [carried];
+    const piano = G.furniture.find(f => f.id === 'piano');
+    placeDollAt(carried, 8, 4);
+    const rect = houseFurnitureRect(piano);
+    const point = { x: rect.x + rect.w / 2, y: (rect.top + rect.bottom) / 2 };
+    const from = houseHeadPoint(carried);
+    const event = ({ x, y }) => ({ clientX: x, clientY: y, pointerId: 1, button: 0 });
+    pointer.pointerdown(event({ x: from.x, y: from.y + 6 }));
+    pointer.pointermove(event(point));
+    assert.equal(carried.state, 'lift');
+    pointer.pointerup(event(point));
+    assert.equal(carried.act?.furn, piano);
+    assert.equal(carried.act?.type, 'piano');
+  `, { withView: true });
+});
+
+test('buying furniture needs a second click on the same tile before money moves', () => {
+  runGame(`
+    load();
+    G.mode = 'build';
+    G.fund = 1000;
+    G.build.placing = { id: 'coffee' };
+    const tile = { x: 2, y: 15 };
+    assert.ok(canPlace('coffee', tile.x, tile.y, null));
+    assert.equal(purchasePrice('coffee'), SHOP.coffee[0]);
+    const point = { x: HOUSE_X + tile.x * T + 8, y: houseY(tile.y * T + 14, storeyOf(tile.y)) };
+    const event = ({ x, y }) => ({ clientX: x, clientY: y, pointerId: 1, button: 0 });
+    pointer.pointerdown(event(point));
+    assert.equal(G.fund, 1000);
+    assert.equal(G.furniture.filter(f => f.id === 'coffee').length, 0);
+    assert.deepEqual(G.build.placing.confirm, tile);
+    pointer.pointerdown(event(point));
+    assert.equal(G.fund, 1000 - SHOP.coffee[0]);
+    assert.equal(G.furniture.filter(f => f.id === 'coffee').length, 1);
+  `, { withView: true });
+});
+
+test('the monthly paper waits while the player is mid-drag', () => {
+  runGame(`
+    load();
+    const dialog = { open: false, showModal() { this.open = true; } };
+    const paperAuto = { checked: true };
+    const button = { textContent: '' };
+    const els = {};
+    const fakeEl = () => ({ style: { setProperty() {} }, textContent: '', disabled: false,
+      replaceChildren() {}, append() {}, classList: { add() {}, toggle() {} } });
+    document.getElementById = id => id === 'paperDialog' ? dialog
+      : id === 'paperAuto' ? paperAuto : id === 'dailyPaper' ? button : (els[id] ||= fakeEl());
+    document.createElement = () => ({ style: {}, className: '', textContent: '', children: [],
+      append(...kids) { this.children.push(...kids); }, replaceChildren(...kids) { this.children = [...kids]; },
+      setAttribute() {}, classList: { add() {}, toggle() {} } });
+    G.paper = [{ month: monthLabel(G.day), stories: [{ label: '', icon: '🌙', text: '小屋平静地过了一个月。' }] }];
+    press = { pointerId: 1 };
+    assert.equal(playerBusy(), true);
+    finishHouseMonth();
+    assert.equal(G.paperPending, true);
+    assert.equal(dialog.open, false);
+    assert.match(button.textContent, /新一期/);
+    press = null;
+    assert.equal(playerBusy(), false);
+    showHousePaper();
+    assert.equal(dialog.open, true);
+    assert.equal(G.paperPending, false);
+  `, { withView: true });
+});
