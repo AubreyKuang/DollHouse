@@ -59,6 +59,57 @@ test('an urgent resident uses the toilet and the new need survives save and relo
   `);
 });
 
+test('the starter bathroom fixtures can all be reached through its open doorway', () => {
+  for (const mode of [undefined, 'test']) runGame(`
+    load();
+    assert.ok(G.bathroom);
+    assert.ok(G.furniture.every(f => canPlace(f.id, f.x, f.y, f)));
+    const start = doorTile();
+    for (const id of ['shower', 'washstand', 'toilet']) {
+      const fixture = G.furniture.find(f => f.id === id);
+      assert.equal(roomOf({ tx: fixture.x, ty: fixture.y }), 'bathroom');
+      const route = findPath(start.x, start.y, approachTiles(fixture));
+      assert.ok(route?.some(t => t.x === BATH_X - 1 && t.y === BATH_DOOR_Y), id);
+    }
+    assert.ok(!canPlace('chair', BATH_X, BATH_DOOR_Y));
+    assert.ok(!canPlace('sofa', BATH_X - 1, BATH_DOOR_Y + 1));
+    assert.ok(!canSee({ tx: BATH_X - 1, ty: BATH_DOOR_Y }, { tx: BATH_X, ty: BATH_DOOR_Y }));
+    assert.ok(save());
+    load();
+    assert.ok(G.bathroom);
+  `, { mode });
+});
+
+test('older custom houses keep their upstairs floor plan on reload', () => {
+  runGame(`
+    const custom = defaultHouseSave();
+    delete custom.bathroom;
+    custom.furniture = [{ id: 'sofa', x: 3, y: 15 }];
+    applySave(custom);
+    assert.ok(save());
+    load();
+    assert.equal(G.bathroom, false);
+    assert.equal(G.furniture[0].id, 'sofa');
+    assert.equal(G.furniture[0].x, 3);
+    assert.equal(G.furniture[0].y, 15);
+  `);
+});
+
+test('only confirmed partners are shown as a couple, including after a breakup', () => {
+  runGame(`
+    load();
+    const [tao, lan, jing, tuan] = G.dolls;
+    assert.equal(confirmedPartners(tuan)[0], lan);
+    assert.equal(confirmedPartners(lan)[0], tuan);
+    Object.assign(rel(jing, tao), { secret: true, l: 100 });
+    assert.equal(confirmedPartners(jing).length, 0);
+    rel(jing, tao).lovers = true;
+    assert.equal(confirmedPartners(jing)[0], tao);
+    bump(jing, tao, 0, -100);
+    assert.equal(confirmedPartners(tao).length, 0);
+  `);
+});
+
 test('the chess table gives two residents different positions and records a shared game', () => {
   runGame(`
     load();
