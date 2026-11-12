@@ -162,6 +162,50 @@ test('the starter bathroom fixtures can all be reached through its open doorway'
   `, { mode });
 });
 
+test('a player introduction becomes news only after a confirmed follow-up', () => {
+  runGame(`
+    load();
+    const [first, second] = G.dolls;
+    G.dolls = [first, second];
+    const swing = G.furniture.find(f => f.id === 'gardenSwing');
+    G.furniture = [swing];
+    rebuild();
+    G.time = 720;
+    placeDollAt(first, 2, 24);
+    placeDollAt(second, 1, 24);
+    first.act = { kind: 'chat' };
+    startSocial(first, second, true);
+    const story = G.paperMoments[0];
+    assert.equal(story.result, undefined);
+    assert.equal(story.people[0].name, first.name);
+    endAct(first);
+    assert.ok(startAct(second, { type: 'swing', furn: swing }));
+    arrive(second);
+    assert.equal(paperFollowup(first, swing), story);
+
+    // A manually ordered activity does not inherit the introduction.
+    assert.ok(orderUse(first, swing));
+    arrive(first);
+    assert.equal(story.result, undefined);
+    endAct(first);
+
+    // The AI can choose a shared activity because of the introduction.
+    first.needs.fun = 5;
+    decide(first);
+    assert.equal(first.act.paperMoment, story);
+    arrive(first);
+    assert.match(story.result[2], /又相约荡秋千/);
+    assert.equal(story.pending, false);
+    assert.ok(save());
+    load();
+    assert.match(G.paperMoments[0].steps[2], /荡秋千/);
+    finishHouseMonth();
+    assert.match(G.paper.at(-1).stories[0].text, /被你拉到一起/);
+    assert.equal(G.paper.at(-1).stories[0].people.length, 2);
+    assert.equal(G.paperMoments.length, 0);
+  `);
+});
+
 test('residents can walk to the yard, share a swing and return indoors', () => {
   runGame(`
     load();

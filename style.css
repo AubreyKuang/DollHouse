@@ -254,12 +254,20 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-story h3{font-size:clamp(15px,4vw,20px);font-weight:730}
 .paper-story p{font-size:14px}
 .paper-cast{display:flex;align-items:center;justify-content:center;gap:2px;color:inherit;font-size:25px}
-.paper-cast canvas{width:24px;height:29px;image-rendering:pixelated}
-.paper-lead canvas{width:30px;height:36px;animation:paper-hop 560ms ease-out both}
-.paper-lead canvas:nth-child(2){animation-delay:90ms}
-.paper-lead canvas:nth-child(3){animation-delay:180ms}
+.paper-cast figure{display:grid;justify-items:center;margin:0;min-width:0}
+.paper-cast figcaption{font-size:10px;max-width:6em;overflow-wrap:anywhere;text-align:center}
+.paper-cast canvas{display:block;width:24px;height:29px;image-rendering:pixelated}
+.paper-feature{grid-template-columns:1fr;gap:8px}
+.paper-feature .paper-cast{gap:clamp(8px,4vw,22px);padding:7px 4px 4px;background:#fff1e866;border-radius:6px;border-bottom:2px dashed #dba7b7}
+.paper-feature .paper-cast canvas{width:60px;height:72px;animation:paper-hop 560ms ease-out both}
+.paper-feature figcaption{font-size:12px;font-weight:650;margin-top:2px}
+.paper-feature figure:nth-child(2) canvas{animation-delay:90ms}
+.paper-feature figure:nth-child(3) canvas{animation-delay:180ms}
+.paper-chain{margin-top:7px;font-size:13px}
+.paper-chain summary{cursor:pointer;font-weight:650;width:max-content}
+.paper-chain ol{margin:5px 0 0;padding-inline-start:22px}
 @keyframes paper-hop{from{transform:translateY(4px);opacity:.55}45%{transform:translateY(-5px)}to{transform:translateY(0);opacity:1}}
-@media (prefers-reduced-motion:reduce){.paper-lead canvas{animation:none}}
+@media (prefers-reduced-motion:reduce){.paper-feature .paper-cast canvas{animation:none}}
 
 .test-badge{display:inline-block;margin-inline-start:5px;padding:3px 7px;border-radius:5px;
   background:#e8c9f4;color:#452d52;font-size:12px;vertical-align:middle;white-space:nowrap}

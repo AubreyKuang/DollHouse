@@ -382,7 +382,7 @@ cv.addEventListener('pointerup', e => {
       const partner = invite.target;
       if (partner.act) endAct(partner);
       placeDollAt(partner, partner.tx, partner.ty);
-      startSocial(d, partner);
+      startSocial(d, partner, true);
       HOOK.select();
     } else if (invite) HOOK.toast(invite.reason, true);
   } else if (d) {
