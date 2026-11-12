@@ -213,6 +213,7 @@ const domBubbles = new Map();
 function updateOverlay() {
   const s = cv.clientWidth / cv.width;
   const alive = new Set();
+  const selected = G.dolls.find(d => d.uid === G.sel);
   for (const d of G.dolls) {
     let el = domBubbles.get(d.uid);
     if (!el) { el = { b: document.createElement('div'), n: document.createElement('div'), id: null }; el.b.className = 'bubble'; el.n.className = 'nametag'; overlay.append(el.b, el.n); domBubbles.set(d.uid, el); }
@@ -222,11 +223,15 @@ function updateOverlay() {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
     } else el.b.style.display = 'none';
-    const showName = d.state !== 'away' && (d.uid === G.sel || d.uid === hoverDoll);
+    const partner = selected && arePartners(selected, d);
+    const showName = d.state !== 'away' && (d === selected || d.uid === hoverDoll || partner);
     el.n.style.display = showName ? '' : 'none';
     if (showName) {
       const np = lying(d) ? { x: hx, y: hy + 20 } : houseDollPoint(d);
-      el.n.textContent = d.name; el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
+      const paired = partner || G.dolls.some(o => arePartners(d, o));
+      el.n.textContent = paired ? `♥ ${d.name}` : d.name;
+      el.n.classList.toggle('couple-name', paired);
+      el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
     }
   }
   for (const [uid, el] of domBubbles) if (!alive.has(uid)) { el.b.remove(); el.n.remove(); domBubbles.delete(uid); }

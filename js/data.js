@@ -186,25 +186,24 @@ const FLOORS = [
 ];
 
 const DEFAULT_SAVE = {
-  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1,
-  inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, toilet: 1, washstand: 1, pawRug: 1, knitting: 1 },
+  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1, bathroom: true,
+  inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, pawRug: 1, knitting: 1 },
   furniture: [
-    // 二楼：左边是深色卧室，右边是明亮的书房。
-    { id: 'bunnyPicture', x: 1, y: -2 }, { id: 'shelfwall', x: 4, y: -2 },
-    { id: 'moonLamp', x: 3, y: -2 },
-    { id: 'cloudBed', x: 1, y: 14 }, { id: 'mirror', x: 4, y: 15 },
-    { id: 'lamp', x: 6, y: 14 }, { id: 'pawRug', x: 2, y: 17 },
+    // 二楼：卫生间、卧室、书房。
+    { id: 'shower', x: 0, y: 13 }, { id: 'washstand', x: 1, y: 13 }, { id: 'toilet', x: 2, y: 13 },
+    { id: 'window', x: 1, y: -3 }, { id: 'moonLamp', x: 6, y: -2 },
+    { id: 'cloudBed', x: 4, y: 13 }, { id: 'lamp', x: 7, y: 13 }, { id: 'pawRug', x: 5, y: 17 },
     { id: 'window', x: 10, y: -3 }, { id: 'painting', x: 14, y: -2 },
-    { id: 'shelf', x: 8, y: 13 }, { id: 'desk', x: 11, y: 14 },
-    { id: 'arcade', x: 13, y: 14 }, { id: 'plant', x: 15, y: 14 },
+    { id: 'shelf', x: 8, y: 12 }, { id: 'desk', x: 11, y: 13 },
+    { id: 'arcade', x: 13, y: 13 }, { id: 'plant', x: 15, y: 13 },
     { id: 'rug', x: 10, y: 17 },
     // 一楼：左边是粉色卧室，右边是客餐厅。
     { id: 'bunnyPicture', x: 6, y: 1 }, { id: 'cloudMobile', x: 3, y: 0 },
-    { id: 'bigbed', x: 1, y: 5 }, { id: 'lamp', x: 0, y: 5 }, { id: 'mirror', x: 5, y: 6 },
-    { id: 'tulips', x: 6, y: 6 }, { id: 'rug', x: 2, y: 8 },
+    { id: 'bigbed', x: 1, y: 4 }, { id: 'lamp', x: 0, y: 4 }, { id: 'mirror', x: 5, y: 4 },
+    { id: 'tulips', x: 6, y: 4 }, { id: 'rug', x: 2, y: 8 },
     { id: 'window', x: 10, y: 0 }, { id: 'shelfwall', x: 11, y: 2 }, { id: 'door', x: 15, y: 1 },
-    { id: 'piano', x: 8, y: 4 }, { id: 'sofa', x: 10, y: 8 }, { id: 'table', x: 12, y: 6 },
-    { id: 'fridge', x: 15, y: 7 }, { id: 'stove', x: 14, y: 7 },
+    { id: 'piano', x: 8, y: 3 }, { id: 'sofa', x: 10, y: 8 }, { id: 'table', x: 12, y: 7 },
+    { id: 'fridge', x: 14, y: 5 }, { id: 'stove', x: 13, y: 5 },
     { id: 'rug', x: 9, y: 9 },
   ],
   dolls: [

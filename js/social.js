@@ -25,6 +25,8 @@ const SOCIAL = {
 };
 
 function relKey(a, b) { return a.pid < b.pid ? a.pid + '|' + b.pid : b.pid + '|' + a.pid; }
+const arePartners = (a, b) => a !== b && G.rel[relKey(a, b)]?.lovers === true;
+const confirmedPartners = d => G.dolls.filter(o => arePartners(d, o));
 function rel(a, b) {
   const k = relKey(a, b);
   if (!G.rel[k]) G.rel[k] = { f: 10 + Math.round(Math.random() * 15), l: 0, chem: +(0.6 + Math.random() * 0.9).toFixed(2), lovers: false };
