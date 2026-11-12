@@ -6,7 +6,7 @@ const vm = require('node:vm');
 
 function load(auto) {
   const node = () => ({
-    children: [], textContent: '', setAttribute() {},
+    children: [], textContent: '', setAttribute() {}, classList: { add() {} },
     append(...children) { this.children.push(...children); },
     replaceChildren(...children) { this.children = children; }
   });
