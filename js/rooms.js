@@ -1,68 +1,87 @@
 // 卧室：一面带门的隔墙把房子分成左边的卧室和右边的客厅
 // 门关上时外面看不到里面——花心的人会趁机把暧昧对象叫进卧室；恋人走进来就会撞破
 
-const BX = 7;           // 隔墙在第 7 列左边（0~6 列是卧室）
-const DY = 5;           // 门在第 5 行
-G.bedDoor = true;       // 卧室门：true 开着，false 关着
+const BX = 8;
+const DY = 5;
+const UPPER_DOOR_Y = 16;
+G.bedDoor = true;
 
-const roomOf = d => (d.ty >= FLOOR_SPLIT ? 'upstairs' : d.tx < BX ? 'bed' : 'living');
+const roomOf = d => d.ty >= FLOOR_SPLIT ? (d.tx < BX ? 'upperBedroom' : 'study') : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
-// 两个人能不能看见对方：同一个房间，或者门开着
-const canSee = (a, b) => roomOf(a) === roomOf(b) || (roomOf(a) !== 'upstairs' && roomOf(b) !== 'upstairs' && G.bedDoor);
-// 两个相邻格子之间有没有墙挡着（只有门那一行能穿过去）
-const wallBetween = (x1, y1, x2, y2) => (Math.min(y1,y2) === FLOOR_SPLIT - 1 && Math.max(y1,y2) === FLOOR_SPLIT && x1 !== STAIRS_X) || (y1 < FLOOR_SPLIT && y2 < FLOOR_SPLIT && Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== DY);
-// 门两边的格子要留出来，不能放实心家具
-const isDoorTile = (x, y) => y === DY && (x === BX - 1 || x === BX);
+const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty < FLOOR_SPLIT && G.bedDoor);
+const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
+const wallBetween = (x1, y1, x2, y2) =>
+  ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
+  (Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== passageRow(y1));
+const isDoorTile = (x, y) => y === passageRow(y) && (x === BX - 1 || x === BX);
 const straddles = (x, w) => x < BX && x + w > BX;
+
+function blocksStairs(f) {
+  const { w, h } = FURNITURE[f.id], column = stairsColumn();
+  return f.x <= column && column < f.x + w &&
+    [LOWER_LANDING, UPPER_LANDING].some(row => f.y <= row && row < f.y + h);
+}
+
+function fitHouseFurniture() {
+  for (const f of [...G.furniture]) {
+    const F = FURNITURE[f.id], layer = layerOf(f.id);
+    const wall = layer === 'wall';
+    const upper = f.y < 0 || f.y >= FLOOR_SPLIT;
+    const first = wall ? (upper ? UPPER_WALL : 0) : (upper ? FLOOR_SPLIT : WALL_ROWS);
+    const end = wall ? first + WALL_ROWS : (upper ? ROWS : FLOOR_SPLIT);
+    const byDoor = layer === 'solid' && [DY, UPPER_DOOR_Y].some(y =>
+      f.y <= y && y < f.y + F.h && f.x <= BX && f.x + F.w > BX - 1);
+    if (!straddles(f.x, F.w) && !byDoor && !(layer === 'solid' && blocksStairs(f))) continue;
+
+    let best = null;
+    for (let y = first; y + F.h <= end; y++) for (let x = 0; x + F.w <= COLS; x++) {
+      const distance = Math.abs(x - f.x) + Math.abs(y - f.y);
+      if ((!best || distance < best.distance) && canPlace(f.id, x, y, f)) best = { x, y, distance };
+    }
+    if (best) {
+      f.x = best.x; f.y = best.y;
+      addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}移到了同层的空位`);
+    } else {
+      G.furniture = G.furniture.filter(other => other !== f);
+      stash(f.id);
+      addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}收进了仓库`);
+    }
+  }
+}
 
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }
 
-// 隔墙按行切成几段，参与“按 y 排序”的绘制，这样小人在墙前墙后都能正确遮挡
-function partitionDrawables(c) {
-  const out = [], bx = BX * T, ws = WALLS.find(w => w.id === G.wall) || WALLS[0];
-  const face = shade(ws.base, -0.12), cap = shade(ws.base, 0.08);
-  for (let r = WALL_ROWS; r < FLOOR_SPLIT; r++) {
-    if (r === DY) {
-      out.push({ y: (r + 1) * T - 0.1, draw: () => {
-        R(c, bx - 3, r * T, 6, 2, INK);                                  // 门框上沿
-        if (doorOpenNow()) { R(c, bx - 14, r * T + 2, 12, 3, INK); R(c, bx - 13, r * T + 3, 10, 1, WOOD_L); }   // 门往卧室里开着
-        else { R(c, bx - 3, r * T + 2, 6, T - 2, INK); R(c, bx - 2, r * T + 2, 4, T - 3, WOOD); R(c, bx + 1, r * T + 8, 1, 2, '#f2c33a'); }
-      } });
-      continue;
-    }
-    out.push({ y: (r + 1) * T - 0.1, draw: () => {
-      const top = r === WALL_ROWS ? r * T - 1 : r * T;
-      R(c, bx - 3, top, 6, (r + 1) * T - top, INK);
-      R(c, bx - 2, top, 4, (r + 1) * T - top, face);
-      R(c, bx - 2, top, 1, (r + 1) * T - top, cap);
-      if (r === DY - 1 || r === DY + 1) R(c, bx - 3, r === DY - 1 ? (r + 1) * T - 1 : r * T, 6, 1, INK);
-    } });
-  }
-  return out;
+// The dividing wall is shown as a full-height cut edge. Its door and
+// threshold stay at the real crossing tile further inside the room.
+function bedroomDoorRect() {
+  const floor = STOREYS[0];
+  return { x: HOUSE_X + BX * T, y: houseY(DY * T, floor) };
 }
 
-// 生活模式下点门：开 / 关
-function hitBedDoor(p) { return Math.abs(p.x - BX * T) <= 6 && p.y >= DY * T - 2 && p.y <= (DY + 1) * T + 2; }
+function partitionDrawables(c) {
+  const { x, y } = bedroomDoorRect();
+  return [{ y: y + FLOOR_STEP, draw: () => {
+    R(c, x - 5, y + 2, 10, 2, '#b29a81');
+    if (!doorOpenNow()) {
+      R(c, x - 5, y - 16, 6, 18, '#78645d');
+      R(c, x - 4, y - 15, 4, 16, '#bf9a7f');
+      R(c, x - 2, y - 7, 1, 1, '#f7d390');
+    }
+  } }];
+}
+
+function hitBedDoor(p) {
+  const { x, y } = bedroomDoorRect();
+  return Math.abs(p.x - x) <= 7 && p.y >= y - 16 && p.y <= y + 7;
+}
 function toggleBedDoor() {
   G.bedDoor = !G.bedDoor;
   SFX.play(G.bedDoor ? 'pick' : 'place');
   HOOK.toast(G.bedDoor ? '🚪 卧室门打开了' : '🚪 卧室门关上了', true);
 }
 
-// 老存档：把挡住隔墙或门口的家具收进仓库
-function migrateRooms() {
-  const moved = [];
-  for (const f of [...G.furniture]) {
-    const F = FURNITURE[f.id], L = layerOf(f.id);
-    let bad = straddles(f.x, F.w);
-    if (L === 'solid') for (let i = 0; i < F.w; i++) for (let j = 0; j < F.h; j++) if (isDoorTile(f.x + i, f.y + j)) bad = true;
-    if (bad && f.id !== 'door') { G.furniture = G.furniture.filter(o => o !== f); stash(f.id); moved.push(FURNITURE[f.id].name); }
-  }
-  if (moved.length) addLog(`🧳 隔出卧室时，${moved.join('、')}被收进了仓库`);
-}
-
 /* ---------------- 卧室约会（地下情） ---------------- */
-function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f.x + FURNITURE.bigbed.w <= BX); }
+function bigbedInBedroom() { return G.furniture.find(f => f.id === 'bigbed' && f.y < FLOOR_SPLIT && f.x + FURNITURE.bigbed.w <= BX); }
 // 卧室里除了这两个人没有别人（睡着的也算有人）
 function bedroomEmptyFor(a, b) { return !G.dolls.some(o => o !== a && o !== b && inBedroom(o)); }
 

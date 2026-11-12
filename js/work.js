@@ -1,20 +1,18 @@
-// 职业与作息：到点从大门出门，在外面待一段时间，每天回家的时间都不太一样
-// 时间用“绝对分钟” abs = (第几天-1)*1440 + 当天分钟，这样夜班跨过午夜也好算
+// 职业与作息：到点从大门出门，在外面待一段时间，每月回家的时间都不太一样
+// 绝对分钟跨月连续累计，夜班在次月清晨结束。
 
-const WEEKDAYS = ['周一', '周二', '周三', '周四', '周五', '周六', '周日'];
-const weekday = day => (day - 1) % 7;               // 第 1 天是周一
 const absNow = () => (G.day - 1) * 1440 + G.time;
 const hhmm = m => { m = ((Math.round(m) % 1440) + 1440) % 1440; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
 
-// start/end 是当天分钟；end < start 表示下班在第二天（夜班）；off 是休息的星期几
+// start/end 是时钟分钟，end < start 表示次月下班，off 是休息月份。
 const JOBS = {
-  student: { name: '学生', icon: '🎒', start: 480, end: 960, off: [5, 6], verb: '上学', wage: 40, wageName: '拿到零花钱',
+  student: { name: '学生', icon: '🎒', start: 480, end: 960, off: [7, 8], verb: '上学', wage: 40, wageName: '拿到零花钱',
     go: ['去上学啦！', '书包带了吗……带了！', '要迟到啦！'], back: ['放学啦～', '今天学了好多', '作业好多……'], tired: '今天考试……' },
-  office: { name: '上班族', icon: '💼', start: 540, end: 1080, off: [5, 6], verb: '上班', wage: 320,
+  office: { name: '上班族', icon: '💼', start: 540, end: 1080, off: [2], verb: '上班', wage: 320,
     go: ['上班去了……', '又是元气满满的一天（假的）', '挤地铁去咯'], back: ['终于下班了！', '我回来啦', '今天开了好多会'], tired: '加班好累……' },
-  baker: { name: '面包师', icon: '🥐', start: 330, end: 780, off: [0], verb: '烤面包', wage: 240,
+  baker: { name: '面包师', icon: '🥐', start: 330, end: 780, off: [1], verb: '烤面包', wage: 240,
     go: ['去烤面包！', '面团在等我', '早起的面包师有面包吃'], back: ['带了面包回来～', '香喷喷地回来啦', '今天的可颂很成功'], tired: '今天订单好多' },
-  barista: { name: '咖啡师', icon: '☕', start: 600, end: 1140, off: [2], verb: '做咖啡', wage: 210,
+  barista: { name: '咖啡师', icon: '☕', start: 600, end: 1140, off: [3], verb: '做咖啡', wage: 210,
     go: ['去咖啡店啦', '今天也要好好拉花', '出门咯～'], back: ['今天拉花很成功！', '一身咖啡香地回来了', '我回来啦～'], tired: '客人好多……' },
   night: { name: '夜班店员', icon: '🌙', start: 1320, end: 360, off: [6], verb: '值夜班', wage: 280,
     go: ['值夜班去了', '晚上见……不对，早上见', '出门啦'], back: ['困死了……', '天亮了，我回来了', '要去补觉了'], tired: '今晚好多客人' },
@@ -22,7 +20,7 @@ const JOBS = {
   none: { name: '宅在家', icon: '🏠', start: null, verb: '宅家' },
 };
 
-const isWorkday = (job, day) => job.start != null && !job.off.includes(weekday(day));
+const isWorkMonth = (job, cycle) => job.start != null && !job.off.includes(monthOf(cycle));
 const doorOf = () => G.furniture.find(f => f.id === 'door');
 function doorTile() {
   const d = doorOf();
@@ -38,10 +36,10 @@ function ensureDoor() {
   for (let x = 0; x < COLS; x++) if (canPlace('door', x, 1, null)) { addFurniture('door', x, 1); return; }
 }
 
-// 今天应该出门的时间（绝对分钟），不用上班返回 null
+// 本月应该出门的时间（绝对分钟），不用上班返回 null
 function leaveAbs(d) {
   const J = JOBS[d.job] || JOBS.none;
-  if (!isWorkday(J, G.day) || d.lastWorkDay === G.day) return null;
+  if (!isWorkMonth(J, G.day) || d.lastWorkDay === G.day) return null;
   return (G.day - 1) * 1440 + J.start - 30 + (d.leaveJitter || 0);
 }
 
@@ -71,9 +69,9 @@ function exitHome(d) {
   if (d.overtime) back += 120 + Math.random() * 60;
   else if (Math.random() < 0.15) back -= 60 + Math.random() * 40;
   d.awayUntil = Math.round(back);
-  d.leaveJitter = leaveJitterFor(d);  // 明天出门时间也稍微变一变：J 型准时，P 型常常踩点
+  d.leaveJitter = leaveJitterFor(d);  // 下月出门时间也稍微变一变：J 型准时，P 型常常踩点
   SFX.play('open');
-  HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${hhmm(d.awayUntil)} 回家`);
+  HOOK.toast(`${J.icon} ${d.name} ${J.verb}去了，大约 ${returnTime(d)} 回家`);
   if (G.sel === d.uid) HOOK.select();
 }
 
@@ -130,16 +128,21 @@ function updateDoors(dt) { for (const f of G.furniture) if (f.openT > 0) f.openT
 function jobLine(d) {
   const J = JOBS[d.job] || JOBS.none;
   if (J.start == null) return `${J.icon} ${J.name}`;
-  const off = J.off.map(i => WEEKDAYS[i]).join('、');
-  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '日薪'} ${yuan(J.wage)}`;
+  const off = J.off.map(month => `${month} 月`).join('、');
+  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}`;
+}
+function returnTime(d) {
+  const cycle = Math.floor(d.awayUntil / 1440) + 1;
+  const time = hhmm(d.awayUntil);
+  return cycle > G.day ? `${monthLabel(cycle)} ${time}` : time;
 }
 function awayText(d) {
   const J = JOBS[d.job] || JOBS.none;
-  return `${J.verb}中，约 ${hhmm(d.awayUntil)} 回家`;
+  return `${J.verb}中，约 ${returnTime(d)} 回家`;
 }
 
 /* ---------------- 收入与储蓄 ----------------
-   上班的人每天下班领日薪（加班多拿 50%），学生有零花钱，自由画家偶尔卖画；
+   上班的人每月下班领月薪（加班多拿 50%），学生有零花钱，自由画家偶尔卖画；
    吃零食、买菜要花钱，每晚 0 点每人交房租水电。钱不够时，恋人或好朋友会帮忙付。 */
 const PRICES = { snack: 12, cook: 25 };
 const PRICE_NAME = { snack: '零食钱', cook: '买菜钱' };

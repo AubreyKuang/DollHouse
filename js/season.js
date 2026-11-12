@@ -1,5 +1,5 @@
 // 季节、天气、节日
-// 一年 28 天，每季 7 天；天气每半天换一次，窗外会下雨下雪；
+// 一年十二个月，季节影响窗外天气和房屋开销。
 // 冬天交暖气费、夏天交空调费；春节、中秋、圣诞有节日活动（圣诞树、灯笼可以在商店买）
 
 const SEASONS = [
@@ -8,9 +8,7 @@ const SEASONS = [
   { id: 'autumn', name: '秋', icon: '🍂', particle: '#e0a050' },
   { id: 'winter', name: '冬', icon: '⛄', particle: null },
 ];
-const SEASON_LEN = 7;
-const seasonOf = day => SEASONS[Math.floor((day - 1) / SEASON_LEN) % 4];
-const dayInSeason = day => (day - 1) % SEASON_LEN + 1;
+const seasonOf = cycle => SEASONS[(Math.floor(monthOf(cycle) / 3) + 3) % 4];
 
 const WEATHER = {
   sunny:  { name: '晴',   icon: '☀️' },
@@ -26,11 +24,11 @@ const WEATHER_ODDS = {
 };
 
 const HOLIDAYS = [
-  { season: 'spring', day: 2, name: '春节',   icon: '🧧', deco: 'lantern',  lines: ['新年快乐！', '恭喜发财～', '红包拿来！'] },
-  { season: 'autumn', day: 4, name: '中秋节', icon: '🥮', deco: 'lantern',  lines: ['月亮好圆', '月饼真好吃', '中秋快乐～'] },
-  { season: 'winter', day: 4, name: '圣诞节', icon: '🎄', deco: 'xmastree', lines: ['圣诞快乐！', '礼物呢礼物呢', '叮叮当～'] },
+  { month: 2, name: '春节',   icon: '🧧', deco: 'lantern',  lines: ['新年快乐！', '恭喜发财～', '红包拿来！'] },
+  { month: 9, name: '中秋节', icon: '🥮', deco: 'lantern',  lines: ['月亮好圆', '月饼真好吃', '中秋快乐～'] },
+  { month: 12, name: '圣诞节', icon: '🎄', deco: 'xmastree', lines: ['圣诞快乐！', '礼物呢礼物呢', '叮叮当～'] },
 ];
-const holidayOf = day => HOLIDAYS.find(h => h.season === seasonOf(day).id && h.day === dayInSeason(day)) || null;
+const holidayOf = cycle => HOLIDAYS.find(h => h.month === monthOf(cycle)) || null;
 
 /* ---------- 节日装饰 ---------- */
 Object.assign(FURNITURE, {
@@ -114,14 +112,16 @@ function seasonTick() {
   if (k) { G.sky = mixHex(G.sky, '#7a8696', k); G.dark = Math.min(0.6, G.dark + k * 0.12); }
 }
 
-// 新的一天开始时（0 点）：季节变化、节日
-function seasonNewDay() {
+// Run birthday and holiday events once for each started month.
+function startHouseMonth() {
+  if (G.monthEvents === G.day) return;
+  G.monthEvents = G.day;
   birthdayCheck();
   const S = seasonOf(G.day), prevS = seasonOf(G.day - 1);
   if (S !== prevS) { addLog(`${S.icon} ${S.name}天来了`); HOOK.toast(`${S.icon} ${S.name}天来了`, true); }
   const H = holidayOf(G.day);
   if (!H) return;
-  HOOK.toast(`${H.icon} 今天是${H.name}！`);
+  HOOK.toast(`${H.icon} 本月是${H.name}！`);
   const hasDeco = G.furniture.some(f => f.id === H.deco);
   for (const d of G.dolls) {
     d.needs.fun = Math.min(100, d.needs.fun + (hasDeco ? 30 : 15));

@@ -164,7 +164,7 @@ function startSocial(d, p) {
   // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
   const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
-  countHouseDay('social',d.name+' × '+p.name);
+  countHouseActivity('social',d.name+' × '+p.name);
   if(kind==='chat'&&Math.random()<.32)shareHouseNews(d,p);
   if (!routine && ['argue', 'hug', 'kiss', 'flirt', 'joke'].includes(kind)) {
     const outcome = kind === 'flirt' ? (flirtOk ? 'accepted' : 'rejected') : 'completed';
@@ -361,7 +361,7 @@ function arriveJoin(d) {
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
   if(a.what==='game'||a.what==='piano'){
-    countHouseDay(a.what==='piano'?'audience':'partners',o.name);
+    countHouseActivity(a.what==='piano'?'audience':'partners',o.name);
     NPCMemory.record(G,{type:'company',time:absNow(),participants:[o.pid,d.pid],outcome:a.what},[
       {person:o.pid,subject:d.pid,emotion:.55,impact:55,interpretation:`${d.name}来陪我${a.what==='game'?'玩游戏':'弹琴'}`},
       {person:d.pid,subject:o.pid,emotion:.55,impact:55,interpretation:`我和${o.name}一起${a.what==='game'?'玩游戏':'听钢琴'}`}

@@ -1,5 +1,5 @@
 // 家庭基金、家具商店、仓库、扩建
-// 上班的人领工资时自动存 20% 进家庭基金；玩家每天还能号召一次大家凑钱。
+// 上班的人领工资时自动存 20% 进家庭基金；玩家每月还能号召一次大家凑钱。
 // 家具要用基金买，删掉的家具收进仓库可以再拿出来；扩建会让房子真的变宽，并解锁新家具。
 
 // [价格, 需要的房屋等级]
@@ -8,9 +8,22 @@ const SHOP = {
   stove: [1000, 1], shelf: [600, 1], tv: [1500, 1], arcade: [1300, 1], piano: [2500, 1], bath: [1600, 1],
   plant: [120, 1], lamp: [200, 1], catbed: [300, 1], rug: [250, 1], rug2: [200, 1],
   window: [500, 1], painting: [300, 1], clock: [150, 1], poster: [80, 1],
-  beanbag: [300, 1], coffee: [450, 1], aquarium: [700, 1], shelfwall: [180, 1],
+  beanbag: [300, 1], coffee: [450, 1], aquarium: [700, 1], shelfwall: [180, 1], mirror: [200, 1],
   desk: [500, 2], pc: [1600, 2], speaker: [900, 2], garland: [220, 2],
   easel: [800, 3], treadmill: [1800, 3],
+  toilet: [240, 1], washstand: [180, 1], shower: [520, 1], cloudBed: [740, 1],
+  moonLamp: [130, 1], bunnyPicture: [85, 1], cloudMobile: [120, 1], tulips: [95, 1], pawRug: [160, 1],
+  recordPlayer: [420, 1], chessTable: [360, 1], knitting: [140, 1], ukulele: [280, 1],
+};
+
+const FURNITURE_GROUPS = {
+  essentials: ['toilet', 'washstand', 'shower', 'bath', 'cloudBed', 'bed', 'bigbed',
+    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror'],
+  decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
+    'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
+    'shelfwall', 'garland', 'xmastree', 'lantern'],
+  hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
+    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill'],
 };
 
 const LEVELS = [null,
@@ -43,7 +56,7 @@ function stash(id) { G.inv[id] = (G.inv[id] || 0) + 1; }
 
 // 号召大家凑钱：每人按性格拿出“闲钱”（留 ¥300 生活费）的一部分
 function crowdfund() {
-  if (G.crowdDay === G.day) { HOOK.toast('今天已经凑过钱了，明天再来吧', true); return; }
+  if (G.crowdDay === G.day) { HOOK.toast('本月已经凑过钱了，下个月再来吧', true); return; }
   G.crowdDay = G.day;
   let total = 0; const parts = [];
   for (const d of G.dolls) {

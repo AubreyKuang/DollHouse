@@ -10,16 +10,16 @@
 <header class="topbar">
   <h1>像素小屋</h1>
   <div class="clock" title="游戏时间">
-    <span id="dayLabel">第 1 天</span>
-    <span id="clock">08:00</span>
-    <span id="timeIcon">☀️</span>
+    <span id="dayLabel">1 年 1 月</span>
+    <span id="clock">00:00</span>
+    <span id="timeIcon">🌙</span>
   </div>
   <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
   <nav class="modes" aria-label="模式">
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
-    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋日报</button>
+    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
   </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
@@ -32,7 +32,7 @@
 <main class="layout">
   <div id="stageWrap">
     <div id="stage">
-      <canvas id="cv" width="256" height="192"></canvas>
+      <canvas id="cv" width="316" height="266" aria-label="两层像素小洋房"></canvas>
       <div id="overlay"></div>
     </div>
     <p id="hint" class="hint">点击小人查看状态，按住可以把 TA 拎起来放到别处～</p>
@@ -52,12 +52,12 @@
 
 <dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
   <header class="paper-head">
-    <h2 id="paperTitle">小屋日报</h2>
-    <form method="dialog"><button class="btn small ghost" aria-label="关闭日报">关闭</button></form>
+    <h2 id="paperTitle">小屋月报</h2>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
   </header>
-  <label><input id="paperAuto" type="checkbox"> 每日自动打开</label>
+  <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
   <pre id="paperText" aria-live="polite"></pre>
-  <button type="button" id="paperCopy" class="btn small">复制日报</button>
+  <button type="button" id="paperCopy" class="btn small">复制月报</button>
 </dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
@@ -67,10 +67,12 @@
     <button id="btnCrowd" class="btn small">📣 号召大家凑钱</button>
     <button id="btnExpand" class="btn small"></button>
   </div>
-  <div class="tabs" role="tablist">
-    <button class="tab on" data-tab="furniture">家具</button>
-    <button class="tab" data-tab="wall">墙纸</button>
-    <button class="tab" data-tab="floor">地板</button>
+  <div class="tabs" role="group" aria-label="布置分类">
+    <button class="tab on" data-tab="essentials" aria-pressed="true">生活家具</button>
+    <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
+    <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
+    <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
+    <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
     <button id="btnTrash" class="btn small" title="点击家具删除">🗑 删除模式</button>
     <button id="btnReset" class="btn small ghost">恢复默认</button>
@@ -106,6 +108,7 @@
 
 <div id="toast" role="status"></div>
 
+<script src="js/calendar.js"></script>
 <script src="js/data.js"></script>
 <script src="js/sprites.js"></script>
 <script src="js/doll.js"></script>
@@ -117,10 +120,12 @@
 <script src="js/social.js"></script>
 <script src="js/work.js"></script>
 <script src="js/furniture2.js"></script>
+<script src="js/furniture3.js"></script>
 <script src="js/economy.js"></script>
 <script src="js/rooms.js"></script>
 <script src="js/season.js"></script>
 <script src="js/astro.js"></script>
+<script src="js/house-view.js"></script>
 <script src="js/view.js"></script>
 <script src="js/ui.js"></script>
 </body>

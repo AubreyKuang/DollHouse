@@ -2,9 +2,12 @@
 const T = 16;              // 每格像素
 let COLS = 16;              // 房子宽度，扩建时会变大
 const FLOOR_SPLIT = 12;
-const STAIRS_X = 14;
+const stairsColumn = () => COLS - 2;
 const ROWS = 20;
-const WALL_ROWS = 3;       // 上面三行是墙
+const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
+const LOWER_LANDING = WALL_ROWS + 1;
+const UPPER_LANDING = ROWS - 1;
+const UPPER_WALL = -WALL_ROWS; // 二楼墙面用负数行，与既有地面坐标分开
 let W = COLS * T;
 const H = ROWS * T;
 
@@ -40,6 +43,7 @@ const NEEDS = [
   { key: 'hunger', name: '饱腹', color: '#ef9a4f' },
   { key: 'fun',    name: '快乐', color: '#ec6a8a' },
   { key: 'social', name: '社交', color: '#6aa9ec' },
+  { key: 'bladder', name: '如厕', color: '#a48cce' },
 ];
 
 // decay: 每游戏小时下降量；like: 偏好的活动加分；speed: 走路速度(格/秒)
@@ -81,7 +85,7 @@ const PERSONAS = {
     speed: 2.6, decay: { energy: 4, hunger: 3, fun: 4, social: 8 },
     like: { chat: 50, cat: 15, dance: 12, read: -15 },
     dur: { chat: 1.5, read: 0.5 },
-    chat: ['我跟你说个八卦！', '你今天发型好好看！', '周末一起出去玩吧～', '你最近怎么样呀？'],
+    chat: ['我跟你说个八卦！', '你今天发型好好看！', '有空一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
   },
 };
@@ -150,24 +154,32 @@ const FLOORS = [
 ];
 
 const DEFAULT_SAVE = {
-  wall: 'cream', floor: 'oak', time: 8 * 60, day: 1,
+  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1,
+  inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, toilet: 1, washstand: 1, pawRug: 1, knitting: 1 },
   furniture: [
-    // 卧室（0~6 列）
-    { id: 'window', x: 1, y: 0 }, { id: 'painting', x: 4, y: 1 },
-    { id: 'bigbed', x: 0, y: 3 }, { id: 'lamp', x: 3, y: 3 }, { id: 'bed', x: 4, y: 3 }, { id: 'plant', x: 6, y: 3 },
-    { id: 'rug2', x: 2, y: 7 }, { id: 'bath', x: 0, y: 10 },
-    // 客厅（7 列以后）
-    { id: 'door', x: 9, y: 1 }, { id: 'clock', x: 11, y: 1 }, { id: 'window', x: 12, y: 0 }, { id: 'poster', x: 15, y: 0 },
-    { id: 'shelf', x: 7, y: 3 }, { id: 'fridge', x: 10, y: 3 }, { id: 'stove', x: 11, y: 3 }, { id: 'plant', x: 12, y: 3 },
-    { id: 'tv', x: 13, y: 3 }, { id: 'arcade', x: 15, y: 3 },
-    { id: 'table', x: 9, y: 7 }, { id: 'chair', x: 8, y: 7 }, { id: 'chair', x: 11, y: 7 },
-    { id: 'rug', x: 12, y: 6 }, { id: 'sofa', x: 12, y: 9 }, { id: 'piano', x: 7, y: 10 }, { id: 'catbed', x: 15, y: 10 },
+    // 二楼：左边是深色卧室，右边是明亮的书房。
+    { id: 'bunnyPicture', x: 1, y: -2 }, { id: 'shelfwall', x: 4, y: -2 },
+    { id: 'moonLamp', x: 3, y: -2 },
+    { id: 'cloudBed', x: 1, y: 14 }, { id: 'mirror', x: 4, y: 15 },
+    { id: 'lamp', x: 6, y: 14 }, { id: 'pawRug', x: 2, y: 17 },
+    { id: 'window', x: 10, y: -3 }, { id: 'painting', x: 14, y: -2 },
+    { id: 'shelf', x: 8, y: 13 }, { id: 'desk', x: 11, y: 14 },
+    { id: 'arcade', x: 13, y: 14 }, { id: 'plant', x: 15, y: 14 },
+    { id: 'rug', x: 10, y: 17 },
+    // 一楼：左边是粉色卧室，右边是客餐厅。
+    { id: 'bunnyPicture', x: 6, y: 1 }, { id: 'cloudMobile', x: 3, y: 0 },
+    { id: 'bigbed', x: 1, y: 5 }, { id: 'lamp', x: 0, y: 5 }, { id: 'mirror', x: 5, y: 6 },
+    { id: 'tulips', x: 6, y: 6 }, { id: 'rug', x: 2, y: 8 },
+    { id: 'window', x: 10, y: 0 }, { id: 'shelfwall', x: 11, y: 2 }, { id: 'door', x: 15, y: 1 },
+    { id: 'piano', x: 8, y: 4 }, { id: 'sofa', x: 10, y: 8 }, { id: 'table', x: 12, y: 6 },
+    { id: 'fridge', x: 15, y: 7 }, { id: 'stove', x: 14, y: 7 },
+    { id: 'rug', x: 9, y: 9 },
   ],
   dolls: [
-    { pid: 'p-tao', zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
-    { pid: 'p-lan', zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
-    { pid: 'p-jing', zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
-    { pid: 'p-tuan', zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
+    { pid: 'p-tao', tx: 5, ty: 18, zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: { skin: 0, hair: 'twin',  hairColor: 5, top: 'tee',     topColor: 2,  bottom: 'skirt',  bottomColor: 5, shoes: 2, acc: 'bow' } },
+    { pid: 'p-lan', tx: 10, ty: 17, zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: { skin: 1, hair: 'spiky', hairColor: 1, top: 'hoodie',  topColor: 4,  bottom: 'pants',  bottomColor: 8, shoes: 0, acc: 'phones' } },
+    { pid: 'p-jing', tx: 4, ty: 9, zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: { skin: 2, hair: 'bob',   hairColor: 0, top: 'suit',    topColor: 6,  bottom: 'pants',  bottomColor: 8, shoes: 4, acc: 'glasses' } },
+    { pid: 'p-tuan', tx: 13, ty: 10, zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
 };
 

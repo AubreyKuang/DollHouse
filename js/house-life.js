@@ -1,4 +1,8 @@
-function countHouseDay(kind, label) {
+function formatSavedPaper(paper) {
+  return paper.replace(/^第 (\d+) 天 · [^\n]+/, (_, cycle) => monthLabel(Number(cycle)));
+}
+
+function countHouseActivity(kind, label) {
   const counters = (G.daily[kind] ||= {});
   const count=Object.hasOwn(counters,label)?counters[label]:0;
   Object.defineProperty(counters,label,{value:count+1,enumerable:true,writable:true,configurable:true});
@@ -20,9 +24,9 @@ function helpWithMeal(d, table) {
   addLog(`🍲 ${text}`);
 }
 
-function finishHouseDay() {
-  const lines = [`第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`];
-  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容' };
+function finishHouseMonth() {
+  const lines = [monthLabel(G.day)];
+  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友' };
   for (const [kind,title] of Object.entries(labels)) {
     const top = Object.entries(G.daily[kind] || {}).sort((a,b)=>b[1]-a[1])[0];
     if (top) lines.push(`${title}　${top[0]} · ${top[1]} 次`);
@@ -37,9 +41,9 @@ function finishHouseDay() {
   G.dayRelations=now;
   for (const entry of G.log.filter(entry=>entry.d===G.day).slice(-8)) lines.push(entry.text);
   const residents=G.dolls.filter(d=>d.state!=='away');
-  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们今天把日子过成了恋综。');
-  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们今天各忙各的，小屋格外安静。');
-  if (lines.length===1) lines.push('今天小屋里很安静。');
+  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们本月把日子过成了恋综。');
+  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们本月各忙各的，小屋格外安静。');
+  if (lines.length===1) lines.push('本月小屋里很安静。');
   G.paper.push(lines.join('\n'));
   if (G.paper.length>30) G.paper.shift();
   G.daily={};
@@ -49,12 +53,12 @@ function finishHouseDay() {
 
 function updateHousePaperButton(){
   const button=document.getElementById('dailyPaper');
-  if(button)button.textContent=G.paper.length?`📰 小屋日报 · ${G.paper.length}`:'📰 小屋日报';
+  if(button)button.textContent=G.paper.length?`📰 小屋月报 · ${G.paper.length}`:'📰 小屋月报';
 }
 
 function showHousePaper() {
   const dialog=document.getElementById('paperDialog');
-  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`第 ${G.day} 天的日报将在游戏时间 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋日报」回看。`;
+  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`${monthLabel(G.day)}的月报将在下月 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋月报」回看。`;
   document.getElementById('paperCopy').disabled=!G.paper.length;
   if (!dialog.open) dialog.showModal();
 }

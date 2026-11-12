@@ -13,8 +13,7 @@ function shade(hex, amt) {
 function rnd(seed) { const s = Math.sin(seed * 9301 + 49297) * 233280; return s - Math.floor(s); }
 
 /* ---------------- 墙纸与地板 ---------------- */
-function drawWall(c, wall) {
-  const h = WALL_ROWS * T;
+function drawWall(c, wall, h = WALL_ROWS * T) {
   R(c, 0, 0, W, h, wall.base);
   const a = wall.alt;
   if (wall.pat === 'stripe') for (let x = 0; x < W; x += 8) R(c, x, 0, 3, h, a);
@@ -28,13 +27,13 @@ function drawWall(c, wall) {
   R(c, 0, h - 4, W, 4, shade(wall.base, -0.25)); R(c, 0, h - 4, W, 1, shade(wall.base, 0.1)); R(c, 0, h, W, 1, INK);
 }
 
-function drawFloor(c, floor) {
-  const y0 = WALL_ROWS * T + 1, h = H - y0;
+function drawFloor(c, floor, y0 = WALL_ROWS * T + 1, end = H) {
+  const h = end - y0;
   R(c, 0, y0, W, h, floor.base);
   const a = floor.alt;
-  if (floor.pat === 'plank') for (let y = y0; y < H; y += 6) { R(c, 0, y + 5, W, 1, a); for (let x = (rnd(y) * 30) | 0; x < W; x += 30) R(c, x, y, 1, 5, a); }
-  if (floor.pat === 'check') for (let y = y0; y < H; y += 8) for (let x = ((y - y0) / 8 % 2) * 8; x < W; x += 16) R(c, x, y, 8, 8, a);
-  if (floor.pat === 'tile') for (let y = y0; y < H; y += 16) for (let x = 0; x < W; x += 16) { R(c, x, y, 16, 1, a); R(c, x, y, 1, 16, a); R(c, x + 2, y + 2, 2, 1, '#ffffff55'); }
+  if (floor.pat === 'plank') for (let y = y0; y < end; y += 6) { R(c, 0, y + 5, W, 1, a); for (let x = (rnd(y) * 30) | 0; x < W; x += 30) R(c, x, y, 1, 5, a); }
+  if (floor.pat === 'check') for (let y = y0; y < end; y += 8) for (let x = ((y - y0) / 8 % 2) * 8; x < W; x += 16) R(c, x, y, 8, 8, a);
+  if (floor.pat === 'tile') for (let y = y0; y < end; y += 16) for (let x = 0; x < W; x += 16) { R(c, x, y, 16, 1, a); R(c, x, y, 1, 16, a); R(c, x + 2, y + 2, 2, 1, '#ffffff55'); }
   if (floor.pat === 'carpet') for (let i = 0; i < 260; i++) R(c, rnd(i) * W, y0 + rnd(i + 999) * h, 1, 1, a);
   if (floor.pat === 'grass') for (let i = 0; i < 200; i++) { const x = rnd(i) * W, y = y0 + rnd(i + 7) * h; R(c, x, y, 1, 2, a); if (i % 23 === 0) R(c, x, y, 2, 2, i % 2 ? '#fff6a0' : '#f6b0c8'); }
   // 墙脚阴影
@@ -46,32 +45,29 @@ function drawFloor(c, floor) {
    高家具会往上画超出占地格；f 是家具实例（f.active 表示有人在用，f.occ 是躺/坐上去的小人回调） */
 const WOOD = '#b0743f', WOOD_L = '#c98d55', WOOD_D = '#8a5530';
 
+function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
+  const w = double ? 48 : 32;
+  R(c, x + 2, y + 29, w - 4, 3, '#3b2a2f29');
+  R(c, x + 2, y + 7, w - 4, 16, '#654e51');
+  R(c, x + 3, y + 8, w - 6, 2, double ? '#d9b091' : '#85738d');
+  R(c, x + 5, y + 11, w - 10, 5, double ? '#c59a86' : '#534963');
+  box(c, x + 2, y + 14, w - 4, 14, '#fff4e9', '#614d56');
+  const centers = double ? [13, 35] : [16];
+  for (const [slot, center] of centers.entries()) {
+    box(c, x + center - 7, y + 14, 14, 6, '#f8e8de', '#bdadae');
+    f?.occ?.(slot, x + center, y + 19);
+  }
+  R(c, x + 3, y + 20, w - 6, 8, linen);
+  R(c, x + 3, y + 20, w - 6, 1, shade(linen, .18));
+  for (let px = x + 7; px < x + w - 5; px += 6) R(c, px, y + 23, 1, 3, shade(linen, -.10));
+  R(c, x + 2, y + 28, w - 4, 2, '#695354');
+  R(c, x + 4, y + 30, 2, 2, '#695354');
+  R(c, x + w - 6, y + 30, 2, 2, '#695354');
+}
+
 const DRAW = {
-  bed(c, x, y, f) {
-    box(c, x, y - 8, 32, 12, WOOD);                 // 床头板
-    R(c, x + 3, y - 6, 26, 2, WOOD_L);
-    box(c, x + 1, y + 2, 30, 28, '#fff6ea');         // 床垫
-    box(c, x + 6, y + 4, 20, 8, '#ffffff', '#cbbfae'); // 枕头
-    if (f && f.occ) f.occ(0, x + 16, y + 11);
-    const bl = f && f.color || '#e26d7d';
-    box(c, x + 1, y + 13, 30, 17, bl);              // 被子
-    R(c, x + 2, y + 14, 28, 2, shade(bl, 0.15));
-    for (let i = 0; i < 4; i++) R(c, x + 5 + i * 7, y + 20, 3, 3, shade(bl, -0.12));
-    R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 29, y + 29, 3, 3, WOOD_D);
-  },
-  bigbed(c, x, y, f) {
-    box(c, x, y - 9, 48, 13, WOOD);                 // 床头板，中间一颗小爱心
-    R(c, x + 3, y - 7, 42, 2, WOOD_L);
-    R(c, x + 22, y - 5, 2, 2, '#e26d7d'); R(c, x + 25, y - 5, 2, 2, '#e26d7d'); R(c, x + 22, y - 4, 5, 2, '#e26d7d'); R(c, x + 23, y - 2, 3, 1, '#e26d7d'); R(c, x + 24, y - 1, 1, 1, '#e26d7d');
-    box(c, x + 1, y + 2, 46, 28, '#fff6ea');
-    box(c, x + 4, y + 4, 18, 8, '#ffffff', '#cbbfae'); box(c, x + 26, y + 4, 18, 8, '#ffffff', '#cbbfae');
-    if (f && f.occ) { f.occ(0, x + 13, y + 11); f.occ(1, x + 35, y + 11); }
-    const bl = '#8a7fe0';
-    box(c, x + 1, y + 13, 46, 17, bl);
-    R(c, x + 2, y + 14, 44, 2, shade(bl, 0.15));
-    for (let i = 0; i < 5; i++) { const hx = x + 6 + i * 8, hy = y + 20 + (i % 2) * 3; R(c, hx, hy, 1, 1, '#f6b0c8'); R(c, hx + 2, hy, 1, 1, '#f6b0c8'); R(c, hx, hy + 1, 3, 1, '#f6b0c8'); R(c, hx + 1, hy + 2, 1, 1, '#f6b0c8'); }
-    R(c, x, y + 29, 3, 3, WOOD_D); R(c, x + 45, y + 29, 3, 3, WOOD_D);
-  },
+  bed(c, x, y, f) { drawBed(c, x, y, f, false); },
+  bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
     const col = '#5bb8b0', l = shade(col, 0.12), d = shade(col, -0.18);
     box(c, x + 2, y - 8, 28, 13, col); R(c, x + 3, y - 7, 26, 2, l);
@@ -241,7 +237,7 @@ const DRAW = {
 };
 
 // 家具在 y 方向的视觉顶部（用于选中高亮、图标裁切）
-const TALL = { bed: 8, bigbed: 9, sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
+const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
 function furnitureIcon(id, size = 56) {

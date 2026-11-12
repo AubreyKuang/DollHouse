@@ -80,13 +80,12 @@ function compat(a, b) { return Math.max(0.7, Math.min(1.5, elementMatch(a, b) * 
 function compatStars(a, b) { const c = compat(a, b); return c < 0.9 ? '★☆☆☆' : c < 1.05 ? '★★☆☆' : c < 1.2 ? '★★★☆' : '★★★★'; }
 
 /* ---------- 生日 ---------- */
-const dayOfYear = day => (day - 1) % 28 + 1;
-const birthdayOf = d => 1 + Math.floor(ZODIAC.indexOf(zodiacOf(d)) * 28 / 12);   // 白羊座在春天第 1 天
+const birthdayOf = d => monthOf(ZODIAC.indexOf(zodiacOf(d)) + 3);
 function birthdayCheck() {
-  const today = dayOfYear(G.day);
+  const month = monthOf(G.day);
   for (const d of G.dolls) {
-    if (birthdayOf(d) !== today) continue;
-    HOOK.toast(`🎂 今天是 ${d.name} 的生日！`);
+    if (birthdayOf(d) !== month) continue;
+    HOOK.toast(`🎂 本月是 ${d.name} 的生日！`);
     d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
     for (const o of G.dolls) {
       if (o === d) continue;
@@ -100,7 +99,7 @@ function birthdayCheck() {
 // 状态卡上的一行介绍
 function astroLine(d) {
   const z = zodiacOf(d), E = ELEMENTS[z.el];
-  return `${z.icon} ${z.name}（${E.icon}${E.name}） · ${mb(d)} ${MBTI_NAMES[mb(d)]} · 🎂 第 ${birthdayOf(d)} 天`;
+  return `${z.icon} ${z.name}（${E.icon}${E.name}） · ${mb(d)} ${MBTI_NAMES[mb(d)]} · 🎂 ${birthdayOf(d)} 月`;
 }
 function randomZodiac() { return pick(ZODIAC).id; }
 function randomMbti() { return MBTI_AXES.map(a => a[Math.random() < 0.5 ? 0 : 1]).join(''); }
