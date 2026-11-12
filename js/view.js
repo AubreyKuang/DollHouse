@@ -214,6 +214,7 @@ function updateOverlay() {
   const s = cv.clientWidth / cv.width;
   const alive = new Set();
   const selected = G.dolls.find(d => d.uid === G.sel);
+  const invite = press?.moved && G.mode === 'live' ? dropInteraction(press.point, press.d) : null;
   for (const d of G.dolls) {
     let el = domBubbles.get(d.uid);
     if (!el) { el = { b: document.createElement('div'), n: document.createElement('div'), id: null }; el.b.className = 'bubble'; el.n.className = 'nametag'; overlay.append(el.b, el.n); domBubbles.set(d.uid, el); }
@@ -224,13 +225,16 @@ function updateOverlay() {
       el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
     } else el.b.style.display = 'none';
     const partner = selected && arePartners(selected, d);
-    const showName = d.state !== 'away' && (d === selected || d.uid === hoverDoll || partner);
+    const dropTarget = invite?.target === d;
+    const showName = d.state !== 'away' && (d === selected || d.uid === hoverDoll || partner || dropTarget);
     el.n.style.display = showName ? '' : 'none';
     if (showName) {
       const np = lying(d) ? { x: hx, y: hy + 20 } : houseDollPoint(d);
       const paired = partner || G.dolls.some(o => arePartners(d, o));
-      el.n.textContent = paired ? `♥ ${d.name}` : d.name;
+      const label = dropTarget ? (invite.spot ? `💬 放下和${d.name}互动` : invite.reason) : paired ? `♥ ${d.name}` : d.name;
+      if (el.n.textContent !== label) el.n.textContent = label;
       el.n.classList.toggle('couple-name', paired);
+      el.n.classList.toggle('drop-target', dropTarget);
       el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
     }
   }
@@ -248,15 +252,44 @@ function toScene(e) {
   return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height };
 }
 
-function dollAt(p) {
+function dollAt(p, exclude) {
   let best = null;
   for (const d of G.dolls) {
-    if (d.state === 'away') continue;
+    if (d === exclude || d.state === 'away' || d.state === 'lift') continue;
     const { x, y: top } = houseHeadPoint(d);
     const y = lying(d) ? top + 12 : houseDollPoint(d).y;
     if (Math.abs(p.x - x) <= 7 && p.y >= top && p.y <= y + 1 && (!best || y > best.y)) best = { d, y };
   }
   return best?.d;
+}
+
+function dropInteraction(point, carried) {
+  const direct = dollAt(point, carried);
+  const column = Math.floor((point.x - HOUSE_X) / T);
+  if (column < 0 || column >= COLS) return null;
+  let target = null, closest = Infinity;
+  for (const d of G.dolls) {
+    if (d === carried || ['away', 'lift'].includes(d.state) || takingStairs(d)) continue;
+    if (d === direct) { target = d; break; }
+    if (direct || roomOf(d) !== roomOf({ tx: column, ty: d.ty })) continue;
+    const head = houseHeadPoint(d);
+    const feet = lying(d) ? head.y + 12 : houseDollPoint(d).y;
+    if (Math.abs(point.x - head.x) > T * 1.35 || point.y < head.y - 4 || point.y > feet + 5) continue;
+    const distance = Math.hypot(point.x - head.x, point.y - head.y - 10);
+    if (distance < closest) { target = d; closest = distance; }
+  }
+  if (!target) return null;
+  if (target.state === 'wait' || ['chat', 'tryst', 'leave', 'visitLeave', 'sleep', 'couchNap', 'bath', 'toilet', 'shower'].includes(target.act?.type)) {
+    return { target, reason: `${target.name} 正在忙` };
+  }
+
+  // Prefer a free tile beside the partner. The cutaway projects depth to only a few pixels.
+  const room = roomOf(target);
+  const spots = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([dx, dy]) => ({ x: target.tx + dx, y: target.ty + dy, dx }));
+  spots.sort((a, b) => Math.abs(b.dx) - Math.abs(a.dx) || Math.abs(a.x - column) - Math.abs(b.x - column));
+  const spot = spots.find(({ x, y }) => free(x, y) && !wallBetween(target.tx, target.ty, x, y) &&
+    roomOf({ tx: x, ty: y }) === room && !isDoorTile(x, y) && !G.dolls.some(o => o !== carried && o.state !== 'away' && o.tx === x && o.ty === y));
+  return { target, spot, reason: `${target.name} 身边没有空位` };
 }
 
 function furnAt(p) {
@@ -277,12 +310,13 @@ function removeFurniture(f) {
 
 cv.addEventListener('contextmenu', e => { e.preventDefault(); cancelPlacing(); });
 cv.addEventListener('pointerdown', e => {
+  if (press || e.button !== 0) return;
   const p = toScene(e);
   cv.setPointerCapture(e.pointerId);
   if (G.mode === 'live') {
     const d = dollAt(p);
     if (!d && hitBedDoor(p)) { toggleBedDoor(); return; }
-    press = { p, d, moved: false, furn: d ? null : furnAt(p) };
+    press = { p, d, pointerId: e.pointerId, moved: false, furn: d ? null : furnAt(p) };
     return;
   }
   // 布置模式
@@ -303,6 +337,7 @@ cv.addEventListener('pointerdown', e => {
   else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
+  if (press && press.pointerId !== e.pointerId) return;
   const p = toScene(e);
   if (G.mode === 'build') {
     const B = G.build;
@@ -321,6 +356,7 @@ cv.addEventListener('pointermove', e => {
     say(d, pick(ACT_LINES.lift), 1.5); SFX.play('lift');
   }
   if (press.moved) {
+    press.point = p;
     d.liftX = p.x;
     d.liftY = p.y + 12;
     const g = dropTile(p);
@@ -328,12 +364,23 @@ cv.addEventListener('pointermove', e => {
   }
 });
 cv.addEventListener('pointerup', e => {
-  if (G.mode !== 'live' || !press) { press = null; return; }
+  if (!press || press.pointerId !== e.pointerId) return;
+  if (G.mode !== 'live') { cancelDollDrag(e); return; }
   const p = toScene(e), d = press.d;
   if (d && press.moved) {
-    const g = dropTile(p);
+    const invite = dropInteraction(p, d);
+    let g = invite?.spot || dropTile(p);
+    // Don't leave a doll stacked on the target when an invitation can't start.
+    if (invite && !invite.spot && g?.x === invite.target.tx && g.y === invite.target.ty) g = null;
     placeDollAt(d, g?.x ?? d.tx, g?.y ?? d.ty);
-    d.state = 'idle'; d.think = 1.5; d.frame = 0; SFX.play('drop');
+    d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null; SFX.play('drop');
+    if (invite?.spot) {
+      const partner = invite.target;
+      if (partner.act) endAct(partner);
+      placeDollAt(partner, partner.tx, partner.ty);
+      startSocial(d, partner);
+      HOOK.select();
+    } else if (invite) HOOK.toast(invite.reason, true);
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select();
   } else if (press.furn && G.sel) {
@@ -342,18 +389,23 @@ cv.addEventListener('pointerup', e => {
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
-cv.addEventListener('pointercancel', () => {
+function cancelDollDrag(e) {
+  if (!press || press.pointerId !== e.pointerId) return;
   const d = press?.d;
   if (d?.state === 'lift') {
     placeDollAt(d, d.tx, d.ty);
     d.state = 'idle';
+    d.liftShadow = null;
   }
   press = null;
-});
+}
+cv.addEventListener('pointercancel', cancelDollDrag);
+cv.addEventListener('lostpointercapture', cancelDollDrag);
 cv.addEventListener('pointerleave', () => { hoverDoll = null; if (G.mode === 'build') G.build.hover = null; });
 
+const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {
-  const tile = houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
+  const tile = rawDropTile(p);
   return tile && nearestFree(tile.x, tile.y, storeyOf(tile.y) === STOREYS[1] ? 2 : 1);
 }
 

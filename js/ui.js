@@ -138,7 +138,7 @@ function setMode(m) {
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
   document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '布置模式：小人们会继续生活，放好家具 TA 们就会去用' : '点击小人查看状态，按住可以把 TA 拎起来放到别处～';
+  $('#hint').textContent = m === 'build' ? '布置模式：小人们会继续生活，放好家具 TA 们就会去用' : '点小人查看状态，按住拖到另一位身边可以让他们互动。';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
