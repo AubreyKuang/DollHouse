@@ -9,7 +9,7 @@ HOOK.resize = () => {
   cv.width = lightCv.width = W + HOUSE_MARGIN;
   cv.height = lightCv.height = HOUSE_HEIGHT;
   ctx.imageSmoothingEnabled = false;
-  document.getElementById('stage').style.aspectRatio = `${cv.width} / ${cv.height}`;
+  document.getElementById('stage').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
 const overlay = document.getElementById('overlay');
 
@@ -211,8 +211,11 @@ function drawBuildOverlay(c, t) {
 
 /* ---------- DOM 浮层：对话气泡、名字、爱心 ---------- */
 const domBubbles = new Map();
+function positionOverlay(el, x, y) {
+  el.style.left = `${100 * x / cv.width}%`;
+  el.style.top = `${100 * y / cv.height}%`;
+}
 function updateOverlay() {
-  const s = cv.clientWidth / cv.width;
   const alive = new Set();
   const selected = G.dolls.find(d => d.uid === G.sel);
   const invite = press?.moved && G.mode === 'live' ? dropInteraction(press.point, press.d) : null;
@@ -223,7 +226,7 @@ function updateOverlay() {
     const { x: hx, y: hy } = houseHeadPoint(d);
     if (d.bubble && d.state !== 'away') {
       if (el.id !== d.bubble.id) { el.b.textContent = d.bubble.text; el.id = d.bubble.id; el.b.style.animation = 'none'; void el.b.offsetWidth; el.b.style.animation = ''; }
-      el.b.style.display = ''; el.b.style.left = hx * s + 'px'; el.b.style.top = (hy - 2) * s + 'px';
+      el.b.style.display = ''; positionOverlay(el.b, hx, hy - 2);
     } else el.b.style.display = 'none';
     const partner = selected && arePartners(selected, d);
     const dropTarget = invite?.target === d;
@@ -236,12 +239,12 @@ function updateOverlay() {
       if (el.n.textContent !== label) el.n.textContent = label;
       el.n.classList.toggle('couple-name', paired);
       el.n.classList.toggle('drop-target', dropTarget);
-      el.n.style.left = np.x * s + 'px'; el.n.style.top = (np.y + 2) * s + 'px';
+      positionOverlay(el.n, np.x, np.y + 2);
     }
   }
   for (const [uid, el] of domBubbles) if (!alive.has(uid)) { el.b.remove(); el.n.remove(); domBubbles.delete(uid); }
   for (const h of hearts) {
-    if (!h.el) { h.el = document.createElement('div'); h.el.className = 'heart'; h.el.textContent = h.txt; overlay.append(h.el); const { x, y } = houseHeadPoint(h.doll); h.el.style.left = (x + h.dx) * s + 'px'; h.el.style.top = y * s + 'px'; }
+    if (!h.el) { h.el = document.createElement('div'); h.el.className = 'heart'; h.el.textContent = h.txt; overlay.append(h.el); const { x, y } = houseHeadPoint(h.doll); positionOverlay(h.el, x + h.dx, y); }
   }
   for (const el of overlay.querySelectorAll('.heart')) if (!hearts.some(h => h.el === el)) el.remove();
 }
