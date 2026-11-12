@@ -104,11 +104,11 @@ function compatStars(a, b) { const c = compat(a, b); return c < 0.9 ? '★☆☆
 const birthdayOf = d => monthOf(ZODIAC.indexOf(zodiacOf(d)) + 3);
 function birthdayCheck() {
   const month = monthOf(G.day);
-  for (const d of G.dolls) {
+  for (const d of residents()) {
     if (birthdayOf(d) !== month) continue;
     HOOK.toast(`🎂 本月是 ${d.name} 的生日！`);
     d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
-    for (const o of G.dolls) {
+    for (const o of residents()) {
       if (o === d) continue;
       const r = rel(o, d);
       if (o.state !== 'away') setTimeout(() => say(o, pick([`${d.name}生日快乐！`, '🎂 许个愿吧', '又长大一岁啦'])), 800 + Math.random() * 1500);

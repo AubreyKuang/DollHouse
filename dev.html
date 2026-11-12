@@ -42,7 +42,11 @@
     <h2>住户</h2>
     <div id="dollList"></div>
     <div id="dollInfo" class="card" hidden></div>
-    <button id="btnAddDoll" class="btn ghost">＋ 邀请新住户</button>
+    <div class="community-panel">
+      <button id="btnCommunity" class="btn ghost" aria-haspopup="dialog">🎉 串门与派对</button>
+      <p id="communityStatus" class="community-status" aria-live="polite" hidden></p>
+    </div>
+    <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
     <div class="card log-card">
       <div class="log-head"><h3>📜 生活日志</h3><button id="btnLogClear" class="btn small ghost">清空</button></div>
       <div id="logList" class="log-list"></div>
@@ -58,6 +62,26 @@
   <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
   <pre id="paperText" aria-live="polite"></pre>
   <button type="button" id="paperCopy" class="btn small">复制月报</button>
+</dialog>
+<dialog id="communityDialog" class="paper-dialog community-dialog" aria-labelledby="communityTitle">
+  <header class="paper-head">
+    <h2 id="communityTitle">串门与派对</h2>
+    <form method="dialog"><button class="btn small ghost">关闭</button></form>
+  </header>
+  <label for="communityHost">邀请人</label>
+  <select id="communityHost" class="mbti-picker"></select>
+  <p id="communityHelp" class="hint" aria-live="polite"></p>
+  <div id="communityChoices" class="community-choices"></div>
+</dialog>
+<dialog id="applicationsDialog" class="paper-dialog community-dialog" aria-labelledby="applicationsTitle">
+  <header class="paper-head">
+    <h2 id="applicationsTitle">邀请新住户</h2>
+    <form method="dialog"><button class="btn small ghost">关闭</button></form>
+  </header>
+  <p id="applicationSpace" class="hint"></p>
+  <h3>入住申请</h3>
+  <div id="applicationList"></div>
+  <button id="btnRandomResident" class="btn small ghost">邀请一位新朋友</button>
 </dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
@@ -127,6 +151,7 @@
 <script src="js/season.js"></script>
 <script src="js/astro.js"></script>
 <script src="js/routines.js"></script>
+<script src="js/community.js"></script>
 <script src="js/house-view.js"></script>
 <script src="js/view.js"></script>
 <script src="js/ui.js"></script>

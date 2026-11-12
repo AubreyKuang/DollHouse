@@ -18,7 +18,7 @@
 <br>
 
 ![纯代码](https://img.shields.io/badge/素材文件-0_个-e26d7d?style=flat-square)
-![单文件](https://img.shields.io/badge/单文件-~238KB-f0a64a?style=flat-square)
+![单文件](https://img.shields.io/badge/单文件-~256KB-f0a64a?style=flat-square)
 ![无依赖](https://img.shields.io/badge/依赖-无-7cc576?style=flat-square)
 ![HTML5](https://img.shields.io/badge/HTML5-Canvas_+_WebAudio-6aa9ec?style=flat-square)
 
@@ -35,7 +35,7 @@
 - 🌗 **光影**：天色随时间变化，入夜后房间变暗，台灯、电视、彩灯、圣诞树会发出暖光
 - 🌧 **天气**：窗外的雨丝、雪花、春天的花瓣、秋天的落叶都是一颗颗像素算出来的；下雨时还有合成的雨声
 
-整个游戏打包后是一个约 238KB 的 HTML 文件。双击就能玩，不用联网，也不用安装任何东西。
+整个游戏打包后是一个约 256KB 的 HTML 文件。双击就能玩，不用联网，也不用安装任何东西。
 
 > 新版截图直接取自游戏的 Canvas 画面。家具图册使用商店里同一套像素图标。
 
@@ -293,6 +293,15 @@ open DollHouse/pixel-dollhouse.html
 
 ---
 
+## 🎉 朋友来访、派对与入住
+
+- 傍晚，醒着且在家的住户有机会主动邀朋友来玩。右侧的「串门与派对」也可以选一位住户做东，办茶点、音乐或游戏派对。
+- 朋友会从门口走进客厅。有空的室友可以加入，在音乐派对跳舞、在茶点派对吃点心、在游戏派对聊棋局和玩桌游。访客结束后从门口离开，来访与派对会写入生活日志和月报。
+- 玩得开心、和邀请人的关系够好时，朋友有机会留下入住申请。点「邀请新住户」可以先看申请，或另邀一位新朋友。访客不占住户名额，房子住满时申请仍会保留。接受后，新住户会保留名字、外貌、性格和之前认识的室友。
+- 正式版和测试模式分别保存来访、申请和入住进度。
+
+![音乐派对时，一楼客厅里有访客和住户在一起跳舞](docs/house-party.png)
+
 ## 🛠 开发
 
 源码拆成了几个文件，方便修改：
@@ -316,6 +325,7 @@ open DollHouse/pixel-dollhouse.html
 │   ├── furniture3.js   生活、装饰和兴趣家具的像素图与活动
 │   ├── furniture4.js   梳妆、手工、运动等家具和活动
 │   ├── routines.js     性格、家具、天气和关系触发的日常活动
+│   ├── community.js    来访、派对与入住申请
 │   ├── economy.js      家庭基金、商店、仓库、扩建、许愿
 │   ├── rooms.js        房间隔墙和门、视线、旧布置调整
 │   ├── house-view.js   四间房剖面、阁楼、楼梯与画面坐标

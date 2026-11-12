@@ -42,7 +42,7 @@ function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || n
 // 改变关系值，跨过关键门槛时弹提示
 // 只要有一方是学生，就不进入任何恋爱剧情（表白、亲亲、暧昧、偷情、恋人、吃醋），只当朋友
 const isStudent = d => d.job === 'student';
-const canRomance = (a, b) => !isStudent(a) && !isStudent(b);
+const canRomance = (a, b) => !a.guest && !b.guest && !isStudent(a) && !isStudent(b);
 function clearRomance(d) {
   for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; }
   for (const o of G.dolls) if (o.jealousOf && o.jealousOf.who === d) o.jealousOf = null;
@@ -261,7 +261,7 @@ function caught(L, cheater, third) {
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
 const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
-  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave');
+  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && x.act.type !== 'visitStay');
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {

@@ -181,3 +181,76 @@ test('the sandbox grants maximum space and free furniture without changing the n
   `, { mode: 'test', data });
   runGame(`load(); assert.equal(G.fund, 37); assert.equal(G.level, 1); assert.equal(G.time, 0);`, { data });
 });
+
+test('a visiting friend attends a party, applies, and moves in with the same identity', () => {
+  runGame(`
+    load();
+    G.time = 18 * 60;
+    const host = G.dolls[0];
+    host.job = 'none';
+    assert.ok(startGetTogether(host, 'tea'));
+    const id = G.community.active.guestPid;
+    const friendName = communityDoll(id).name;
+    assert.equal(residents().length, 4);
+    assert.equal(G.dolls.length, 5);
+    assert.equal(workTick(communityDoll(id), .05), false);
+    assert.ok(!startGetTogether(host, 'games'));
+    assert.ok(save());
+    load();
+    assert.equal(communityDoll(id).name, friendName);
+    const restored = communityDoll(host.pid);
+    const guest = communityDoll(id);
+    for (const d of [restored, guest]) {
+      assert.ok(joinGetTogether(d));
+      for (let i = 0; i < 650 && d.act.type === 'visitGather'; i++) updateDoll(d, .05);
+      assert.equal(d.act.type, 'visitStay');
+      assert.equal(d.act.gain.hunger, 9);
+    }
+    assert.equal(G.community.active.joined.length, 2);
+    assert.notDeepEqual(G.community.active.reserved[restored.pid], G.community.active.reserved[id]);
+    const friendship = rel(restored, guest).f;
+    assert.ok(friendship >= 53);
+    Math.random = () => 0;
+    G.time = G.community.active.endsAt;
+    communityTick();
+    assert.equal(G.community.applications[0].pid, id);
+    for (let i = 0; i < 650 && communityDoll(id); i++) updateDoll(guest, .05);
+    assert.equal(communityDoll(id), undefined);
+    assert.ok(save());
+    load();
+    const newcomer = moveInApplicant(id);
+    assert.equal(newcomer.name, friendName);
+    assert.equal(newcomer.pid, id);
+    assert.equal(newcomer.guest, false);
+    assert.equal(rel(communityDoll(host.pid), newcomer).f, friendship);
+    assert.equal(residents().length, 5);
+    assert.equal(G.community.applications.length, 0);
+    assert.equal(moveInApplicant(id), null);
+  `);
+});
+
+test('the evening roll is bounded and applications wait when the house is full', () => {
+  runGame(`
+    load();
+    for (const resident of residents()) resident.job = 'none';
+    Math.random = () => 0;
+    G.time = 12 * 60;
+    communityTick();
+    assert.equal(G.community.active, null);
+    G.time = 18 * 60;
+    communityTick();
+    assert.equal(G.community.lastRoll, G.day);
+    const id = G.community.active.guestPid;
+    G.community.applications.push({ pid: id, requestedAt: absNow() });
+    addDoll({ ...newcomerProfile(), pid: 'full-house' });
+    assert.equal(residents().length, residentLimit());
+    assert.equal(moveInApplicant(id), null);
+    assert.equal(G.community.applications[0].pid, id);
+    G.fund = 9000;
+    expand();
+    const newcomer = moveInApplicant(id);
+    assert.equal(newcomer.pid, id);
+    assert.equal(G.dolls.filter(d => d.pid === id).length, 1);
+    assert.equal(G.community.active, null);
+  `);
+});

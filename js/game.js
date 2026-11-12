@@ -2,7 +2,7 @@
 const TEST_MODE = document.body?.dataset?.mode === 'test';
 const SAVE_KEY = TEST_MODE ? 'pixel-dollhouse-test-v1' : 'pixel-dollhouse-v1';
 const MIN_PER_SEC = 4;               // 现实 1 秒 = 游戏 4 分钟，一天约 6 分钟
-const HOOK = { refresh() {}, select() {}, toast() {}, logged() {} };
+const HOOK = { refresh() {}, select() {}, toast() {}, logged() {}, community() {} };
 
 // 像模拟人生那样的生活日志：每条记下年月、几点、发生了什么
 function addLog(text) {
@@ -33,10 +33,10 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
     return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+      floorsV: 1, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+      dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
         tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
       npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
@@ -59,6 +59,8 @@ function applySave(s) {
   G.npcMemory = s.npcMemory; G.paper = (s.paper || []).map(formatSavedPaper); G.daily=s.daily || {};
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
+  G.community = restoreCommunity(s.community);
+  if (G.community.active) G.community.active.reserved = {};
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
@@ -69,7 +71,7 @@ function applySave(s) {
   }
   fitHouseFurniture();
   ensureDoor(); BLOCK = blockedMap();
-  for (const d of s.dolls) addDoll(d);
+  for (const d of s.dolls) if (!d.guest || d.pid === G.community.active?.guestPid) addDoll(d);
   // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
   if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
     d.job = 'barista'; addLog(`🎓 ${d.name} 毕业了，现在是一名${JOBS.barista.name}`);
@@ -192,7 +194,7 @@ function approachTiles(f) {
 /* ---------------- 小人 ---------------- */
 function addDoll(src) {
   const d = {
-    uid: G.uid++, pid: src.pid || Math.random().toString(36).slice(2, 10), name: src.name, persona: Object.hasOwn(PERSONAS, src.persona) ? src.persona : 'genki', look: { ...src.look },
+    uid: G.uid++, guest: !!src.guest, pid: src.pid || Math.random().toString(36).slice(2, 10), name: src.name, persona: Object.hasOwn(PERSONAS, src.persona) ? src.persona : 'genki', look: { ...src.look },
     needs: src.needs ? { ...src.needs } : { energy: 60 + Math.random() * 40, hunger: 50 + Math.random() * 40, fun: 50 + Math.random() * 40, social: 50 + Math.random() * 40 },
     x: 0, y: 0, tx: 0, ty: 0, dir: 'down', frame: 0, ft: 0, state: 'idle', path: [], act: null,
     routineTimes: { ...src.routineTimes },
@@ -226,6 +228,7 @@ function takingStairs(d) {
 function endAct(d) {
   if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
   const a = d.act;
+  if (G.community.active && ['visitGather', 'visitStay'].includes(a?.type)) delete G.community.active.reserved[d.pid];
   if (a && a.furn) {
     a.furn.users = a.furn.users.filter(u => u !== d);
     a.furn.active = a.furn.users.length > 0;
@@ -236,11 +239,12 @@ function endAct(d) {
 }
 
 function decide(d) {
+  if (joinGetTogether(d)) return;
   const P = PERSONAS[d.persona], N = d.needs, opts = [];
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use) continue;
+    if (!F.use || (d.guest && F.use === 'sleep')) continue;
     const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
     if (f.users.length >= cap) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
@@ -270,7 +274,7 @@ function decide(d) {
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
-    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
+    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay')));
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -339,6 +343,8 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
+  if (a?.type === 'visitGather') { arriveAtGathering(d); return; }
   if (a && Object.hasOwn(ROUTINES, a.type)) { beginRoutine(d); return; }
   if (a && a.type === 'join') { arriveJoin(d); return; }
   if (a && a.type === 'leave') { exitHome(d); return; }
@@ -347,7 +353,7 @@ function arrive(d) {
   if (a.type === 'chat') {
     const p = a.partner;
     if (!G.dolls.includes(p) || p.state === 'lift' || (p.act && p.act.onFurn)) { endAct(d); return; }
-    if (p.act && (Object.hasOwn(ROUTINES, p.act.type) || (p.act.type === 'chat' && p.act.partner !== d))) { say(d, '在忙呢，下次吧'); endAct(d); return; }
+    if (p.act && (p.act.type === 'visitStay' || Object.hasOwn(ROUTINES, p.act.type) || (p.act.type === 'chat' && p.act.partner !== d))) { say(d, '在忙呢，下次吧'); endAct(d); return; }
     if (p.act && (p.act.furn || p.act.type === 'join')) endAct(p);
     startSocial(d, p);
     return;
@@ -438,6 +444,11 @@ function updateDoll(d, dt) {
     const a = d.act;
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
+    if (a.type === 'visitStay') {
+      d.ft += dt;
+      if (a.dance) { d.frame = Math.floor(d.ft * 5) % 4; d.hop = d.frame % 2; }
+      if (a.theme === 'music' && G.community.active?.hostPid === d.pid && Math.random() < dt * .8) SFX.play('piano');
+    }
     if (a.type === 'dance') { d.ft += dt; if (d.ft > 0.25) { d.ft = 0; d.frame = (d.frame + 1) % 4; d.dir = ['down', 'right', 'up', 'left'][d.frame]; } d.hop = d.frame % 2 ? 2 : 0; N.fun = Math.min(100, N.fun + 2 * dt); }
     if (a.type === 'chat') tickSocial(d, dt);
     if (a.type === 'join') { tickJoin(d, dt); if (!d.act) return; }
@@ -493,7 +504,7 @@ function petDoll(d) {
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
   if (!F.use) { say(d, '这个不能用哦'); return false; }
-  if (d.state === 'lift') return false;
+  if (d.state === 'lift' || d.state === 'away' || (d.guest && F.use === 'sleep')) return false;
   if (d.act) endAct(d);
   if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); SFX.play('deny'); return false; }
   say(d, '好的～', 1.2);
@@ -541,6 +552,7 @@ function update(realDt) {
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
     seasonTick();
+    communityTick();
     for (const d of G.dolls) updateDoll(d, dt);
   }
   updateDoors(realDt);

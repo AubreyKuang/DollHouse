@@ -11,6 +11,7 @@ HOOK.toast = (msg, quiet) => {
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
+  if (d.act?.type === 'visitStay') return GET_TOGETHERS[G.community.active?.kind]?.name || '和朋友相聚';
   if (d.state === 'lift') return '被你拎在手里';
   if (d.state === 'wait') return '在等人过来';
   if (d.state === 'away') return awayText(d);
@@ -32,12 +33,13 @@ function renderDollList() {
     const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : '') + (d.state === 'away' ? ' away' : ''));
     const c = el('canvas'); c.width = 20; c.height = 24; dollPortrait(c, d.look);
     const P = PERSONAS[d.persona];
-    const m = el('div', 'meta', `<b>${esc(d.name)} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
+    const m = el('div', 'meta', `<b>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
     b.append(c, m);
     b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
     box.append(b);
   }
-  $('#btnAddDoll').style.display = G.dolls.length >= LEVELS[G.level].cap ? 'none' : '';
+  const count = G.community.applications.length;
+  $('#btnAddDoll').textContent = count ? `＋ 邀请新住户 · ${count} 份申请` : '＋ 邀请新住户';
 }
 
 function renderInfo() {
@@ -45,7 +47,7 @@ function renderInfo() {
   if (!d) { card.hidden = true; return; }
   const P = PERSONAS[d.persona];
   card.hidden = false;
-  card.innerHTML = `<h3>${esc(d.name)}</h3>
+  card.innerHTML = `<h3>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''}</h3>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
@@ -61,7 +63,7 @@ function renderInfo() {
     <div class="hint" style="margin:4px 0 0">选中后点家具，可以让 TA 去用</div>
     <div class="actions">
       <button class="btn small" id="btnPet">🤚 摸摸头</button>
-      <button class="btn small" id="btnDress">👗 换装</button>
+      <button class="btn small" id="btnDress"${d.guest ? ' hidden' : ''}>👗 换装</button>
       <button class="btn small ghost" id="btnWake">📣 叫 TA</button>
     </div>`;
   $('#btnPet').onclick = () => petDoll(d);
@@ -90,7 +92,7 @@ function tickInfo() {
   }
 }
 
-HOOK.select = () => { renderDollList(); renderInfo(); };
+HOOK.select = () => { renderDollList(); renderInfo(); updateCommunityStatus(); };
 
 /* ---------- 生活日志 ---------- */
 function renderLog() {
@@ -157,10 +159,10 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepDolls = G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
-  s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
+  s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
 const iconCache = {};
@@ -222,8 +224,9 @@ let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0;
 const wdDoll = () => G.dolls.find(d => d.uid === wdUid);
 
 function openWardrobe(uid) {
-  if (!G.dolls.length) return;
-  wdUid = uid || G.dolls[0].uid;
+  const resident = residents().find(d => d.uid === uid) || residents()[0];
+  if (!resident) return;
+  wdUid = resident.uid;
   $('#wardrobe').hidden = false; SFX.play('open');
   renderWardrobe();
 }
@@ -239,28 +242,18 @@ $('#wdRandom').onclick = () => {
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  if (G.dolls.length <= 1) { HOOK.toast('至少要留一位住户哦', true); return; }
+  if (residents().length <= 1) { HOOK.toast('至少要留一位住户哦', true); return; }
   if (!confirm(`真的要让 ${d.name} 搬走吗？`)) return;
   if (d.act) endAct(d);
   for (const o of G.dolls) if (o.act && o.act.partner === d) endAct(o);
   G.dolls = G.dolls.filter(o => o !== d);
   if (G.sel === d.uid) G.sel = null;
-  HOOK.toast(`${d.name} 挥挥手搬走了`); wdUid = G.dolls[0].uid; renderWardrobe(); save();
+  HOOK.toast(`${d.name} 挥挥手搬走了`); wdUid = residents()[0].uid; renderWardrobe(); HOOK.select(); save();
 };
-
-function randomLook() {
-  const keys = o => Object.keys(o), r = n => (Math.random() * n) | 0;
-  const top = pick(keys(OUTFIT.top));
-  return {
-    skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
-    top, topColor: r(OUTFIT.clothColor.length), bottom: pick(keys(OUTFIT.bottom)), bottomColor: r(OUTFIT.clothColor.length),
-    shoes: r(OUTFIT.shoes.length), acc: pick(keys(OUTFIT.acc)),
-  };
-}
 
 function renderWdTabs() {
   const box = $('#wdTabs'); box.innerHTML = '';
-  for (const d of G.dolls) {
+  for (const d of residents()) {
     const b = el('button', d.uid === wdUid ? 'on' : '', esc(d.name));
     b.onclick = () => { wdUid = d.uid; SFX.play('click'); renderWardrobe(); };
     box.append(b);
@@ -357,14 +350,88 @@ function renderWardrobe() {
 }
 function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, 'walk'); }
 
-/* ---------- 新住户 ---------- */
-$('#btnAddDoll').onclick = () => {
-  if (G.dolls.length >= LEVELS[G.level].cap) { HOOK.toast(`房子住满了，扩建后才能邀请更多人`, true); return; }
-  const used = new Set(G.dolls.map(d => d.name));
-  const name = NAMES.find(n => !used.has(n)) || '新朋友';
-  const d = addDoll({ name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(), mbti: randomMbti(), heart: Math.random() < 0.25 ? 'fickle' : Math.random() < 0.5 ? 'loyal' : 'normal', look: randomLook() });
-  G.sel = d.uid; say(d, '大家好，请多关照！'); spawnHeart(d); SFX.play('love');
-  HOOK.select(); save(); HOOK.toast(`${name} 搬进来啦！`);
+/* ---------- 串门、派对与入住 ---------- */
+function updateCommunityStatus() {
+  const event = G.community.active;
+  const status = $('#communityStatus');
+  status.hidden = !event;
+  if (!event) return;
+  const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
+  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${style.name} · ${host?.name || '住户'}邀请了${guest?.name || '朋友'} · ${event.joined.length} 人参与`;
+  if (status.textContent !== label) status.textContent = label;
+}
+HOOK.community = updateCommunityStatus;
+
+$('#btnCommunity').onclick = () => {
+  const hosts = availableHosts();
+  const select = $('#communityHost');
+  select.innerHTML = '';
+  for (const d of hosts) {
+    const option = el('option');
+    option.value = d.pid; option.textContent = d.name; select.append(option);
+  }
+  if (hosts.some(d => d.uid === G.sel)) select.value = hosts.find(d => d.uid === G.sel).pid;
+  const event = G.community.active;
+  const ready = !event && absNow() >= G.community.nextEventAt && hosts.length > 0;
+  $('#communityHelp').textContent = event ? `正在进行${GET_TOGETHERS[event.kind].name}，结束后可以再邀请朋友。`
+    : !hosts.length ? '现在没有在家且醒着的住户。'
+    : !ready ? '刚送走朋友，让小屋休息一会儿吧。'
+    : '选一位住户做东。朋友会从门口进来，有空的室友可以加入派对。';
+  const choices = $('#communityChoices');
+  choices.innerHTML = '';
+  for (const [kind, style] of Object.entries(GET_TOGETHERS)) {
+    const button = el('button', 'btn small', `${style.icon} ${kind === 'visit' ? '请朋友来玩' : '办' + style.name}`);
+    button.disabled = !ready;
+    button.onclick = () => {
+      if (startGetTogether(communityDoll(select.value), kind)) $('#communityDialog').close();
+      else $('#communityHelp').textContent = '现在办不了。确认主人在家，门口和一楼客厅有通道和空位。';
+    };
+    choices.append(button);
+  }
+  $('#communityDialog').showModal();
+};
+
+function welcomeResident(d) {
+  if (!d) { renderApplications(); return; }
+  $('#applicationsDialog').close();
+  G.sel = d.uid;
+  say(d, '大家好，请多关照！');
+  spawnHeart(d);
+  SFX.play('love');
+  HOOK.select();
+  HOOK.toast(`${d.name} 搬进来啦！`);
+  save();
+}
+
+function renderApplications() {
+  const canMove = residents().length < residentLimit();
+  $('#applicationSpace').textContent = `住户 ${residents().length} / ${residentLimit()}${canMove ? '' : ' · 小屋已住满，可以扩建或留待有空位时再邀请。'}`;
+  const list = $('#applicationList');
+  list.innerHTML = '';
+  for (const application of G.community.applications) {
+    const friend = G.community.friends.find(f => f.pid === application.pid);
+    if (!friend) continue;
+    const entry = el('div', 'application-row');
+    const portrait = el('canvas'); portrait.width = 20; portrait.height = 24;
+    dollPortrait(portrait, friend.look);
+    const info = el('div', 'application-info');
+    const title = el('strong'); title.textContent = friend.name;
+    const host = communityDoll(friend.hostPid);
+    const detail = el('small');
+    detail.textContent = `${PERSONAS[friend.persona].name} · ${host ? host.name + '的朋友' : '来访过的朋友'} · 来访 ${friend.visits} 次`;
+    info.append(title, detail);
+    const button = el('button', 'btn small', '邀请入住');
+    button.setAttribute('aria-label', `邀请 ${friend.name} 入住`);
+    button.disabled = !canMove;
+    button.onclick = () => welcomeResident(moveInApplicant(friend.pid));
+    entry.append(portrait, info, button); list.append(entry);
+  }
+  if (!list.children.length) list.append(el('p', 'hint', '还没有入住申请。朋友来玩得开心，就可能在离开时留下申请。'));
+  $('#btnRandomResident').disabled = !canMove;
+}
+$('#btnAddDoll').onclick = () => { renderApplications(); $('#applicationsDialog').showModal(); };
+$('#btnRandomResident').onclick = () => {
+  if (residents().length < residentLimit()) welcomeResident(addDoll(newcomerProfile()));
 };
 
 /* ---------- 主循环 ---------- */

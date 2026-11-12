@@ -103,6 +103,7 @@ function comeHome(d) {
 
 // 每帧在 updateDoll 里调用；返回 true 表示这帧不用再做别的
 function workTick(d, dt) {
+  if (d.guest) return false;
   const N = d.needs;
   if (d.state === 'away') {
     // 在外面：会累、会饿，但和同事也算有社交
@@ -152,7 +153,7 @@ const yuan = n => (n < 0 ? '-¥' : '¥') + Math.abs(Math.round(n)).toLocaleStrin
 
 function helperFor(d, amount) {
   return G.dolls
-    .filter(o => o !== d && o.state !== 'away' && o.money >= amount && (rel(d, o).lovers || rel(d, o).f >= 50))
+    .filter(o => o !== d && !o.guest && o.state !== 'away' && o.money >= amount && (rel(d, o).lovers || rel(d, o).f >= 50))
     .sort((a, b) => (rel(d, b).lovers - rel(d, a).lovers) || (rel(d, b).f - rel(d, a).f))[0];
 }
 const canAfford = (d, amount) => TEST_MODE || d.money >= amount || !!helperFor(d, amount);
@@ -178,21 +179,21 @@ function payday(d) {
 }
 
 function nightlyBills() {
-  const payers = TEST_MODE ? [] : G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
+  const payers = TEST_MODE ? [] : residents().filter(d => d.job !== 'student');   // 学生不用交房租
   for (const d of payers) d.money -= RENT;
   if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
   const sb = seasonBill();
   if (sb && payers.length) { for (const d of payers) d.money -= sb[1]; addLog(`${sb[0] === '暖气费' ? '🔥' : '🧊'} 每人还交了${sb[0]} ${yuan(sb[1])}`); }
-  for (const d of G.dolls) if (d.job === 'artist' && Math.random() < (d.paintedDay >= G.day - 1 ? 0.7 : 0.25)) {
+  for (const d of residents()) if (d.job === 'artist' && Math.random() < (d.paintedDay >= G.day - 1 ? 0.7 : 0.25)) {
     const v = 200 + Math.round(Math.random() * 6) * 100;
     d.money += v; addLog(`🎨 ${d.name} 的画卖出去了，收入 ${yuan(v)}`);
   }
   // 欠债太多的人会出去找工作
-  for (const d of G.dolls) if ((d.job === 'none' || d.job === 'artist') && d.money < -500 && Math.random() < 0.3) {
+  for (const d of residents()) if ((d.job === 'none' || d.job === 'artist') && d.money < -500 && Math.random() < 0.3) {
     d.job = pick(['barista', 'night', 'office']);
     addLog(`💼 ${d.name} 欠了 ${yuan(-d.money)}，终于去找了份工作：${JOBS[d.job].name}`);
   }
-  const broke = G.dolls.filter(d => d.money < 0);
+  const broke = residents().filter(d => d.money < 0);
   for (const d of broke) d.needs.fun = Math.max(0, d.needs.fun - 20);
   if (broke.length) addLog(`😰 ${broke.map(d => d.name).join('、')} 的存款见底了`);
 }
