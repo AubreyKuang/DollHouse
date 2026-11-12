@@ -72,7 +72,8 @@ const NPCMemory = (() => {
           importance: Math.max(60, ...similar.map(item => item.importance)),
           emotion: similar.reduce((sum, item) => sum + item.emotion, 0) / similar.length,
           confidence: Math.min(...similar.map(item => item.confidence)),
-          interpretation: `${entry.interpretation}（多次经历）`
+          interpretation: entry.interpretation,
+          occurrences: similar.length
         };
         memory.short = memory.short.filter(item => !similar.includes(item));
         promote(memory, merged);
