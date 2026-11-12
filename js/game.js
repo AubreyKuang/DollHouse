@@ -30,22 +30,68 @@ const G = {
 
 /* ---------------- 存档 ---------------- */
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
+function houseSaveData() {
+  return {
+    floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    wall: G.wall, floor: G.floor, time: G.time, day: G.day,
+    furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+    dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+      tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
+      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
+    npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
+    trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
+  };
+}
 function save() {
   try {
-    return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
-      wall: G.wall, floor: G.floor, time: G.time, day: G.day,
-      furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
-        tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes,
-        away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
-    },validHouseSave);
+    return SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
+// v1 存档没有信任、醋意和搭子记录：补上空表，其余照旧读取
+function migrateHouseSave(s, from) {
+  if (!s || typeof s !== 'object') return s;
+  if (from < 2) {
+    s.trust ??= {}; s.jealousy ??= {}; s.habits ??= {}; s.dayTrust ??= {}; s.lastDaily ??= {};
+  }
+  return s;
+}
+// 每月开始时留一份快照，最多 4 份，可以从月报里回到那个月初
+function snapshotHouseMonth() {
+  try { SaveManager.snapshot(localStorage, SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
+}
+function restoreHouseSnapshot(index) {
+  const s = SaveManager.restore(localStorage, SAVE_KEY, index, validHouseSave, migrateHouseSave);
+  if (!s) return false;
+  applySave(s); rebuild(); save();
+  return true;
+}
+let lastSavedAt = 0;
 function load() {
-  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave);
+  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave,migrateHouseSave);
   applySave(s || defaultHouseSave());
+  lastSavedAt = s?.savedAt || 0;
+  if (!SaveManager.snapshots(localStorage, SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
+}
+// 离线模拟：关掉页面的这段时间，小屋最多继续过一整天（现实 6 分钟）
+const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
+function offlineEnabled() { try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; } }
+function catchUpOffline() {
+  if (TEST_MODE || !lastSavedAt || !offlineEnabled()) return null;
+  const seconds = Math.min(360, Math.max(0, (Date.now() - lastSavedAt) / 1000));
+  if (seconds < 15) return null;
+  const hooks = { toast: HOOK.toast, logged: HOOK.logged }, speed = G.speed, startDay = G.day, startTime = G.time;
+  let happened = 0;
+  HOOK.toast = () => {}; HOOK.logged = () => { happened++; };
+  G.speed = 1;
+  try {
+    for (let t = 0; t < seconds && !document.getElementById('paperDialog')?.open; t += 0.25) update(0.25);
+  } finally {
+    Object.assign(HOOK, hooks); G.speed = speed;
+  }
+  const minutes = (G.day - startDay) * 1440 + G.time - startTime;
+  const hours = Math.round(minutes / 60);
+  addLog(`🌙 你不在的 ${hours} 小时里，小屋照常过日子，发生了 ${happened} 件事`);
+  return { hours, happened };
 }
 function defaultHouseSave() {
   const initial = JSON.parse(JSON.stringify(DEFAULT_SAVE));
@@ -64,6 +110,7 @@ function applySave(s) {
   G.community = restoreCommunity(s.community);
   if (G.community.active) G.community.active.reserved = {};
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
+  G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
@@ -214,7 +261,9 @@ function addDoll(src) {
     zodiac: src.zodiac || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).zodiac || randomZodiac(),
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
+    vain: typeof src.vain === 'boolean' ? src.vain : undefined,
   };
+  isVain(d);
   if (TEST_MODE) d.money = Math.max(d.money, 1000000);
   d.needs.bladder ??= 85;
   G.dolls.push(d);
@@ -283,14 +332,17 @@ function decide(d) {
       const evening=G.time>=17*60&&G.time<21*60;
       s+=evening?18+f.users.length*12:0;
     }
-    if(F.use==='groom'&&['romantic','social','genki'].includes(d.persona))s+=18;
+    if(F.use==='groom')s+=groomBonus(d);              // 爱美的人更常去照镜子
+    s+=companionBonus(d,f,F.use);                      // 饭搭子、游戏搭子在用，就想凑过去
+    if(inPrivateRoomTile(f)&&!isE(d))s+=6;             // 内向的人喜欢待在卧室里
     const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
     s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
-    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay')));
+    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay'))
+    && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -307,7 +359,8 @@ function decide(d) {
   for (const o of G.dolls) {
     if (o === d || !joinable(o) || !canSee(d,o)) continue;
     const J = JOIN[o.act.type], r = rel(d, o);
-    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
+    const buddy = o.act.type === 'game' && bondTagged(d, o, 'game') ? 25 : 0;
+    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + buddy + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
   }
   opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + traitBonus(d, 'dance') + Math.random() * 15 * noiseMul(d) - (G.night ? 20 : 0), type: 'dance' });
   opts.push({ s: 12 + (P.like.wander || 0) + traitBonus(d, 'wander') + Math.random() * 20 * noiseMul(d), type: 'wander' });
@@ -415,8 +468,10 @@ function arrive(d) {
   }
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+    noteSharedMeal(d,f);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
   }
+  if(a.type==='groom')afterGroom(d);
   if (a.type === 'chess') {
     const opponent = f.users.find(o => o !== d && o.state === 'act');
     if (opponent) {
@@ -575,6 +630,7 @@ function update(realDt) {
       nightlyBills();
       startHouseMonth();
       save();
+      snapshotHouseMonth();
       SFX.play('newday');
     }
     const h = G.time / 60;
@@ -585,7 +641,7 @@ function update(realDt) {
     for (const d of G.dolls) updateDoll(d, dt);
   }
   updateDoors(realDt);
-  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); }
+  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); bondsTick(dt); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }

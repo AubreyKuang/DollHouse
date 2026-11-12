@@ -49,7 +49,7 @@ function renderInfo() {
   card.hidden = false;
   card.innerHTML = `<h3>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''}</h3>
     <div id="infoPartners" class="partner-list" hidden></div>
-    <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
+    <div class="persona">${P.icon} ${P.name} · ${P.desc}${isVain(d) ? ' · ✨ 爱美，常照镜子' : ''}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
     <div class="persona">MBTI 偏好 · ${(MBTI_INTERESTS[mb(d)] || []).map(use => ACT_NAMES[use]).join('、')}</div>
@@ -97,7 +97,9 @@ function tickInfo() {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
       if (!lab) continue;
-      lab.textContent = relLabel(r);
+      // 信任和醋意是单向的：这里显示的是“我”对 TA 的看法
+      const trust = trustWord(trustOf(d, o)), envy = jealousyOf(d, o) >= 20 ? '😤 醋意' : '';
+      lab.textContent = [relLabel(r), trust, envy].filter(Boolean).join(' · ');
       document.querySelector(`[data-rel-row="${o.uid}"]`).classList.toggle('couple-rel', arePartners(d, o));
       document.querySelector(`[data-rf="${o.uid}"]`).style.width = Math.max(0, r.f).toFixed(0) + '%';
       document.querySelector(`[data-rlv="${o.uid}"]`).style.width = r.l.toFixed(0) + '%';
@@ -486,3 +488,34 @@ paperAuto.checked=true;
 try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
 paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
+
+const paperOffline=document.getElementById('paperOffline');
+paperOffline.checked=offlineEnabled();
+paperOffline.onchange=()=>{try{localStorage.setItem(OFFLINE_KEY,paperOffline.checked?'on':'off');}catch{}};
+document.getElementById('paperCard').onclick=()=>{
+  const latest=G.paper.at(-1);
+  if(latest)saveHousePaperCard(latest,`小屋月报-${latest.split('\n')[0]}.png`);
+};
+function renderRewind(){
+  const list=document.getElementById('rewindList');
+  const snaps=SaveManager.snapshots(localStorage,SAVE_KEY).sort((a,b)=>b.day-a.day);
+  list.replaceChildren(...snaps.map(snap=>{
+    const row=el('div','rewind-row',`<span>${monthLabel(snap.day)} 月初${snap.day===G.day?' · 本月':''}</span>`);
+    const button=el('button','btn small ghost','回到这里');
+    button.onclick=()=>{
+      if(!confirm(`回到${monthLabel(snap.day)}月初？之后发生的事都会被改写。`))return;
+      if(restoreHouseSnapshot(snap.index)){
+        document.getElementById('paperDialog').close();
+        HOOK.select();updateClock();renderLog();renderShopBar();updateHousePaperButton();
+        HOOK.toast(`🕰 回到了${monthLabel(G.day)}月初`,true);
+      }else HOOK.toast('这份快照读不出来了',true);
+    };
+    row.append(button);return row;
+  }));
+  if(!snaps.length)list.textContent='还没有快照。';
+}
+document.querySelector('.rewind-box').addEventListener('toggle',renderRewind);
+
+// 离线模拟：补上关掉页面期间的生活
+const away=catchUpOffline();
+if(away){renderLog();HOOK.select();updateClock();if(away.hours>=1)HOOK.toast(`🌙 你不在的 ${away.hours} 小时里，小屋发生了 ${away.happened} 件事`,true);}

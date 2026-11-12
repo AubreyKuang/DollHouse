@@ -240,3 +240,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .application-info{display:grid;gap:3px;flex:1;min-width:0}
 .application-info small{color:var(--muted)}
 #btnRandomResident{margin-top:12px}
+.paper-dialog>label{display:block;margin:2px 0}
+.paper-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.rewind-box{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px}.rewind-box summary{cursor:pointer;font-weight:600}
+.rewind-list{display:grid;gap:6px;margin-top:6px}.rewind-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}

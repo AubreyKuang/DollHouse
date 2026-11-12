@@ -36,8 +36,8 @@ const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
   if (r.secret) return '🤫 偷偷暧昧';
-  const love = levelOf(r.l, LOVE_LEVELS);
-  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '');
+  const love = levelOf(r.l, LOVE_LEVELS), tags = typeof bondTagsText === 'function' ? bondTagsText(r) : '';
+  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
 }
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
@@ -117,6 +117,11 @@ function startSocial(d, p) {
   let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
   const spark = r.f >= 45 ? 1 : 0;   // 足够熟了，日常相处也会慢慢心动
+  // 信任是单向的：被拿来开玩笑的人会记仇，吵架两边都会少一分信任
+  if (kind === 'chat') { addTrust(d, p, 1); addTrust(p, d, 1); }
+  if (kind === 'hug' || kind === 'kiss') { addTrust(d, p, 2); addTrust(p, d, 2); }
+  if (kind === 'joke') addTrust(p, d, -3);
+  if (kind === 'argue') { addTrust(d, p, -6); addTrust(p, d, -6); }
   if (kind === 'chat') bump(d, p, 5, 1.5 * spark);
   if (kind === 'joke') { bump(d, p, 6, 1.2 * spark); d.needs.fun = Math.min(100, d.needs.fun + 8); p.needs.fun = Math.min(100, p.needs.fun + 8); }
   if (kind === 'hug') { bump(d, p, 5, 3 + 3 * spark); spawnHeart(d); spawnHeart(p); }
@@ -145,9 +150,14 @@ function startSocial(d, p) {
           if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
             const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
             HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
+            const rival = x === d ? p : d;
             NPCMemory.record(G,{type:'breakup',time:absNow(),participants:[x.pid,old.pid],outcome:'left'},[
               {person:old.pid,subject:x.pid,emotion:-1,impact:100,interpretation:`我被${x.name}抛下了`}
             ]);
+            NPCMemory.record(G,{type:'rival',time:absNow(),participants:[old.pid,rival.pid,x.pid],outcome:'remembered'},[
+              {person:old.pid,subject:rival.pid,emotion:-.9,impact:95,interpretation:`${rival.name}抢走了${x.name}`}
+            ]);
+            addTrust(old, x, -35); addTrust(old, rival, -30); addJealousy(old, rival, 60);
             say(old, '……怎么会这样'); spawnHeart(old, '💔');
           }
         }
@@ -228,6 +238,7 @@ function jealous(L, cheater, third) {
   spawnHeart(L, '😤');
   // 记下来：等这次互动结束，就去找恋人算账
   L.jealousOf = { who: cheater, until: absNow() + 240 };
+  addJealousy(L, third, 30); addTrust(L, cheater, -6);
   if (L.state === 'idle' || (L.act && !L.act.onFurn && L.act.type !== 'chat')) { if (L.act) endAct(L); L.state = 'idle'; L.think = 0.5; }
   HOOK.toast(`😤 ${L.name} 看到 ${cheater.name} 和 ${third.name} 很亲密，吃醋了`);
 }
@@ -259,6 +270,14 @@ function caught(L, cheater, third) {
     { person: third.pid, subject: L.pid,
       interpretation: `${L.name}撞见了我和${cheater.name}`, emotion: -.7, impact: 80 }
   ]);
+  // 恋人单独记下“第三者”：这份记忆的主角是抢走恋人的人
+  NPCMemory.record(G, {
+    type: 'rival', time: absNow(), participants: [L.pid, third.pid, cheater.pid], outcome: 'remembered'
+  }, [
+    { person: L.pid, subject: third.pid, channel: 'witness',
+      interpretation: `${third.name}想抢走${cheater.name}`, emotion: -.95, impact: 95 }
+  ]);
+  addTrust(L, cheater, -40); addTrust(L, third, -30); addJealousy(L, third, 60);
 }
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
@@ -362,7 +381,10 @@ function arriveJoin(d) {
   bump(d, o, 3, rel(d, o).f >= 45 ? 1.5 : 0);
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
+  if (a.what === 'game') countTogether('game', d, o);
+  if (a.what === 'piano') notePianoCrowd(o);
   if(a.what==='game'||a.what==='piano'){
+    addTrust(o, d, 2);
     countHouseActivity(a.what==='piano'?'audience':'partners',o.name);
     NPCMemory.record(G,{type:'company',time:absNow(),participants:[o.pid,d.pid],outcome:a.what},[
       {person:o.pid,subject:d.pid,emotion:.55,impact:55,interpretation:`${d.name}来陪我${a.what==='game'?'玩游戏':'弹琴'}`},

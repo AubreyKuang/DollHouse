@@ -62,8 +62,17 @@
     <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
   </header>
   <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
+  <label><input id="paperOffline" type="checkbox"> 关掉页面后，小屋继续过日子（最多补一天）</label>
   <pre id="paperText" aria-live="polite"></pre>
-  <button type="button" id="paperCopy" class="btn small">复制月报</button>
+  <div class="paper-actions">
+    <button type="button" id="paperCopy" class="btn small">复制月报</button>
+    <button type="button" id="paperCard" class="btn small">保存本期纪念卡</button>
+  </div>
+  <details class="rewind-box">
+    <summary>🕰 时光回溯</summary>
+    <p class="hint">每月开始时会留一份快照，最多保留 4 个月。回到那个月初后，之后的事会重新发生。</p>
+    <div id="rewindList" class="rewind-list"></div>
+  </details>
 </dialog>
 <dialog id="communityDialog" class="paper-dialog community-dialog" aria-labelledby="communityTitle">
   <header class="paper-head">
@@ -143,6 +152,7 @@
 <script src="js/npc-memory.js"></script>
 <script src="js/save-manager.js"></script>
 <script src="js/house-life.js"></script>
+<script src="js/bonds.js"></script>
 <script src="js/game.js"></script>
 <script src="js/social.js"></script>
 <script src="js/work.js"></script>
@@ -158,6 +168,7 @@
 <script src="js/house-view.js"></script>
 <script src="js/yard.js"></script>
 <script src="js/view.js"></script>
+<script src="js/paper-card.js"></script>
 <script src="js/ui.js"></script>
 </body>
 </html>

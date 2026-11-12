@@ -247,6 +247,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .application-info{display:grid;gap:3px;flex:1;min-width:0}
 .application-info small{color:var(--muted)}
 #btnRandomResident{margin-top:12px}
+.paper-dialog>label{display:block;margin:2px 0}
+.paper-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.rewind-box{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px}.rewind-box summary{cursor:pointer;font-weight:600}
+.rewind-list{display:grid;gap:6px;margin-top:6px}.rewind-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
 </style>
 </head>
 <body>
@@ -305,8 +309,17 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
   </header>
   <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
+  <label><input id="paperOffline" type="checkbox"> 关掉页面后，小屋继续过日子（最多补一天）</label>
   <pre id="paperText" aria-live="polite"></pre>
-  <button type="button" id="paperCopy" class="btn small">复制月报</button>
+  <div class="paper-actions">
+    <button type="button" id="paperCopy" class="btn small">复制月报</button>
+    <button type="button" id="paperCard" class="btn small">保存本期纪念卡</button>
+  </div>
+  <details class="rewind-box">
+    <summary>🕰 时光回溯</summary>
+    <p class="hint">每月开始时会留一份快照，最多保留 4 个月。回到那个月初后，之后的事会重新发生。</p>
+    <div id="rewindList" class="rewind-list"></div>
+  </details>
 </dialog>
 <dialog id="communityDialog" class="paper-dialog community-dialog" aria-labelledby="communityTitle">
   <header class="paper-head">
@@ -1313,22 +1326,28 @@ const NPCMemory = (() => {
 })();
 </script>
 <script>
-/* Shared snapshot storage. The primary key remains readable by older builds. */
+/* Shared snapshot storage. The primary key remains readable by older builds.
+   v2: older saves are migrated instead of rejected, and a few dated snapshots are kept for rewinding. */
 const SaveManager = (() => {
-  const version = 1;
-  function decode(raw, valid) {
+  const version = 2;
+  const SNAPSHOTS = 4;
+  function decode(raw, valid, migrate) {
     try {
-      const data = JSON.parse(raw);
-      if (!data || (data.saveVersion != null && data.saveVersion !== version) || !valid(data)) return null;
+      let data = JSON.parse(raw);
+      if (!data || typeof data !== 'object') return null;
+      const from = data.saveVersion ?? 1;
+      if (from > version) return null;
+      if (from < version && migrate) data = migrate(data, from);
+      if (!data || !valid(data)) return null;
       return data;
     } catch {
       return null;
     }
   }
 
-  function load(storage, key, valid) {
+  function load(storage, key, valid, migrate) {
     try {
-      return decode(storage.getItem(key), valid) || decode(storage.getItem(key + ':backup'), valid);
+      return decode(storage.getItem(key), valid, migrate) || decode(storage.getItem(key + ':backup'), valid, migrate);
     } catch {
       return null;
     }
@@ -1348,7 +1367,40 @@ const SaveManager = (() => {
     }
   }
 
-  return { load, save };
+  function readSnapshots(storage, key) {
+    try {
+      const list = JSON.parse(storage.getItem(key + ':snapshots') || '[]');
+      return Array.isArray(list) ? list.filter(entry => entry && typeof entry.raw === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+  // Keep one snapshot per label. Oldest go first when storage is full.
+  function snapshot(storage, key, data, valid, meta = {}) {
+    const raw = JSON.stringify({ ...data, saveVersion: version });
+    if (!decode(raw, valid)) return false;
+    let list = readSnapshots(storage, key).filter(entry => entry.label !== meta.label);
+    list.push({ ...meta, savedAt: Date.now(), raw });
+    list = list.slice(-SNAPSHOTS);
+    while (list.length) {
+      try {
+        storage.setItem(key + ':snapshots', JSON.stringify(list));
+        return true;
+      } catch {
+        list.shift();
+      }
+    }
+    return false;
+  }
+  function snapshots(storage, key) {
+    return readSnapshots(storage, key).map(({ raw, ...meta }, index) => ({ ...meta, index }));
+  }
+  function restore(storage, key, index, valid, migrate) {
+    const entry = readSnapshots(storage, key)[index];
+    return entry ? decode(entry.raw, valid, migrate) : null;
+  }
+
+  return { load, save, snapshot, snapshots, restore, version };
 })();
 </script>
 <script>
@@ -1376,6 +1428,7 @@ function helpWithMeal(d, table) {
     {person:d.pid,subject:guest.pid,emotion:.45,impact:55,interpretation:`我给 ${guest.name} 分了晚饭`}
   ]);
   addLog(`🍲 ${text}`);
+  if(typeof addTrust==='function')addTrust(guest,d,10);
 }
 
 function finishHouseMonth() {
@@ -1393,10 +1446,22 @@ function finishHouseMonth() {
     if(people.every(Boolean))lines.push(`关系变化　${people.join('与')}：友好 ${delta>0?'+':''}${Math.round(delta)}`);
   }
   G.dayRelations=now;
+  if(typeof housePaperExtras==='function')housePaperExtras(lines);
   for (const entry of G.log.filter(entry=>entry.d===G.day).slice(-8)) lines.push(entry.text);
   const residents=G.dolls.filter(d=>d.state!=='away');
-  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们本月把日子过成了恋综。');
-  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们本月各忙各的，小屋格外安静。');
+  const monthLog=G.log.filter(e=>e.d===G.day);
+  // 稀有特别版：整屋都是花心的人，或整屋都是内向的人
+  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&monthLog.some(e=>/表白|暧昧|分手/.test(e.text))){
+    const count=pattern=>monthLog.filter(e=>pattern.test(e.text)).length;
+    lines.splice(1,0,'【特别版】恋综现场');
+    lines.push('小屋趣闻　花心室友们本月把日子过成了恋综。',
+      `恋综数据　表白 ${count(/表白/)} 次 · 被撞见 ${count(/撞见/)} 次 · 分手 ${count(/分手/)} 次 · 吃醋 ${count(/吃醋/)} 次`);
+  }
+  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length){
+    lines.splice(1,0,'【特别版】各自安好');
+    lines.push('小屋趣闻　内向的室友们本月各忙各的，小屋格外安静。',
+      `尴尬时刻　${residents.map(d=>d.name).join('、')} 在客厅撞见时只点了点头，又各自回去看书。大家还不太熟。`);
+  }
   if (lines.length===1) lines.push('本月小屋里很安静。');
   G.paper.push(lines.join('\n'));
   if (G.paper.length>30) G.paper.shift();
@@ -1426,11 +1491,200 @@ function shareHouseNews(speaker, listener) {
     !heard.some(memory=>memory.sources.some(id=>id===entry.sources[0]||G.npcMemory.events[id]?.original===entry.sources[0])));
   if(!source)return;
   const misunderstood=Math.random()<.25;
-  NPCMemory.record(G,{type:'rumor',time:now,participants:[speaker.pid,listener.pid],original:source.sources[0],outcome:'retold'},[
-    {person:listener.pid,subject:source.subject,channel:'hearsay',confidence:misunderstood?.35:.65,
-      emotion:source.emotion,impact:65,interpretation:misunderstood?'听说有人闹得很厉害，但详情我也不确定。':`听${speaker.name}说：${source.interpretation}`}
+  // 听岔了：不是记不清，而是记成了另一件事、冤枉到别人头上
+  const wrong=misunderstood&&typeof misheardRumor==='function'?misheardRumor(speaker,listener,source):null;
+  NPCMemory.record(G,{type:'rumor',time:now,participants:[speaker.pid,listener.pid],original:source.sources[0],outcome:wrong?'misheard':'retold'},[
+    {person:listener.pid,subject:wrong?wrong.subject:source.subject,channel:'hearsay',confidence:misunderstood?.35:.65,
+      emotion:wrong?-.5:source.emotion,impact:65,interpretation:wrong?wrong.interpretation:misunderstood?'听说有人闹得很厉害，但详情我也不确定。':`听${speaker.name}说：${source.interpretation}`}
   ]);
-  addLog(`💬 ${speaker.name} 向 ${listener.name} 说起了一件旧事`);
+  if(!wrong&&typeof heardRumor==='function')heardRumor(listener,source.subject,source.emotion);
+  addLog(wrong?`💬 ${speaker.name} 向 ${listener.name} 说起一件旧事，${listener.name} 却听成了「${wrong.claim}」`:`💬 ${speaker.name} 向 ${listener.name} 说起了一件旧事`);
+}
+</script>
+<script>
+// 信任、醋意、饭搭子 / 游戏搭子、“爱美”特质、卧室隐私和会传错的谣言。
+// 友好度和恋爱度是两人共享的；信任和醋意是单向的：团子可以信任阿懒，阿懒却未必信任团子。
+
+const BOND_TAGS = { meal: { icon: '🍚', name: '饭搭子' }, game: { icon: '🎮', name: '游戏搭子' } };
+const BOND_TAG_AT = 3;                 // 一起吃饭 / 打游戏满 3 次就成了搭子
+const PRIVATE_ROOMS = new Set(['bed', 'upperBedroom']);
+const clampBond = (v, min, max) => Math.max(min, Math.min(max, v));
+const bondKey = (a, b) => a.pid + '>' + b.pid;
+
+function trustOf(a, b) { return (G.trust || {})[bondKey(a, b)] || 0; }
+function addTrust(a, b, delta) {
+  if (!a || !b || a === b || !delta) return;
+  G.trust ||= {};
+  const k = bondKey(a, b);
+  G.trust[k] = Math.round(clampBond((G.trust[k] || 0) + delta, -100, 100) * 10) / 10;
+}
+function jealousyOf(a, b) { return (G.jealousy || {})[bondKey(a, b)] || 0; }
+function addJealousy(a, b, delta) {
+  if (!a || !b || a === b) return;
+  G.jealousy ||= {};
+  const k = bondKey(a, b);
+  G.jealousy[k] = clampBond((G.jealousy[k] || 0) + delta, 0, 100);
+  if (G.jealousy[k] < 1) delete G.jealousy[k];
+}
+// 醋意会慢慢消下去，大约一天降 40 点
+function bondsTick(dt) {
+  if (!G.jealousy) return;
+  for (const k of Object.keys(G.jealousy)) {
+    G.jealousy[k] -= dt * 0.11;
+    if (G.jealousy[k] <= 0) delete G.jealousy[k];
+  }
+}
+function trustWord(v) {
+  if (v >= 40) return '很信任';
+  if (v >= 10) return '信任';
+  if (v <= -40) return '很提防';
+  if (v <= -10) return '不太信任';
+  return '';
+}
+
+/* ---------- 搭子：一起吃饭、一起打游戏会慢慢变成习惯 ---------- */
+function countTogether(kind, a, b) {
+  if (!a || !b || a === b || a.guest || b.guest) return;
+  G.habits ||= {};
+  const store = G.habits[kind] ||= {};
+  const k = relKey(a, b);
+  store[k] = (store[k] || 0) + 1;
+  const r = rel(a, b);
+  r.tags ||= {};
+  if (store[k] < BOND_TAG_AT || r.tags[kind]) return;
+  r.tags[kind] = true;
+  const { icon, name } = BOND_TAGS[kind];
+  HOOK.toast(`${icon} ${a.name} 和 ${b.name} 成了${name}`);
+  addLog(`${icon} ${a.name} 和 ${b.name} 成了${name}`);
+  addTrust(a, b, 6); addTrust(b, a, 6);
+  NPCMemory.record(G, { type: 'habit-' + kind, time: absNow(), participants: [a.pid, b.pid], outcome: kind }, [
+    { person: a.pid, subject: b.pid, emotion: .5, impact: 70, interpretation: `我和${b.name}成了${name}` },
+    { person: b.pid, subject: a.pid, emotion: .5, impact: 70, interpretation: `我和${a.name}成了${name}` }
+  ]);
+}
+const bondTagged = (a, b, kind) => !!G.rel[relKey(a, b)]?.tags?.[kind];
+function bondTagsText(r) {
+  return Object.keys(r.tags || {}).filter(k => BOND_TAGS[k]).map(k => BOND_TAGS[k].icon + ' ' + BOND_TAGS[k].name).join(' · ');
+}
+// 一顿饭只记一次：同桌的人两两算一次
+function noteSharedMeal(d, table) {
+  const mates = table.users.filter(o => o !== d && o.state === 'act' && o.act?.type === 'meal');
+  for (const o of mates) countTogether('meal', d, o);
+  if (mates.length >= 2) {
+    G.daily.groupMeal = (G.daily.groupMeal || 0) + 1;
+    if (!table.groupLogAt || table.groupLogAt < absNow() - 300) {
+      table.groupLogAt = absNow();
+      addLog(`🍽 ${[d, ...mates].map(o => o.name).join('、')} 围着大餐桌一起吃饭`);
+    }
+  }
+}
+// 有搭子正在用这件家具时，更想凑过去
+function companionBonus(d, f, use) {
+  const kind = use === 'meal' ? 'meal' : use === 'game' ? 'game' : null;
+  if (!kind) return 0;
+  return f.users.some(o => o !== d && bondTagged(d, o, kind)) ? 22 : 0;
+}
+
+/* ---------- 爱美：镜子前停留更久，照完心情更好 ---------- */
+function isVain(d) {
+  if (typeof d.vain === 'boolean') return d.vain;
+  let h = 0;
+  for (const c of String(d.pid)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  d.vain = ['romantic', 'social'].includes(d.persona) ? h % 10 < 6 : h % 10 < 2;
+  return d.vain;
+}
+function groomBonus(d) {
+  if (isVain(d)) return 30;
+  return ['romantic', 'social', 'genki'].includes(d.persona) ? 8 : 0;
+}
+function afterGroom(d) {
+  if (!isVain(d)) return;
+  d.needs.fun = Math.min(100, d.needs.fun + 10);
+  if (Math.random() < 0.5) setTimeout(() => d.act && say(d, pick(['今天也很好看✨', '发型完美！', '再照一下下'])), 1600);
+}
+
+/* ---------- 卧室隐私：关起门来，别人不会进来打扰 ---------- */
+const inPrivateRoom = d => d.state !== 'away' && PRIVATE_ROOMS.has(roomOf(d));
+function inPrivateRoomTile(f) {
+  if (f.y >= FLOOR_SPLIT) return f.x < BX && !(G.bathroom && f.x < BATH_X);
+  return f.x < BX;
+}
+const canDisturb = (d, o) => !inPrivateRoom(o) || roomOf(d) === roomOf(o) || arePartners(d, o);
+
+/* ---------- 钢琴围观：记下本月围得最多的一次 ---------- */
+function notePianoCrowd(performer) {
+  const act = performer.act;
+  if (!act) return;
+  act.crowd = (act.crowd || 0) + 1;
+  const best = G.daily.crowdMax;
+  if (!best || act.crowd > best.count) G.daily.crowdMax = { name: performer.name, count: act.crowd };
+}
+
+/* ---------- 谣言：转述时可能听岔，冤枉到另一个人头上 ---------- */
+const MISHEARD = ['在背后说别人坏话', '偷偷和别人约会', '把大家的点心吃光了', '故意不理人'];
+function misheardRumor(speaker, listener, source) {
+  const pool = G.dolls.filter(o => ![speaker, listener].includes(o) && o.pid !== source.subject && !o.guest && o.state !== 'away');
+  const wrong = pool.length ? pick(pool) : G.dolls.find(o => o.pid === source.subject);
+  if (!wrong) return null;
+  const claim = `${wrong.name}${pick(MISHEARD)}`;
+  addTrust(listener, wrong, -6);
+  G.daily.rumorWrong = (G.daily.rumorWrong || 0) + 1;
+  G.daily.rumor = (G.daily.rumor || 0) + 1;
+  return { subject: wrong.pid, interpretation: `听${speaker.name}说，${claim}`, claim, wrong };
+}
+function heardRumor(listener, subjectPid, emotion) {
+  const subject = G.dolls.find(o => o.pid === subjectPid);
+  if (subject) addTrust(listener, subject, emotion * 6);
+  G.daily.rumor = (G.daily.rumor || 0) + 1;
+}
+
+/* ---------- 月报：头条、新发现、围观、信任变化、传闻 ---------- */
+const DISCOVERY_VERBS = { study: '使用书桌', read: '看书', groom: '照镜子', piano: '弹钢琴', game: '打游戏', cook: '下厨', paint: '画画',
+  exercise: '健身', pc: '用电脑', meal: '坐到大餐桌前吃饭', chess: '下棋', tv: '看电视', water: '浇花', cat: '撸猫' };
+function trustSnapshot() { return { ...(G.trust || {}) }; }
+function housePaperExtras(lines) {
+  const extra = [];
+  const monthLog = G.log.filter(e => e.d === G.day);
+  // 头条：先看本月最戏剧化的一件事
+  const dramatic = [/撞见/, /变心/, /分手/, /在一起/, /闹翻/, /表白/, /搭子/, /派对/, /一起吃饭/];
+  let headline = null;
+  for (const pattern of dramatic) {
+    const hit = monthLog.findLast(e => pattern.test(e.text));
+    if (hit) { headline = hit.text.replace(/^\S+\s/, ''); break; }
+  }
+  const topSocial = Object.entries(G.daily.social || {}).sort((a, b) => b[1] - a[1])[0];
+  if (!headline && topSocial) headline = `${topSocial[0].replace(' × ', ' 和 ')} 本月聊了 ${topSocial[1]} 次`;
+  if (!headline && G.daily.crowdMax) headline = `${G.daily.crowdMax.name} 的琴声把大家都吸引过来了`;
+  if (headline) extra.push(['头条', headline, 'top']);
+  // 新发现：上个月几乎不碰、这个月频繁使用的家具
+  let found = null;
+  for (const [kind, verb] of Object.entries(DISCOVERY_VERBS)) {
+    for (const [name, count] of Object.entries(G.daily[kind] || {})) {
+      const before = G.lastDaily?.[kind]?.[name] || 0;
+      if (count >= 3 && before <= 1 && (!found || count > found.count)) found = { name, verb, count };
+    }
+  }
+  if (found) extra.push(['新发现', `${found.name} 开始频繁${found.verb}（本月 ${found.count} 次）。`]);
+  if (G.daily.crowdMax?.count >= 2) extra.push(['小屋趣闻', `${G.daily.crowdMax.name} 弹钢琴时，${G.daily.crowdMax.count} 位住户围了过来。`]);
+  if (G.daily.groupMeal) extra.push(['集体用餐', `大餐桌旁本月凑齐了 ${G.daily.groupMeal} 次三人以上的饭局。`]);
+  // 信任变化：单向的，选变化最大的一条
+  let change = null;
+  const before = G.dayTrust || {};
+  for (const [k, v] of Object.entries(G.trust || {})) {
+    const delta = v - (before[k] || 0);
+    if (Math.abs(delta) >= 8 && (!change || Math.abs(delta) > Math.abs(change.delta))) change = { k, delta };
+  }
+  if (change) {
+    const [from, to] = change.k.split('>').map(pid => G.dolls.find(o => o.pid === pid)?.name);
+    if (from && to) extra.push(['关系变化', `${from} 对 ${to} 的信任${change.delta > 0 ? '上升' : '下降'}了。`]);
+  }
+  if (G.daily.rumor) extra.push(['传闻', `本月屋里传了 ${G.daily.rumor} 条闲话${G.daily.rumorWrong ? `，其中 ${G.daily.rumorWrong} 条传岔了` : ''}。`]);
+  G.dayTrust = trustSnapshot();
+  G.lastDaily = JSON.parse(JSON.stringify(G.daily));
+  const top = extra.filter(([, , pos]) => pos === 'top').map(([label, text]) => `${label}　${text}`);
+  const rest = extra.filter(([, , pos]) => pos !== 'top').map(([label, text]) => `${label}　${text}`);
+  lines.splice(1, 0, ...top);
+  lines.push(...rest);
 }
 </script>
 <script>
@@ -1466,22 +1720,68 @@ const G = {
 
 /* ---------------- 存档 ---------------- */
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
+function houseSaveData() {
+  return {
+    floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    wall: G.wall, floor: G.floor, time: G.time, day: G.day,
+    furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+    dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
+      tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
+      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
+    npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
+    trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
+  };
+}
 function save() {
   try {
-    return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
-      wall: G.wall, floor: G.floor, time: G.time, day: G.day,
-      furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
-      dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
-        tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes,
-        away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
-      npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
-    },validHouseSave);
+    return SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
   } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
 }
+// v1 存档没有信任、醋意和搭子记录：补上空表，其余照旧读取
+function migrateHouseSave(s, from) {
+  if (!s || typeof s !== 'object') return s;
+  if (from < 2) {
+    s.trust ??= {}; s.jealousy ??= {}; s.habits ??= {}; s.dayTrust ??= {}; s.lastDaily ??= {};
+  }
+  return s;
+}
+// 每月开始时留一份快照，最多 4 份，可以从月报里回到那个月初
+function snapshotHouseMonth() {
+  try { SaveManager.snapshot(localStorage, SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
+}
+function restoreHouseSnapshot(index) {
+  const s = SaveManager.restore(localStorage, SAVE_KEY, index, validHouseSave, migrateHouseSave);
+  if (!s) return false;
+  applySave(s); rebuild(); save();
+  return true;
+}
+let lastSavedAt = 0;
 function load() {
-  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave);
+  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave,migrateHouseSave);
   applySave(s || defaultHouseSave());
+  lastSavedAt = s?.savedAt || 0;
+  if (!SaveManager.snapshots(localStorage, SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
+}
+// 离线模拟：关掉页面的这段时间，小屋最多继续过一整天（现实 6 分钟）
+const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
+function offlineEnabled() { try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; } }
+function catchUpOffline() {
+  if (TEST_MODE || !lastSavedAt || !offlineEnabled()) return null;
+  const seconds = Math.min(360, Math.max(0, (Date.now() - lastSavedAt) / 1000));
+  if (seconds < 15) return null;
+  const hooks = { toast: HOOK.toast, logged: HOOK.logged }, speed = G.speed, startDay = G.day, startTime = G.time;
+  let happened = 0;
+  HOOK.toast = () => {}; HOOK.logged = () => { happened++; };
+  G.speed = 1;
+  try {
+    for (let t = 0; t < seconds && !document.getElementById('paperDialog')?.open; t += 0.25) update(0.25);
+  } finally {
+    Object.assign(HOOK, hooks); G.speed = speed;
+  }
+  const minutes = (G.day - startDay) * 1440 + G.time - startTime;
+  const hours = Math.round(minutes / 60);
+  addLog(`🌙 你不在的 ${hours} 小时里，小屋照常过日子，发生了 ${happened} 件事`);
+  return { hours, happened };
 }
 function defaultHouseSave() {
   const initial = JSON.parse(JSON.stringify(DEFAULT_SAVE));
@@ -1500,6 +1800,7 @@ function applySave(s) {
   G.community = restoreCommunity(s.community);
   if (G.community.active) G.community.active.reserved = {};
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
+  G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
@@ -1650,7 +1951,9 @@ function addDoll(src) {
     zodiac: src.zodiac || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).zodiac || randomZodiac(),
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
+    vain: typeof src.vain === 'boolean' ? src.vain : undefined,
   };
+  isVain(d);
   if (TEST_MODE) d.money = Math.max(d.money, 1000000);
   d.needs.bladder ??= 85;
   G.dolls.push(d);
@@ -1719,14 +2022,17 @@ function decide(d) {
       const evening=G.time>=17*60&&G.time<21*60;
       s+=evening?18+f.users.length*12:0;
     }
-    if(F.use==='groom'&&['romantic','social','genki'].includes(d.persona))s+=18;
+    if(F.use==='groom')s+=groomBonus(d);              // 爱美的人更常去照镜子
+    s+=companionBonus(d,f,F.use);                      // 饭搭子、游戏搭子在用，就想凑过去
+    if(inPrivateRoomTile(f)&&!isE(d))s+=6;             // 内向的人喜欢待在卧室里
     const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
     s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     opts.push({ s, type: F.use, furn: f });
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
-    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay')));
+    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay'))
+    && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -1743,7 +2049,8 @@ function decide(d) {
   for (const o of G.dolls) {
     if (o === d || !joinable(o) || !canSee(d,o)) continue;
     const J = JOIN[o.act.type], r = rel(d, o);
-    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
+    const buddy = o.act.type === 'game' && bondTagged(d, o, 'game') ? 25 : 0;
+    opts.push({ s: want({ fun: 16, social: 12 }) + (P.like[J.like] || 0) * 0.7 + (P.like.chat || 0) * 0.4 + r.f * 0.25 + r.l * 0.2 + 8 + buddy + traitBonus(d, 'join') + Math.random() * 20 * noiseMul(d) - (G.night ? 15 : 0), type: 'join', target: o });
   }
   opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + traitBonus(d, 'dance') + Math.random() * 15 * noiseMul(d) - (G.night ? 20 : 0), type: 'dance' });
   opts.push({ s: 12 + (P.like.wander || 0) + traitBonus(d, 'wander') + Math.random() * 20 * noiseMul(d), type: 'wander' });
@@ -1851,8 +2158,10 @@ function arrive(d) {
   }
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+    noteSharedMeal(d,f);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
   }
+  if(a.type==='groom')afterGroom(d);
   if (a.type === 'chess') {
     const opponent = f.users.find(o => o !== d && o.state === 'act');
     if (opponent) {
@@ -2011,6 +2320,7 @@ function update(realDt) {
       nightlyBills();
       startHouseMonth();
       save();
+      snapshotHouseMonth();
       SFX.play('newday');
     }
     const h = G.time / 60;
@@ -2021,7 +2331,7 @@ function update(realDt) {
     for (const d of G.dolls) updateDoll(d, dt);
   }
   updateDoors(realDt);
-  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); }
+  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); bondsTick(dt); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }
@@ -2065,8 +2375,8 @@ const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
   if (r.secret) return '🤫 偷偷暧昧';
-  const love = levelOf(r.l, LOVE_LEVELS);
-  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '');
+  const love = levelOf(r.l, LOVE_LEVELS), tags = typeof bondTagsText === 'function' ? bondTagsText(r) : '';
+  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
 }
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
@@ -2146,6 +2456,11 @@ function startSocial(d, p) {
   let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
   const spark = r.f >= 45 ? 1 : 0;   // 足够熟了，日常相处也会慢慢心动
+  // 信任是单向的：被拿来开玩笑的人会记仇，吵架两边都会少一分信任
+  if (kind === 'chat') { addTrust(d, p, 1); addTrust(p, d, 1); }
+  if (kind === 'hug' || kind === 'kiss') { addTrust(d, p, 2); addTrust(p, d, 2); }
+  if (kind === 'joke') addTrust(p, d, -3);
+  if (kind === 'argue') { addTrust(d, p, -6); addTrust(p, d, -6); }
   if (kind === 'chat') bump(d, p, 5, 1.5 * spark);
   if (kind === 'joke') { bump(d, p, 6, 1.2 * spark); d.needs.fun = Math.min(100, d.needs.fun + 8); p.needs.fun = Math.min(100, p.needs.fun + 8); }
   if (kind === 'hug') { bump(d, p, 5, 3 + 3 * spark); spawnHeart(d); spawnHeart(p); }
@@ -2174,9 +2489,14 @@ function startSocial(d, p) {
           if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
             const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
             HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
+            const rival = x === d ? p : d;
             NPCMemory.record(G,{type:'breakup',time:absNow(),participants:[x.pid,old.pid],outcome:'left'},[
               {person:old.pid,subject:x.pid,emotion:-1,impact:100,interpretation:`我被${x.name}抛下了`}
             ]);
+            NPCMemory.record(G,{type:'rival',time:absNow(),participants:[old.pid,rival.pid,x.pid],outcome:'remembered'},[
+              {person:old.pid,subject:rival.pid,emotion:-.9,impact:95,interpretation:`${rival.name}抢走了${x.name}`}
+            ]);
+            addTrust(old, x, -35); addTrust(old, rival, -30); addJealousy(old, rival, 60);
             say(old, '……怎么会这样'); spawnHeart(old, '💔');
           }
         }
@@ -2257,6 +2577,7 @@ function jealous(L, cheater, third) {
   spawnHeart(L, '😤');
   // 记下来：等这次互动结束，就去找恋人算账
   L.jealousOf = { who: cheater, until: absNow() + 240 };
+  addJealousy(L, third, 30); addTrust(L, cheater, -6);
   if (L.state === 'idle' || (L.act && !L.act.onFurn && L.act.type !== 'chat')) { if (L.act) endAct(L); L.state = 'idle'; L.think = 0.5; }
   HOOK.toast(`😤 ${L.name} 看到 ${cheater.name} 和 ${third.name} 很亲密，吃醋了`);
 }
@@ -2288,6 +2609,14 @@ function caught(L, cheater, third) {
     { person: third.pid, subject: L.pid,
       interpretation: `${L.name}撞见了我和${cheater.name}`, emotion: -.7, impact: 80 }
   ]);
+  // 恋人单独记下“第三者”：这份记忆的主角是抢走恋人的人
+  NPCMemory.record(G, {
+    type: 'rival', time: absNow(), participants: [L.pid, third.pid, cheater.pid], outcome: 'remembered'
+  }, [
+    { person: L.pid, subject: third.pid, channel: 'witness',
+      interpretation: `${third.name}想抢走${cheater.name}`, emotion: -.95, impact: 95 }
+  ]);
+  addTrust(L, cheater, -40); addTrust(L, third, -30); addJealousy(L, third, 60);
 }
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
@@ -2391,7 +2720,10 @@ function arriveJoin(d) {
   bump(d, o, 3, rel(d, o).f >= 45 ? 1.5 : 0);
   o.needs.social = Math.min(100, o.needs.social + 6);
   if (Math.random() < 0.6) setTimeout(() => o.act && say(o, pick(J.back)), 1400);
+  if (a.what === 'game') countTogether('game', d, o);
+  if (a.what === 'piano') notePianoCrowd(o);
   if(a.what==='game'||a.what==='piano'){
+    addTrust(o, d, 2);
     countHouseActivity(a.what==='piano'?'audience':'partners',o.name);
     NPCMemory.record(G,{type:'company',time:absNow(),participants:[o.pid,d.pid],outcome:a.what},[
       {person:o.pid,subject:d.pid,emotion:.55,impact:55,interpretation:`${d.name}来陪我${a.what==='game'?'玩游戏':'弹琴'}`},
@@ -4787,6 +5119,55 @@ function cancelPlacing() {
 window.addEventListener('keydown', e => { if (e.key === 'Escape') cancelPlacing(); });
 </script>
 <script>
+// 把一期月报画成像素风纪念卡，保存成 PNG。
+function drawHousePaperCard(text) {
+  const W = 360, H = 540, S = 2;
+  const c = document.createElement('canvas'); c.width = W * S; c.height = H * S;
+  const ctx = c.getContext('2d'); ctx.scale(S, S);
+  ctx.fillStyle = '#5a3b4c'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#fff4e4'; ctx.fillRect(12, 12, W - 24, H - 24);
+  ctx.fillStyle = '#e98aa6';
+  for (let x = 12; x < W - 12; x += 8) { ctx.fillRect(x, 12, 4, 4); ctx.fillRect(x + 4, H - 16, 4, 4); }
+  for (let y = 12; y < H - 12; y += 8) { ctx.fillRect(12, y + 4, 4, 4); ctx.fillRect(W - 16, y, 4, 4); }
+  const sans = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif';
+  const [title, ...rest] = text.split('\n');
+  ctx.fillStyle = '#5a3b4c'; ctx.textAlign = 'center';
+  ctx.font = `700 28px ${sans}`; ctx.fillText('小屋月报', W / 2, 58);
+  ctx.font = `13px ${sans}`; ctx.fillStyle = '#8a6a72'; ctx.fillText(title, W / 2, 80);
+  ctx.fillStyle = '#5a3b4c'; ctx.fillRect(32, 90, W - 64, 3);
+  ctx.textAlign = 'left';
+  let y = 116;
+  const wrap = (line, x, width, height, max) => {
+    let row = '', rows = 0;
+    for (const ch of line) {
+      const hang = '，。、”）！？：；'.includes(ch);
+      if (!hang && ctx.measureText(row + ch).width > width) { ctx.fillText(row, x, y); y += height; row = ch; if (++rows >= max) return; }
+      else row += ch;
+    }
+    if (row) { ctx.fillText(row, x, y); y += height; }
+  };
+  for (const line of rest) {
+    if (y > H - 60) break;
+    const [label, body] = line.includes('　') ? line.split('　') : [null, line];
+    if (label?.startsWith('【')) { ctx.fillStyle = '#c4455f'; ctx.font = `700 14px ${sans}`; wrap(label, 32, W - 64, 20, 1); continue; }
+    if (label === '头条') { ctx.fillStyle = '#3d2733'; ctx.font = `700 17px ${sans}`; wrap(body, 32, W - 64, 24, 3); y += 4; continue; }
+    if (label) { ctx.fillStyle = '#e98aa6'; ctx.fillRect(32, y - 9, 5, 5); ctx.fillStyle = '#8a4a5e'; ctx.font = `700 12px ${sans}`; ctx.fillText(label, 42, y - 3); y += 14; }
+    ctx.fillStyle = '#4a3a40'; ctx.font = `12px ${sans}`; wrap(body, 32, W - 64, 17, 3); y += 4;
+  }
+  ctx.textAlign = 'center'; ctx.fillStyle = '#a08890'; ctx.font = `11px ${sans}`;
+  ctx.fillText('🏠 像素小屋', W / 2, H - 30);
+  return c;
+}
+function saveHousePaperCard(text, name) {
+  drawHousePaperCard(text).toBlob(blob => {
+    if (!blob) return;
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob); link.download = name; link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  }, 'image/png');
+}
+</script>
+<script>
 // 界面：住户列表、状态卡、模式切换、布置面板、衣橱，以及主循环
 const $ = s => document.querySelector(s);
 const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
@@ -4838,7 +5219,7 @@ function renderInfo() {
   card.hidden = false;
   card.innerHTML = `<h3>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''}</h3>
     <div id="infoPartners" class="partner-list" hidden></div>
-    <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
+    <div class="persona">${P.icon} ${P.name} · ${P.desc}${isVain(d) ? ' · ✨ 爱美，常照镜子' : ''}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
     <div class="persona">MBTI 偏好 · ${(MBTI_INTERESTS[mb(d)] || []).map(use => ACT_NAMES[use]).join('、')}</div>
@@ -4886,7 +5267,9 @@ function tickInfo() {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
       if (!lab) continue;
-      lab.textContent = relLabel(r);
+      // 信任和醋意是单向的：这里显示的是“我”对 TA 的看法
+      const trust = trustWord(trustOf(d, o)), envy = jealousyOf(d, o) >= 20 ? '😤 醋意' : '';
+      lab.textContent = [relLabel(r), trust, envy].filter(Boolean).join(' · ');
       document.querySelector(`[data-rel-row="${o.uid}"]`).classList.toggle('couple-rel', arePartners(d, o));
       document.querySelector(`[data-rf="${o.uid}"]`).style.width = Math.max(0, r.f).toFixed(0) + '%';
       document.querySelector(`[data-rlv="${o.uid}"]`).style.width = r.l.toFixed(0) + '%';
@@ -5275,6 +5658,37 @@ paperAuto.checked=true;
 try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
 paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
+
+const paperOffline=document.getElementById('paperOffline');
+paperOffline.checked=offlineEnabled();
+paperOffline.onchange=()=>{try{localStorage.setItem(OFFLINE_KEY,paperOffline.checked?'on':'off');}catch{}};
+document.getElementById('paperCard').onclick=()=>{
+  const latest=G.paper.at(-1);
+  if(latest)saveHousePaperCard(latest,`小屋月报-${latest.split('\n')[0]}.png`);
+};
+function renderRewind(){
+  const list=document.getElementById('rewindList');
+  const snaps=SaveManager.snapshots(localStorage,SAVE_KEY).sort((a,b)=>b.day-a.day);
+  list.replaceChildren(...snaps.map(snap=>{
+    const row=el('div','rewind-row',`<span>${monthLabel(snap.day)} 月初${snap.day===G.day?' · 本月':''}</span>`);
+    const button=el('button','btn small ghost','回到这里');
+    button.onclick=()=>{
+      if(!confirm(`回到${monthLabel(snap.day)}月初？之后发生的事都会被改写。`))return;
+      if(restoreHouseSnapshot(snap.index)){
+        document.getElementById('paperDialog').close();
+        HOOK.select();updateClock();renderLog();renderShopBar();updateHousePaperButton();
+        HOOK.toast(`🕰 回到了${monthLabel(G.day)}月初`,true);
+      }else HOOK.toast('这份快照读不出来了',true);
+    };
+    row.append(button);return row;
+  }));
+  if(!snaps.length)list.textContent='还没有快照。';
+}
+document.querySelector('.rewind-box').addEventListener('toggle',renderRewind);
+
+// 离线模拟：补上关掉页面期间的生活
+const away=catchUpOffline();
+if(away){renderLog();HOOK.select();updateClock();if(away.hours>=1)HOOK.toast(`🌙 你不在的 ${away.hours} 小时里，小屋发生了 ${away.happened} 件事`,true);}
 </script>
 </body>
 </html>

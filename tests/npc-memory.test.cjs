@@ -80,8 +80,10 @@ if(dollhouse) {
     const G={dolls:[a,b,near,far,hidden],rel:{},daily:{}};
     const ctx=runtime({G,PERSONAS:{normal:{}},compat:()=>1,isF:()=>true,isE:()=>true,face:noop,say:noop,spawnHeart:noop,SFX:{play:noop},HOOK:{toast:noop},pick:a=>a[0],absNow:()=>100,lying:()=>false,canSee:n=>n!==hidden,addLog:noop,setTimeout:noop});
     vm.runInContext(read('js/house-life.js'),ctx);
+    if(fs.existsSync(path.join(root,'js/bonds.js')))vm.runInContext(read('js/bonds.js'),ctx);
     vm.runInContext(read('js/social.js'),ctx);
     ctx.startSocial(a,b);
+    if(ctx.trustOf){assert.ok(ctx.trustOf(a,b)<0);assert.ok(ctx.trustOf(b,a)<0);}
     assert.equal(ctx.memory.recall(G,'alice').length,1);
     assert.equal(ctx.memory.recall(G,'bob').length,1);
     assert.equal(ctx.memory.recall(G,'charlie').length,1);
