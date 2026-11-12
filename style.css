@@ -86,6 +86,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .nametag{position:absolute;transform:translate(-50%,0);font-size:11px;padding:1px 6px;border-radius:4px;
   background:rgba(59,42,47,.8);color:#fff;white-space:nowrap}
 .nametag.couple-name{background:#883858;color:#fff3f7}
+.nametag.drop-target{background:#fff2bd;color:#432e30;border:1px solid #614248;font-weight:700;z-index:1}
 .heart{position:absolute;font-size:14px;animation:floatUp 1s ease-out forwards}
 @keyframes pop{from{transform:translate(-50%,-80%) scale(.6);opacity:0}to{transform:translate(-50%,-100%) scale(1);opacity:1}}
 @keyframes floatUp{to{transform:translateY(-28px);opacity:0}}
