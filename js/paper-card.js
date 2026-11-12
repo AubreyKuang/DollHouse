@@ -4,6 +4,13 @@ function currentHousePaper() { return paperIssue(G.paper[housePaperIndex]); }
 
 const paperStoryTitle = (story, i) => story.label && (i === 0 ? '本月头条' : story.label);
 
+function paperPortrait(person) {
+  const portrait = document.createElement('canvas');
+  portrait.width = 20; portrait.height = 24;
+  dollPortrait(portrait, person.look);
+  return portrait;
+}
+
 function showHousePaper() {
   const dialog = document.getElementById('paperDialog');
   renderHousePaper(G.paper.length - 1);
@@ -28,14 +35,15 @@ function renderHousePaper(index) {
     const people = document.createElement('div');
     people.className = 'paper-cast';
     if (story.people?.length) {
+      if (index === 0) article.classList.add('paper-feature');
       for (const person of story.people) {
-        const portrait = document.createElement('canvas');
-        portrait.width = 20; portrait.height = 24;
-        portrait.setAttribute('role', 'img');
-        portrait.setAttribute('aria-label', person.name);
-        portrait.title = person.name;
-        dollPortrait(portrait, person.look);
-        people.append(portrait);
+        const figure = document.createElement('figure');
+        const portrait = paperPortrait(person);
+        const caption = document.createElement('figcaption');
+        portrait.setAttribute('aria-hidden', 'true');
+        caption.textContent = person.name;
+        figure.append(portrait, caption);
+        people.append(figure);
       }
     } else {
       people.textContent = story.icon;
@@ -48,6 +56,20 @@ function renderHousePaper(index) {
     text.textContent = story.text;
     if (title.textContent) body.append(title);
     body.append(text);
+    if (story.steps?.length) {
+      const detail = document.createElement('details');
+      detail.className = 'paper-chain';
+      const summary = document.createElement('summary');
+      summary.textContent = '事情的经过';
+      const list = document.createElement('ol');
+      for (const step of story.steps) {
+        const item = document.createElement('li');
+        item.textContent = step;
+        list.append(item);
+      }
+      detail.append(summary, list);
+      body.append(detail);
+    }
     article.append(people, body);
     return article;
   }));
@@ -59,7 +81,8 @@ function housePaperText(issue) {
 }
 
 function drawHousePaperCard(issue) {
-  const W = 360, H = 140 + issue.stories.length * 98, S = 2;
+  const feature = issue.stories[0]?.people?.length ? 106 : 0;
+  const W = 360, H = 128 + issue.stories.length * 92 + feature, S = 2;
   const c = document.createElement('canvas'); c.width = W * S; c.height = H * S;
   const ctx = c.getContext('2d'); ctx.scale(S, S); ctx.imageSmoothingEnabled = false;
   const sans = '"PingFang SC","Microsoft YaHei",system-ui,sans-serif';
@@ -72,33 +95,41 @@ function drawHousePaperCard(issue) {
   ctx.font = `14px ${sans}`; ctx.fillText(issue.month, W / 2, 76);
   ctx.textAlign = 'left';
   issue.stories.forEach((story, i) => {
-    const y = 94 + i * 98;
-    ctx.fillStyle = i ? '#f5e4d6' : '#f6dbe3'; ctx.fillRect(24, y, W - 48, 86);
+    const y = 94 + i * 92 + (i ? feature : 0);
+    const hero = i === 0 && feature;
+    ctx.fillStyle = i ? '#f5e4d6' : '#f6dbe3'; ctx.fillRect(24, y, W - 48, 82 + (hero || 0));
     const people = story.people || [];
-    if (people.length) {
+    if (hero) {
+      ctx.textAlign = 'center';
+      for (const [index, person] of people.entries()) {
+        const x = W / 2 + (index - (people.length - 1) / 2) * 84;
+        ctx.fillStyle = '#e9bacb'; ctx.fillRect(x - 28, y + 75, 56, 5);
+        ctx.drawImage(paperPortrait(person), x - 30, y + 8, 60, 72);
+        ctx.fillStyle = '#583c4b'; ctx.font = `12px ${sans}`; ctx.fillText(person.name, x, y + 98, 80);
+      }
+      ctx.textAlign = 'left';
+    } else if (people.length) {
       const size = people.length === 3 ? 23 : 30;
       for (const [index, person] of people.entries()) {
-        const portrait = document.createElement('canvas');
-        portrait.width = 20; portrait.height = 24;
-        dollPortrait(portrait, person.look);
-        ctx.drawImage(portrait, 30 + index * (size - 2), y + 28, size, size * 1.2);
+        ctx.drawImage(paperPortrait(person), 30 + index * (size - 2), y + 25, size, size * 1.2);
       }
     } else {
       ctx.font = `27px ${sans}`; ctx.fillText(story.icon, 48, y + 51);
     }
-    const left = 104;
+    const left = hero ? 38 : 104;
+    const baseline = y + (hero || 0);
     ctx.fillStyle = '#8a3d59'; ctx.font = `700 12px ${sans}`;
-    ctx.fillText(paperStoryTitle(story, i), left, y + 19);
+    ctx.fillText(paperStoryTitle(story, i), left, baseline + 16);
     ctx.fillStyle = '#3d2733'; ctx.font = `${i === 0 ? '700 16px' : '14px'} ${sans}`;
     let row = '', line = 0;
     for (const char of story.text) {
-      if (ctx.measureText(row + char).width > 214) {
-        if (line === 2) { ctx.fillText(row.slice(0, -1) + '…', left, y + 39 + line * 18); return; }
-        ctx.fillText(row, left, y + 39 + line++ * 18); row = '';
+      if (ctx.measureText(row + char).width > 322 - left) {
+        if (line === 2) { ctx.fillText(row.slice(0, -1) + '…', left, baseline + 37 + line * 18); return; }
+        ctx.fillText(row, left, baseline + 37 + line++ * 18); row = '';
       }
       row += char;
     }
-    ctx.fillText(row, left, y + 39 + line * 18);
+    ctx.fillText(row, left, baseline + 37 + line * 18);
   });
   return c;
 }

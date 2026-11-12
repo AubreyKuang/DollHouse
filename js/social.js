@@ -100,11 +100,12 @@ function chooseKind(d, p) {
 }
 
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
-function startSocial(d, p) {
+function startSocial(d, p, introduced = false) {
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
   let kind = (d.act && d.act.kind) || chooseKind(d, p);
   if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
   const S = SOCIAL[kind], r = rel(d, p);
+  const wereLovers = r.lovers;
   const t = 5 + Math.random() * 3;
   d.state = 'act'; d.act = { type: 'chat', kind, partner: p, t, gain: { social: 26, fun: 6 } };
   p.state = 'act'; p.path = []; p.act = { type: 'chat', kind, partner: d, t, gain: { social: 22, fun: 5 }, passive: true };
@@ -212,6 +213,11 @@ function startSocial(d, p) {
   if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
   if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
   if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers && canRomance(d, p)) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
+  if (introduced) {
+    const outcome = !wereLovers && r.lovers ? 'together' : wereLovers && !r.lovers ? 'breakup' :
+      kind === 'argue' ? 'argued' : kind === 'flirt' && !flirtOk ? 'rejected' : null;
+    recordPaperMeeting(d, p, kind, outcome);
+  }
   setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
 }

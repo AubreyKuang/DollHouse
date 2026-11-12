@@ -63,12 +63,54 @@ function paperCast(text) {
   return cast;
 }
 
+// Only a resolved player introduction can seed a follow-up. Matching names or
+// later activity logs alone never establish a link.
+function recordPaperMeeting(a, b, kind, outcome) {
+  const pair = `${a.name}和${b.name}`;
+  const action = { chat: '聊了起来', joke: '开起了玩笑', hug: '抱了抱对方', kiss: '亲了亲对方', argue: '吵了一架', flirt: '聊起了彼此的心意' }[kind];
+  const result = {
+    together: ['感情动态', '💕', `${pair}确认了恋人关系。`, 110],
+    breakup: ['关系转折', '💔', `${pair}分手了。`, 114],
+    rejected: ['感情动态', '💌', `${a.name}的表白没被${b.name}接受。`, 96],
+    argued: ['小屋插曲', '💢', `${pair}被拉到一起后，吵了一架。`, 66],
+  }[outcome];
+  const moments = (G.paperMoments ||= []);
+  for (const old of moments) if (old.ids.includes(a.pid) && old.ids.includes(b.pid)) old.pending = false;
+  const steps = [`你把${a.name}拖到了${b.name}身边。`, `${pair}${action}。`];
+  if (result && outcome !== 'argued') steps.push(result[2]);
+  moments.push({
+    ids: [a.pid, b.pid], people: [a, b].map(d => ({ name: d.name, look: { ...d.look } })),
+    month: G.day, until: absNow() + 180, pending: outcome !== 'rejected' && outcome !== 'argued' && outcome !== 'breakup',
+    steps, result,
+  });
+  if (moments.length > 24) moments.shift();
+}
+
+const PAPER_SHARED_USES = new Set(['swing', 'puzzle', 'picnic', 'chess']);
+const paperMomentPending = moment => moment.pending && moment.month === G.day && absNow() <= moment.until;
+
+function paperFollowup(d, f) {
+  if (!PAPER_SHARED_USES.has(FURNITURE[f.id].use) || !f.users.length) return null;
+  return G.paperMoments?.findLast(moment => paperMomentPending(moment) && moment.ids.includes(d.pid) &&
+    f.users.some(other => other !== d && other.state === 'act' && other.act?.furn === f && moment.ids.includes(other.pid))) || null;
+}
+
+function completePaperFollowup(d, f) {
+  const moment = d.act.paperMoment;
+  if (!moment || paperFollowup(d, f) !== moment) return;
+  const pair = moment.people.map(person => person.name).join('和');
+  const activity = ACT_NAMES[d.act.type];
+  moment.steps.push(`${pair}后来又一起${activity}。`);
+  moment.result ||= ['一起玩', '✨', `被你拉到一起后，${pair}又相约${activity}。`, 84];
+  moment.pending = false;
+}
+
 function selectPaperStories(candidates) {
   const stories = [];
   for (const story of candidates.sort((a, b) => b.score - a.score)) {
     if (stories.some(s => s.label === story.label || s.text === story.text)) continue;
-    const { label, icon, text } = story;
-    stories.push({ label, icon, text });
+    const { score, ...content } = story;
+    stories.push(content);
     if (stories.length === 3) break;
   }
   return stories.length ? stories : [{ label: '', icon: '🌙', text: '小屋平静地过了一个月。' }];
@@ -89,7 +131,7 @@ function paperIssue(saved) {
       if (story) candidates.push(story);
     }
   }
-  return { month, stories: selectPaperStories(candidates) };
+  return { month, stories: selectPaperStories(candidates).map(story => ({ ...story, people: paperCast(story.text) })) };
 }
 
 function finishHouseMonth() {
@@ -102,8 +144,14 @@ function finishHouseMonth() {
     candidates.push({ label: '特别版', icon: '📚', score: 61, text: '各自安好：内向的室友们本月各忙各的。' });
   }
   if (typeof housePaperExtras === 'function') candidates.push(...housePaperExtras());
+  for (const moment of G.paperMoments || []) {
+    if (moment.month !== G.day || !moment.result) continue;
+    const [label, icon, text, score] = moment.result;
+    candidates.push({ label, icon, text, score, people: moment.people, steps: [...moment.steps] });
+  }
+  G.paperMoments = [];
   G.dayRelations = houseRelations();
-  const stories = selectPaperStories(candidates).map(story => ({ ...story, people: paperCast(story.text) }));
+  const stories = selectPaperStories(candidates).map(story => ({ ...story, people: story.people || paperCast(story.text) }));
   G.paper.push({ month: monthLabel(G.day), stories });
   if (G.paper.length > 30) G.paper.shift();
   G.daily = {};

@@ -33,7 +33,7 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
     floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
-    wall: G.wall, floor: G.floor, time: G.time, day: G.day,
+    wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
@@ -105,6 +105,7 @@ function defaultHouseSave() {
 }
 function applySave(s) {
   G.npcMemory = s.npcMemory; G.paper = (s.paper || []).map(formatSavedPaper); G.daily=s.daily || {};
+  G.paperMoments = s.paperMoments || [];
   G.wall = s.wall; G.floor = s.floor; G.bathroom = s.bathroom === true; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
   G.community = restoreCommunity(s.community);
@@ -337,7 +338,8 @@ function decide(d) {
     if(inPrivateRoomTile(f)&&!isE(d))s+=6;             // 内向的人喜欢待在卧室里
     const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
     s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
-    opts.push({ s, type: F.use, furn: f });
+    const paperMoment = paperFollowup(d, f);
+    opts.push({ s: s + (paperMoment ? 35 : 0), type: F.use, furn: f, paperMoment });
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
@@ -407,7 +409,7 @@ function startAct(d, o) {
   if (!path) return false;
   f.users.push(d);
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
-  d.act = { type: F.use, furn: f, gain: F.need, mode: F.mode };
+  d.act = { type: F.use, furn: f, gain: F.need, mode: F.mode, paperMoment: o.paperMoment };
   return true;
 }
 
@@ -459,6 +461,7 @@ function arrive(d) {
   }
   d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
+  completePaperFollowup(d, f);
   if ((F.outdoor || a.type === 'puzzle') && F.cap > 1) {
     const companion = f.users.find(o => o !== d && o.state === 'act');
     if (companion) {
