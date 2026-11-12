@@ -18,22 +18,21 @@ function load(auto) {
     dolls:[{pid:'a',name:'阿懒'},{pid:'b',name:'团子'}]
   };
   const context = vm.createContext({
-    G,WEEKDAYS:['周一','周二','周三','周四','周五','周六','周日'],
-    weekday:day=>(day-1)%7,document:{getElementById:id=>elements[id]}
+    G,document:{getElementById:id=>elements[id]}
   });
-  vm.runInContext(fs.readFileSync(path.join(__dirname,'../js/house-life.js'),'utf8'),context);
+  for (const script of ['calendar', 'house-life']) vm.runInContext(fs.readFileSync(path.join(__dirname,`../js/${script}.js`),'utf8'),context);
   return {G,elements,context};
 }
 
-test('daily paper uses current-day counts and relations and opens by default', () => {
+test('monthly paper uses current-month counts and relations and opens by default', () => {
   const {G,elements,context}=load(true);
-  context.countHouseDay('study','阿懒');
-  context.countHouseDay('study','阿懒');
-  context.finishHouseDay();
+  context.countHouseActivity('study','阿懒');
+  context.countHouseActivity('study','阿懒');
+  context.finishHouseMonth();
   assert.equal(G.paper.length,1);
   assert.equal(elements.paperDialog.open,true);
-  assert.match(elements.dailyPaper.textContent,/日报 · 1/);
-  assert.match(elements.paperText.textContent,/第 17 天 · 周三/);
+  assert.match(elements.dailyPaper.textContent,/月报 · 1/);
+  assert.match(elements.paperText.textContent,/2 年 5 月/);
   assert.match(elements.paperText.textContent,/书桌　阿懒 · 2 次/);
   assert.match(elements.paperText.textContent,/阿懒与团子：友好 -15/);
   assert.doesNotMatch(elements.paperText.textContent,/旧闻/);
@@ -42,12 +41,12 @@ test('daily paper uses current-day counts and relations and opens by default', (
 
 test('opting out keeps generating reports and the permanent button can read all retained issues', () => {
   const {G,elements,context}=load(false);
-  for(let i=0;i<32;i++){G.day++;context.finishHouseDay();}
+  for(let i=0;i<32;i++){G.day++;context.finishHouseMonth();}
   assert.equal(elements.paperDialog.open,false);
   assert.equal(G.paper.length,30);
   context.showHousePaper();
   assert.equal(elements.paperDialog.open,true);
-  assert.match(elements.paperText.textContent,/第 49 天/);
-  assert.match(elements.paperText.textContent,/第 20 天/);
-  assert.doesNotMatch(elements.paperText.textContent,/第 19 天/);
+  assert.match(elements.paperText.textContent,/5 年 1 月/);
+  assert.match(elements.paperText.textContent,/2 年 8 月/);
+  assert.doesNotMatch(elements.paperText.textContent,/2 年 7 月/);
 });
