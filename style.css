@@ -205,3 +205,11 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-head h2{font-weight:600}
 .paper-dialog label{font-size:14px}
 #paperText{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:var(--panel-2);border-radius:8px;padding:14px;font:inherit;line-height:1.6}
+
+.test-badge{display:inline-block;margin-inline-start:5px;padding:3px 7px;border-radius:5px;
+  background:#e8c9f4;color:#452d52;font-size:12px;vertical-align:middle;white-space:nowrap}
+
+.mbti-settings{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mbti-picker{background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:5px 8px;font:inherit}
+.mbti-settings .hint{margin:0}

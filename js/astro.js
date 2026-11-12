@@ -28,11 +28,31 @@ const MBTI_NAMES = {
   ISTJ: '物流师', ISFJ: '守卫者', ESTJ: '总经理', ESFJ: '执政官', ISTP: '鉴赏家', ISFP: '探险家', ESTP: '企业家', ESFP: '表演者',
 };
 const MBTI_AXES = [['E', 'I', '外向', '内向'], ['S', 'N', '实感', '直觉'], ['T', 'F', '思考', '情感'], ['J', 'P', '判断', '感知']];
-const mb = d => d.mbti || 'ESFJ';
+const mb = d => Object.hasOwn(MBTI_NAMES, d.mbti) ? d.mbti : 'ESFJ';
 const isE = d => mb(d)[0] === 'E', isN = d => mb(d)[1] === 'N', isF = d => mb(d)[2] === 'F', isJ = d => mb(d)[3] === 'J';
 
 // 经典“黄金搭档”
 const GOLDEN = [['INTJ', 'ENFP'], ['INFJ', 'ENFP'], ['ENTJ', 'INFP'], ['INTP', 'ENTJ'], ['INFJ', 'ENTP'], ['ISFJ', 'ESTP'], ['ISTJ', 'ESFP'], ['ESFJ', 'ISFP'], ['ESTJ', 'ISTP'], ['ENFJ', 'INFP']];
+
+// MBTI influences in-game interests, alongside each resident's base personality.
+const MBTI_INTERESTS = {
+  INTJ: ['planChess', 'catalogue', 'study'],
+  INTP: ['repair', 'skyNotes', 'planChess'],
+  ENTJ: ['planChess', 'boxPractice', 'chess'],
+  ENTP: ['clapGame', 'repair', 'recipeSwap'],
+  INFJ: ['skyNotes', 'writeCard', 'catalogue'],
+  INFP: ['scrapbook', 'writeCard', 'cloudWatch'],
+  ENFJ: ['checkIn', 'compliment', 'writeCard'],
+  ENFP: ['rehearse', 'scrapbook', 'clapGame'],
+  ISTJ: ['catalogue', 'tidy', 'repair'],
+  ISFJ: ['tidy', 'recipeSwap', 'careHerbs'],
+  ESTJ: ['tidy', 'boxPractice', 'checkIn'],
+  ESFJ: ['recipeSwap', 'checkIn', 'compliment'],
+  ISTP: ['repair', 'boxPractice', 'planChess'],
+  ISFP: ['craft', 'scrapbook', 'style'],
+  ESTP: ['boxPractice', 'clapGame', 'yoga'],
+  ESFP: ['rehearse', 'style', 'compliment'],
+};
 
 /* ---------- 打分加成：活动偏好 ---------- */
 function traitBonus(d, use) {
@@ -43,7 +63,8 @@ function traitBonus(d, use) {
   if (['read', 'paint', 'piano', 'pc', 'study'].includes(use) && isN(d)) b += 8;
   if (use === 'wander') b += isJ(d) ? -5 : 15;
   if (use === 'join') b += isE(d) ? 10 : -5;
-  return b;
+  const interest = (MBTI_INTERESTS[mb(d)] || []).indexOf(use);
+  return b + (interest < 0 ? 0 : 14 - interest * 3);
 }
 // P 型更随性：随机部分放大；J 型更按部就班
 const noiseMul = d => (isJ(d) ? 0.8 : 1.4);

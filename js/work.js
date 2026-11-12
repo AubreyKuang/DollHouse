@@ -155,9 +155,10 @@ function helperFor(d, amount) {
     .filter(o => o !== d && o.state !== 'away' && o.money >= amount && (rel(d, o).lovers || rel(d, o).f >= 50))
     .sort((a, b) => (rel(d, b).lovers - rel(d, a).lovers) || (rel(d, b).f - rel(d, a).f))[0];
 }
-const canAfford = (d, amount) => d.money >= amount || !!helperFor(d, amount);
+const canAfford = (d, amount) => TEST_MODE || d.money >= amount || !!helperFor(d, amount);
 
 function pay(d, amount, what) {
+  if (TEST_MODE) return true;
   if (d.money >= amount) { d.money -= amount; return true; }
   const h = helperFor(d, amount);
   if (!h) return false;
@@ -177,7 +178,7 @@ function payday(d) {
 }
 
 function nightlyBills() {
-  const payers = G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
+  const payers = TEST_MODE ? [] : G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
   for (const d of payers) d.money -= RENT;
   if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
   const sb = seasonBill();

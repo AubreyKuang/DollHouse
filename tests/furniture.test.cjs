@@ -7,10 +7,9 @@ const { test } = require('node:test');
 const root = path.join(__dirname, '..');
 const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 
-function runGame(scenario) {
-  const data = new Map();
+function runGame(scenario, { mode, data = new Map() } = {}) {
   const context = vm.createContext({
-    assert, setTimeout() {}, document: { getElementById: () => null },
+    assert, setTimeout() {}, document: { body: { dataset: { mode } }, getElementById: () => null },
     localStorage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) },
   });
   for (const [, script] of read('index.html').matchAll(/<script src="([^"]+)"/g)) {
@@ -108,4 +107,77 @@ test('the calendar starts in January, celebrates a birthday once, and crosses a 
     assert.equal(seasonOf(3).id, 'spring');
     assert.equal(holidayOf(12).name, '圣诞节');
   `);
+});
+
+test('16 MBTI types favor different activities and nine base personalities remain selectable', () => {
+  runGame(`
+    assert.equal(Object.keys(PERSONAS).length, 9);
+    assert.equal(Object.keys(MBTI_INTERESTS).length, 16);
+    assert.equal(new Set(Object.values(MBTI_INTERESTS).map(list => list[0] + ':' + list[1])).size, 16);
+    for (const list of Object.values(MBTI_INTERESTS)) {
+      for (const activity of list) assert.ok(ACT_NAMES[activity], activity);
+    }
+    load();
+    const doll = G.dolls[0];
+    doll.mbti = 'INTJ';
+    assert.ok(traitBonus(doll, 'planChess') > traitBonus({ ...doll, mbti: 'ESFP' }, 'planChess'));
+    doll.persona = 'tidy';
+    const basket = addFurniture('laundry', 1, 8);
+    rebuild();
+    placeDollAt(doll, 1, 9);
+    assert.ok(startAct(doll, { type: 'tidy', furn: basket }));
+    arrive(doll);
+    assert.equal(doll.act.type, 'tidy');
+    assert.ok(basket.active);
+  `);
+});
+
+test('situational routines use weather, availability, relationships and saved cooldowns', () => {
+  runGame(`
+    load();
+    const [actor, friend] = G.dolls;
+    actor.persona = 'social'; actor.mbti = 'ENFJ';
+    actor.needs = { energy: 75, hunger: 75, fun: 75, social: 70, bladder: 85 };
+    friend.needs = { ...actor.needs, fun: 50 };
+    placeDollAt(actor, 4, 8); placeDollAt(friend, 5, 8);
+    rel(actor, friend).f = 55;
+    assert.ok(routineOptions(actor, () => 0).some(option => option.type === 'checkIn' && option.partner === friend));
+    assert.ok(startAct(actor, { type: 'checkIn', partner: friend }));
+    assert.equal(friend.act.partner, actor);
+    assert.ok(rel(actor, friend).f > 55);
+    assert.equal(G.daily.routine[actor.name + '与' + friend.name + ' · 问问室友近况'], 1);
+    endAct(actor);
+    assert.equal(friend.state, 'idle');
+    assert.ok(save());
+    load();
+    const restored = G.dolls[0];
+    assert.ok(!routineAvailable(restored, 'checkIn'));
+    restored.persona = 'lazy';
+    G.weather = 'sunny';
+    assert.ok(!routineAvailable(restored, 'cloudWatch'));
+    G.weather = 'rain';
+    assert.ok(routineAvailable(restored, 'cloudWatch'));
+    restored.needs.hunger = 10;
+    assert.ok(!routineAvailable(restored, 'cloudWatch'));
+  `);
+});
+
+test('the sandbox grants maximum space and free furniture without changing the normal save', () => {
+  const data = new Map();
+  runGame(`load(); G.fund = 37; assert.ok(save());`, { data });
+  runGame(`
+    load();
+    assert.equal(G.level, LEVELS.length - 1);
+    assert.equal(COLS, 24);
+    assert.ok(G.furniture.some(f => f.id === 'craftBench'));
+    G.fund = 0; G.inv.vanity = 0;
+    for (let i = 0; i < 200; i++) assert.ok(acquire('vanity'));
+    assert.equal(G.fund, 0); assert.equal(G.inv.vanity, 0);
+    assert.ok(!acquire('door'));
+    G.dolls[0].money = 0;
+    assert.ok(pay(G.dolls[0], 1000000000, '测试'));
+    G.time = 123; assert.ok(save());
+    load(); assert.equal(G.time, 123);
+  `, { mode: 'test', data });
+  runGame(`load(); assert.equal(G.fund, 37); assert.equal(G.level, 1); assert.equal(G.time, 0);`, { data });
 });

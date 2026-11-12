@@ -49,6 +49,7 @@ function renderInfo() {
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
+    <div class="persona">MBTI 偏好 · ${(MBTI_INTERESTS[mb(d)] || []).map(use => ACT_NAMES[use]).join('、')}</div>
     <div class="money">💰 存款 <b id="infoMoney"></b></div>
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
@@ -74,7 +75,7 @@ function tickInfo() {
   if (d && !$('#dollInfo').hidden) {
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
-    const m = $('#infoMoney'); if (m) { m.textContent = yuan(d.money); m.classList.toggle('neg', d.money < 0); }
+    const m = $('#infoMoney'); if (m) { m.textContent = TEST_MODE ? '∞' : yuan(d.money); m.classList.toggle('neg', !TEST_MODE && d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
@@ -156,7 +157,7 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
@@ -175,10 +176,10 @@ function renderPalette() {
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
-      const tag = have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
+      const tag = TEST_MODE ? '无限库存' : have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
       const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
       b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
-        el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
+        el('small', 'price' + (TEST_MODE || have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
       b.title = `${F.name} · ${purpose}`;
       b.onclick = () => {
         if (locked) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${F.name}`, true); SFX.play('deny'); return; }
@@ -203,15 +204,15 @@ HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette();
 
 /* ---------- 家庭基金与扩建 ---------- */
 function renderShopBar() {
-  $('#fundAmt').textContent = yuan(G.fund);
-  $('#fundTop').textContent = yuan(G.fund);
+  const fund = TEST_MODE ? '∞' : yuan(G.fund);
+  $('#fundAmt').textContent = $('#fundTop').textContent = fund;
   const L = LEVELS[G.level], next = LEVELS[G.level + 1];
   $('#houseLv').textContent = `🏠 ${L.name}（Lv${G.level} · 最多 ${L.cap} 人）`;
   const ex = $('#btnExpand');
   ex.textContent = next ? `🔨 扩建成「${next.name}」${yuan(next.cost)}` : '🏰 已经是最大的房子了';
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
-  $('#btnCrowd').disabled = G.crowdDay === G.day;
+  $('#btnCrowd').disabled = TEST_MODE || G.crowdDay === G.day;
 }
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
@@ -300,7 +301,7 @@ function renderWardrobe() {
   section('性格', pers);
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
-    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天${k === 'student' ? ' · 不谈恋爱' : ''}`;
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/月${k === 'student' ? ' · 不谈恋爱' : ''}`;
     const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
     b.onclick = () => {
       d.job = k; SFX.play('pop');
@@ -324,16 +325,18 @@ function renderWardrobe() {
     zs.append(b);
   }
   section('星座', zs);
-  const ms = el('div', 'chips');
-  MBTI_AXES.forEach(([a, b, na, nb], i) => {
-    for (const [letter, label] of [[a, na], [b, nb]]) {
-      const btn = el('button', 'chip' + (mb(d)[i] === letter ? ' on' : ''), `${letter} ${label}`);
-      btn.onclick = () => { const m = mb(d).split(''); m[i] = letter; d.mbti = m.join(''); SFX.play('pop'); renderWardrobe(); };
-      ms.append(btn);
-    }
-    if (i < 3) ms.append(el('span', 'mbti-sep', '·'));
-  });
-  section(`MBTI：${mb(d)} ${MBTI_NAMES[mb(d)]}`, ms);
+  const mbtiPicker = el('select', 'mbti-picker');
+  mbtiPicker.setAttribute('aria-label', 'MBTI 类型');
+  for (const [code, name] of Object.entries(MBTI_NAMES)) {
+    const option = el('option', null, `${code} · ${name}`);
+    option.value = code;
+    mbtiPicker.append(option);
+  }
+  mbtiPicker.value = mb(d);
+  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); };
+  const mbtiBox = el('div', 'mbti-settings');
+  mbtiBox.append(mbtiPicker, el('small', 'hint', `常见偏好 · ${MBTI_INTERESTS[mb(d)].map(use => ACT_NAMES[use]).join('、')}`));
+  section('MBTI', mbtiBox);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
@@ -384,7 +387,8 @@ document.getElementById('paperCopy').onclick=async event=>{
   catch{event.target.textContent='请选中月报文字复制';}
 };
 const paperAuto=document.getElementById('paperAuto');
+const paperPreference = TEST_MODE ? 'house-test-paper-auto' : 'house-paper-auto';
 paperAuto.checked=true;
-try{paperAuto.checked=localStorage.getItem('house-paper-auto')!=='off';}catch{}
-paperAuto.onchange=()=>{try{localStorage.setItem('house-paper-auto',paperAuto.checked?'on':'off');}catch{}};
+try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
+paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();

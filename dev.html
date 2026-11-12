@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>像素小屋 · 测试模式</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="test">
+<header class="topbar">
+  <h1>像素小屋 <small class="test-badge">测试模式</small></h1>
+  <div class="clock" title="游戏时间">
+    <span id="dayLabel">1 年 1 月</span>
+    <span id="clock">00:00</span>
+    <span id="timeIcon">🌙</span>
+  </div>
+  <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
+  <nav class="modes" aria-label="模式">
+    <button class="mode on" data-mode="live">🏠 生活</button>
+    <button class="mode" data-mode="build">🪑 布置</button>
+    <button id="btnWardrobe">👗 衣橱</button>
+    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
+  </nav>
+  <div class="speed" aria-label="速度">
+    <button data-speed="0" title="暂停">⏸</button>
+    <button data-speed="1" class="on" title="正常">▶</button>
+    <button data-speed="3" title="快进">⏩</button>
+    <button id="btnSound" title="声音">🔇</button>
+  </div>
+</header>
+
+<main class="layout">
+  <div id="stageWrap">
+    <div id="stage">
+      <canvas id="cv" width="316" height="266" aria-label="两层像素小洋房"></canvas>
+      <div id="overlay"></div>
+    </div>
+    <p id="hint" class="hint">点击小人查看状态，按住可以把 TA 拎起来放到别处～</p>
+  </div>
+
+  <aside id="side">
+    <h2>住户</h2>
+    <div id="dollList"></div>
+    <div id="dollInfo" class="card" hidden></div>
+    <button id="btnAddDoll" class="btn ghost">＋ 邀请新住户</button>
+    <div class="card log-card">
+      <div class="log-head"><h3>📜 生活日志</h3><button id="btnLogClear" class="btn small ghost">清空</button></div>
+      <div id="logList" class="log-list"></div>
+    </div>
+  </aside>
+</main>
+
+<dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
+  <header class="paper-head">
+    <h2 id="paperTitle">小屋月报</h2>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭月报">关闭</button></form>
+  </header>
+  <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
+  <pre id="paperText" aria-live="polite"></pre>
+  <button type="button" id="paperCopy" class="btn small">复制月报</button>
+</dialog>
+<section id="buildBar" hidden>
+  <div class="shop-bar">
+    <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
+    <span class="house" id="houseLv"></span>
+    <span class="spacer"></span>
+    <button id="btnCrowd" class="btn small">📣 号召大家凑钱</button>
+    <button id="btnExpand" class="btn small"></button>
+  </div>
+  <div class="tabs" role="group" aria-label="布置分类">
+    <button class="tab on" data-tab="essentials" aria-pressed="true">生活家具</button>
+    <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
+    <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
+    <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
+    <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
+    <span class="spacer"></span>
+    <button id="btnTrash" class="btn small" title="点击家具删除">🗑 删除模式</button>
+    <button id="btnReset" class="btn small ghost">恢复默认</button>
+  </div>
+  <div id="palette" class="palette"></div>
+  <p id="buildHint" class="hint">选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消</p>
+</section>
+
+<div id="wardrobe" class="modal" hidden>
+  <div class="modal-card">
+    <div class="modal-head">
+      <h2>👗 衣橱</h2>
+      <div id="wdTabs" class="wd-tabs"></div>
+      <button id="wdClose" class="btn small" aria-label="关闭">✕</button>
+    </div>
+    <div class="wd-body">
+      <div class="wd-preview">
+        <canvas id="wdCanvas" width="20" height="24"></canvas>
+        <div class="wd-dir">
+          <button data-dir="left">◀</button>
+          <button data-dir="down">●</button>
+          <button data-dir="right">▶</button>
+          <button data-dir="up">▲</button>
+        </div>
+        <label class="wd-name">名字 <input id="wdName" maxlength="8"></label>
+        <button id="wdRandom" class="btn small">🎲 随机搭配</button>
+        <button id="wdRemove" class="btn small ghost">请 TA 搬走</button>
+      </div>
+      <div id="wdOptions" class="wd-options"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script src="js/calendar.js"></script>
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/doll.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/npc-memory.js"></script>
+<script src="js/save-manager.js"></script>
+<script src="js/house-life.js"></script>
+<script src="js/game.js"></script>
+<script src="js/social.js"></script>
+<script src="js/work.js"></script>
+<script src="js/furniture2.js"></script>
+<script src="js/furniture3.js"></script>
+<script src="js/furniture4.js"></script>
+<script src="js/economy.js"></script>
+<script src="js/rooms.js"></script>
+<script src="js/season.js"></script>
+<script src="js/astro.js"></script>
+<script src="js/routines.js"></script>
+<script src="js/house-view.js"></script>
+<script src="js/view.js"></script>
+<script src="js/ui.js"></script>
+</body>
+</html>

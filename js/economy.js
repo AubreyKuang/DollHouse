@@ -14,16 +14,19 @@ const SHOP = {
   toilet: [240, 1], washstand: [180, 1], shower: [520, 1], cloudBed: [740, 1],
   moonLamp: [130, 1], bunnyPicture: [85, 1], cloudMobile: [120, 1], tulips: [95, 1], pawRug: [160, 1],
   recordPlayer: [420, 1], chessTable: [360, 1], knitting: [140, 1], ukulele: [280, 1],
+  vanity: [380, 1], laundry: [150, 1], yogaMat: [180, 1], punchingBag: [420, 1],
+  craftBench: [420, 1], toolbox: [250, 1], scrapbook: [300, 1], herbStand: [210, 1],
+  corkboard: [110, 1], plushRabbit: [130, 1], paperLantern: [120, 1], teaTray: [260, 1],
 };
 
 const FURNITURE_GROUPS = {
   essentials: ['toilet', 'washstand', 'shower', 'bath', 'cloudBed', 'bed', 'bigbed',
-    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror'],
+    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror', 'vanity', 'laundry', 'teaTray'],
   decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
     'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
-    'shelfwall', 'garland', 'xmastree', 'lantern'],
+    'shelfwall', 'garland', 'xmastree', 'lantern', 'corkboard', 'plushRabbit', 'paperLantern'],
   hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
-    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill'],
+    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill', 'yogaMat', 'punchingBag', 'craftBench', 'toolbox', 'scrapbook', 'herbStand'],
 };
 
 const LEVELS = [null,
@@ -44,6 +47,7 @@ function setWorldSize(cols) {
 
 // 放一件家具前调用：优先用仓库里的，否则从基金里买
 function acquire(id) {
+  if (TEST_MODE) return Object.hasOwn(SHOP, id);
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }
   const [price, lv] = SHOP[id];
   if (lv > G.level) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${FURNITURE[id].name}`, true); return false; }

@@ -212,6 +212,14 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-head h2{font-weight:600}
 .paper-dialog label{font-size:14px}
 #paperText{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:var(--panel-2);border-radius:8px;padding:14px;font:inherit;line-height:1.6}
+
+.test-badge{display:inline-block;margin-inline-start:5px;padding:3px 7px;border-radius:5px;
+  background:#e8c9f4;color:#452d52;font-size:12px;vertical-align:middle;white-space:nowrap}
+
+.mbti-settings{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.mbti-picker{background:var(--panel);color:var(--ink);border:1px solid var(--line);
+  border-radius:6px;padding:5px 8px;font:inherit}
+.mbti-settings .hint{margin:0}
 </style>
 </head>
 <body>
@@ -414,6 +422,38 @@ const PERSONAS = {
     dur: { chat: 1.5, read: 0.5 },
     chat: ['我跟你说个八卦！', '你今天发型好好看！', '有空一起出去玩吧～', '你最近怎么样呀？'],
     lines: ['有人陪我聊天吗？', '你今天好好看！', '哈哈哈哈', '大家在干嘛呀'],
+  },
+  maker: {
+    name: '巧手', icon: '🧵', desc: '喜欢做手工，也会动手修修补补',
+    speed: 2.1, decay: { energy: 4, hunger: 4, fun: 5, social: 2 },
+    like: { craft: 47, knit: 32, repair: 37, paint: 24, read: 8, dance: -10 },
+    dur: { craft: 1.35, knit: 1.3, repair: 1.25 },
+    chat: ['我刚缝好一枚布贴', '这颗螺丝换小一点就好了', '下次给你做一个～'],
+    lines: ['线头藏起来就好', '让我找找剪刀', '再试一种配色'],
+  },
+  stylist: {
+    name: '爱打扮', icon: '🎀', desc: '爱试配饰，也喜欢看别人穿了什么',
+    speed: 2.5, decay: { energy: 4, hunger: 4, fun: 6, social: 5 },
+    like: { style: 48, groom: 30, scrapbook: 24, chat: 12, music: 13 },
+    dur: { style: 1.35, groom: 1.25 },
+    chat: ['今天这个颜色很衬你', '我在找一条能配这件衣服的围巾', '换个发夹试试？'],
+    lines: ['这个颜色配米白应该不错', '今天想戴蝴蝶结', '发尾再理一下'],
+  },
+  active: {
+    name: '运动派', icon: '👟', desc: '爱拉伸、练平衡和运动后的放松',
+    speed: 3.1, decay: { energy: 5, hunger: 5, fun: 6, social: 3 },
+    like: { exercise: 45, yoga: 42, boxPractice: 37, shower: 22, wander: 13, tv: -15 },
+    dur: { exercise: 1.25, yoga: 1.25, boxPractice: 1.2 },
+    chat: ['刚才那组动作稳多了', '散个步就回来吧', '我练完再去洗澡'],
+    lines: ['先热热身', '今天的平衡好多了', '还差最后一组'],
+  },
+  tidy: {
+    name: '爱整洁', icon: '🧺', desc: '习惯整理房间、照料小物和植物',
+    speed: 2.2, decay: { energy: 4, hunger: 4, fun: 4, social: 3 },
+    like: { tidy: 44, careHerbs: 33, water: 26, wash: 13, study: 12 },
+    dur: { tidy: 1.3, careHerbs: 1.2 },
+    chat: ['我把备用毛巾叠在篮子里了', '窗边那盆薄荷冒新叶了', '这个盒子刚好能收好零碎东西'],
+    lines: ['叠好这一摞就休息', '给叶子擦擦灰', '小东西有地方收就好'],
   },
 };
 
@@ -1275,7 +1315,7 @@ function helpWithMeal(d, table) {
 
 function finishHouseMonth() {
   const lines = [monthLabel(G.day)];
-  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友' };
+  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友', routine:'住户日常' };
   for (const [kind,title] of Object.entries(labels)) {
     const top = Object.entries(G.daily[kind] || {}).sort((a,b)=>b[1]-a[1])[0];
     if (top) lines.push(`${title}　${top[0]} · ${top[1]} 次`);
@@ -1330,7 +1370,8 @@ function shareHouseNews(speaker, listener) {
 </script>
 <script>
 // 游戏状态、房间格子、寻路、小人 AI、时间流逝
-const SAVE_KEY = 'pixel-dollhouse-v1';
+const TEST_MODE = document.body?.dataset?.mode === 'test';
+const SAVE_KEY = TEST_MODE ? 'pixel-dollhouse-test-v1' : 'pixel-dollhouse-v1';
 const MIN_PER_SEC = 4;               // 现实 1 秒 = 游戏 4 分钟，一天约 6 分钟
 const HOOK = { refresh() {}, select() {}, toast() {}, logged() {} };
 
@@ -1367,7 +1408,7 @@ function save() {
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
-        tx:d.tx, ty:d.ty, dir:d.dir,
+        tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes,
         away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
       npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     },validHouseSave);
@@ -1375,14 +1416,22 @@ function save() {
 }
 function load() {
   const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave);
-  applySave(s && s.furniture ? s : JSON.parse(JSON.stringify(DEFAULT_SAVE)));
+  if (s && s.furniture) { applySave(s); return; }
+  const initial = JSON.parse(JSON.stringify(DEFAULT_SAVE));
+  if (TEST_MODE) {
+    for (const [id, x, y] of [
+      ['vanity', 17, 4], ['teaTray', 20, 6], ['herbStand', 23, 5],
+      ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15],
+    ]) initial.furniture.push({ id, x, y });
+  }
+  applySave(initial);
 }
 function applySave(s) {
   G.npcMemory = s.npcMemory; G.paper = (s.paper || []).map(formatSavedPaper); G.daily=s.daily || {};
   G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
-  G.fund = s.fund ?? 800; G.level = s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
+  G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
@@ -1447,8 +1496,8 @@ function rebuild() {
   for (const d of G.dolls) {
     if (d.state === 'away' || (d.state === 'act' && d.act.onFurn)) continue;
     if (BLOCK[d.tx] && BLOCK[d.tx][d.ty]) { const p = nearestFree(d.tx, d.ty); if (p) placeDollAt(d, p.x, p.y); }
-    if (takingStairs(d)) placeDollAt(d, d.tx, d.ty);
-    d.path = []; if (d.state === 'walk') d.state = 'idle';
+    if (d.state === 'walk' || d.state === 'arrive') endAct(d);
+    d.path = [];
   }
 }
 const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < ROWS && !BLOCK[x][y];
@@ -1514,9 +1563,10 @@ function approachTiles(f) {
 /* ---------------- 小人 ---------------- */
 function addDoll(src) {
   const d = {
-    uid: G.uid++, pid: src.pid || Math.random().toString(36).slice(2, 10), name: src.name, persona: src.persona, look: { ...src.look },
+    uid: G.uid++, pid: src.pid || Math.random().toString(36).slice(2, 10), name: src.name, persona: Object.hasOwn(PERSONAS, src.persona) ? src.persona : 'genki', look: { ...src.look },
     needs: src.needs ? { ...src.needs } : { energy: 60 + Math.random() * 40, hunger: 50 + Math.random() * 40, fun: 50 + Math.random() * 40, social: 50 + Math.random() * 40 },
     x: 0, y: 0, tx: 0, ty: 0, dir: 'down', frame: 0, ft: 0, state: 'idle', path: [], act: null,
+    routineTimes: { ...src.routineTimes },
     think: Math.random() * 2, bubble: null, blink: 0, blinkT: 2 + Math.random() * 3, hop: 0, happy: 0,
     gender: src.gender || (Math.random() < 0.5 ? 'f' : 'm'), heart: src.heart || 'normal',
     // 老存档没有星座/MBTI：开局的四位用设定好的，其他人随机
@@ -1524,6 +1574,7 @@ function addDoll(src) {
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
   };
+  if (TEST_MODE) d.money = Math.max(d.money, 1000000);
   d.needs.bladder ??= 85;
   G.dolls.push(d);
   if (!BLOCK) BLOCK = blockedMap();
@@ -1552,7 +1603,7 @@ function endAct(d) {
     if (a.onFurn) placeDollAt(d, a.back.x, a.back.y);
   }
   if (a && a.partner && a.partner.act && a.partner.act.partner === d) { a.partner.act = null; a.partner.state = 'idle'; a.partner.think = 1; }
-  d.act = null; d.state = 'idle'; d.hop = 0; d.think = 1 + Math.random() * 2;
+  d.act = null; d.state = 'idle'; d.hop = 0; d.ft = 0; d.think = 1 + Math.random() * 2;
 }
 
 function decide(d) {
@@ -1577,7 +1628,8 @@ function decide(d) {
     if (f.id === 'bigbed' && lover) s += f.users.includes(lover) ? 60 : 20;
     if (F.use === 'paint' && d.job === 'artist') s += 40;          // 画家要画画才卖得出画
     if (F.use === 'study' && d.job === 'student') s += 15;
-    if (F.use === 'exercise' && N.energy < 30) s -= 40;
+    if (['exercise', 'boxPractice'].includes(F.use) && N.energy < 30) s -= 40;
+    if (d.recentFurniture?.use === F.use && d.recentFurniture.at + 125 > absNow() && !['sleep', 'toilet', 'snack', 'cook', 'meal'].includes(F.use)) s -= 25;
     if (F.use === 'party') s += isHolidayParty() ? 50 : -10;           // 圣诞节大家围着圣诞树过节
     if(F.use==='meal'){
       const evening=G.time>=17*60&&G.time<21*60;
@@ -1589,7 +1641,7 @@ function decide(d) {
   }
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
-    (o.state === 'act' && o.act && !o.act.onFurn && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
+    (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join')));
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -1610,6 +1662,7 @@ function decide(d) {
   }
   opts.push({ s: want({ fun: 10 }) + (P.like.dance || 0) + traitBonus(d, 'dance') + Math.random() * 15 * noiseMul(d) - (G.night ? 20 : 0), type: 'dance' });
   opts.push({ s: 12 + (P.like.wander || 0) + traitBonus(d, 'wander') + Math.random() * 20 * noiseMul(d), type: 'wander' });
+  opts.push(...routineOptions(d, want));
   opts.sort((a, b) => b.s - a.s);
   for (const o of opts.slice(0, 4)) if (startAct(d, o)) return;
   d.think = 2;
@@ -1617,6 +1670,7 @@ function decide(d) {
 
 // 让小人去做某件事；成功规划路线返回 true
 function startAct(d, o) {
+  if (Object.hasOwn(ROUTINES, o.type)) return startRoutine(d, o);
   if (o.type === 'dance') { d.state = 'act'; d.act = { type: 'dance', t: 9 + Math.random() * 4 }; nudgeAudience(d); say(d, pick(ACT_LINES.dance)); return true; }
   if (o.type === 'wander') {
     const goal = nearestFree((Math.random() * COLS) | 0, WALL_ROWS + ((Math.random() * (ROWS - WALL_ROWS)) | 0));
@@ -1656,6 +1710,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (a && Object.hasOwn(ROUTINES, a.type)) { beginRoutine(d); return; }
   if (a && a.type === 'join') { arriveJoin(d); return; }
   if (a && a.type === 'leave') { exitHome(d); return; }
   if (a && a.type === 'tryst') { arriveTryst(d); return; }
@@ -1663,7 +1718,7 @@ function arrive(d) {
   if (a.type === 'chat') {
     const p = a.partner;
     if (!G.dolls.includes(p) || p.state === 'lift' || (p.act && p.act.onFurn)) { endAct(d); return; }
-    if (p.act && p.act.type === 'chat' && p.act.partner !== d) { say(d, '在忙呢，下次吧'); endAct(d); return; }
+    if (p.act && (Object.hasOwn(ROUTINES, p.act.type) || (p.act.type === 'chat' && p.act.partner !== d))) { say(d, '在忙呢，下次吧'); endAct(d); return; }
     if (p.act && (p.act.furn || p.act.type === 'join')) endAct(p);
     startSocial(d, p);
     return;
@@ -1692,6 +1747,7 @@ function arrive(d) {
     const cx = (f.x + F.w / 2) * T, cy = (f.y + F.h / 2) * T;
     face(d, cx, cy);
   }
+  d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
   if(a.type==='meal'){
     if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
@@ -1736,7 +1792,7 @@ function updateDoll(d, dt) {
   if (d.state === 'walk') {
     const n = d.path[0];
     if (!n) { arrive(d); return; }
-    if (!free(n.x, n.y)) { d.path = []; if (d.act && d.act.furn) endAct(d); else { d.state = 'idle'; d.act = null; } return; }
+    if (!free(n.x, n.y)) { endAct(d); d.path = []; return; }
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
     const onStairs = takingStairs(d);
     const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (onStairs ? 2 : 1);
@@ -1763,7 +1819,12 @@ function updateDoll(d, dt) {
       if (mate && rel(d, mate).lovers) { const r = rel(d, mate); r.l = Math.min(100, r.l + 0.3 * dt); if (Math.random() < dt * 0.08) spawnHeart(d, '💕'); }
     }
     if ((a.type === 'piano' || a.type === 'strum') && Math.random() < dt * 3) SFX.play('piano');
-    if (a.type === 'exercise') { d.ft += dt; if (d.ft > 0.09) { d.ft = 0; d.frame = (d.frame + 1) % 4; } }
+    if (a.type === 'exercise' || a.type === 'boxPractice' || a.type === 'yoga' || ROUTINES[a.type]?.motion === 'stretch') {
+      d.ft += dt;
+      const interval = a.type === 'exercise' ? .09 : a.type === 'yoga' ? .45 : .23;
+      d.frame = Math.floor(d.ft / interval) % 4;
+      if (a.type === 'clapGame' || a.type === 'rehearse') d.hop = d.frame % 2;
+    }
     if (a.type === 'paint' && d.job === 'artist') d.paintedDay = G.day;
     if (a.type === 'music' && Math.random() < dt * 2) SFX.play('game');
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
@@ -2123,7 +2184,7 @@ function caught(L, cheater, third) {
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
 const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
-  (x.state === 'act' && x.act && !x.act.onFurn && x.act.type !== 'chat' && x.act.type !== 'leave');
+  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave');
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
@@ -2412,9 +2473,10 @@ function helperFor(d, amount) {
     .filter(o => o !== d && o.state !== 'away' && o.money >= amount && (rel(d, o).lovers || rel(d, o).f >= 50))
     .sort((a, b) => (rel(d, b).lovers - rel(d, a).lovers) || (rel(d, b).f - rel(d, a).f))[0];
 }
-const canAfford = (d, amount) => d.money >= amount || !!helperFor(d, amount);
+const canAfford = (d, amount) => TEST_MODE || d.money >= amount || !!helperFor(d, amount);
 
 function pay(d, amount, what) {
+  if (TEST_MODE) return true;
   if (d.money >= amount) { d.money -= amount; return true; }
   const h = helperFor(d, amount);
   if (!h) return false;
@@ -2434,7 +2496,7 @@ function payday(d) {
 }
 
 function nightlyBills() {
-  const payers = G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
+  const payers = TEST_MODE ? [] : G.dolls.filter(d => d.job !== 'student');   // 学生不用交房租
   for (const d of payers) d.money -= RENT;
   if (payers.length) addLog(`🏠 ${payers.map(d => d.name).join('、')} 交了房租水电，每人 ${yuan(RENT)}`);
   const sb = seasonBill();
@@ -2762,6 +2824,139 @@ Object.assign(DRAW, {
 });
 </script>
 <script>
+// Furniture that gives the new personalities places to act.
+const ACTIVITY_FURNITURE = {
+  vanity:      ['莓果梳妆台', 2, 'style', '试配饰', { fun: 14 }, 15, '这两个发夹哪个更搭？'],
+  laundry:     ['奶油洗衣篮', 1, 'tidy', '叠毛巾', { fun: 10 }, 4, '毛巾叠好了，放到上面'],
+  yogaMat:     ['薄荷瑜伽垫', 2, 'yoga', '练瑜伽', { fun: 12, energy: 5 }, 0, '吸气，再慢慢呼出去'],
+  punchingBag: ['蜜桃沙袋', 1, 'boxPractice', '练拳', { fun: 19, energy: -8 }, 18, '左一下，右一下'],
+  craftBench:  ['奶糖手工台', 2, 'craft', '做手工', { fun: 18 }, 10, '把这枚纽扣缝到布贴上'],
+  toolbox:     ['柠檬工具箱', 1, 'repair', '修小物', { fun: 15 }, 5, '这回转起来顺多了'],
+  scrapbook:   ['星星相册桌', 2, 'scrapbook', '做手账', { fun: 17 }, 6, '给这张照片留一块位置'],
+  herbStand:   ['薄荷香草架', 1, 'careHerbs', '照料香草', { fun: 12 }, 17, '这盆薄荷该浇一点水了'],
+  teaTray:     ['雏菊茶几', 2, 'sipTea', '泡茶', { fun: 9, energy: 7 }, 7, '等茶叶慢慢泡开'],
+};
+
+for (const [id, [name, w, use, label, need, top, line]] of Object.entries(ACTIVITY_FURNITURE)) {
+  FURNITURE[id] = { name, w, h: 1, use, mode: 'front', need };
+  TALL[id] = top;
+  ACT_NAMES[use] = label;
+  ACT_LINES[use] = [line];
+}
+Object.assign(FURNITURE, {
+  corkboard: { name: '便签软木板', w: 2, h: 1, layer: 'wall' },
+  plushRabbit: { name: '长耳兔玩偶', w: 1, h: 1 },
+  paperLantern: { name: '绣球纸灯', w: 1, h: 1, layer: 'wall' },
+});
+Object.assign(TALL, { plushRabbit: 8 });
+Object.assign(PERSONAS.lazy.like, { sipTea: 26 });
+Object.assign(PERSONAS.foodie.like, { sipTea: 21, careHerbs: 17 });
+
+const PASTEL_EDGE = '#78616b';
+
+function hobbyTable(c, x, y, color) {
+  R(c, x + 3, y + 5, 2, 10, '#89726b');
+  R(c, x + 27, y + 5, 2, 10, '#89726b');
+  box(c, x + 1, y - 1, 30, 8, color, PASTEL_EDGE);
+  R(c, x + 3, y + 1, 26, 2, '#fff3db');
+}
+
+Object.assign(DRAW, {
+  vanity(c, x, y) {
+    box(c, x + 9, y - 15, 15, 15, '#c3dbdd', '#b4838a');
+    R(c, x + 11, y - 13, 2, 9, '#f4fbef');
+    hobbyTable(c, x, y, '#dda7af');
+    R(c, x + 4, y - 5, 3, 5, '#d383a6');
+    R(c, x + 25, y - 4, 4, 4, '#a598c8');
+    R(c, x + 9, y + 6, 14, 4, '#c68a9d');
+  },
+  laundry(c, x, y, f, t) {
+    box(c, x + 1, y + 4, 14, 11, '#d6ae87', '#a58372');
+    for (let i = 3; i < 15; i += 3) R(c, x + i, y + 7, 1, 6, '#edc99c');
+    R(c, x + 3, y + 1, 10, 4, '#e9b5c7');
+    R(c, x + 5, y - 2, 7, 3, f?.active && Math.floor(t * 4) % 2 ? '#a9d6c2' : '#fff1db');
+  },
+  yogaMat(c, x, y) {
+    R(c, x + 1, y + 7, 30, 7, '#689889');
+    R(c, x + 2, y + 6, 28, 6, '#a4d2be');
+    R(c, x + 4, y + 7, 22, 1, '#d3ead3');
+    box(c, x + 25, y + 3, 6, 8, '#bee2c6', '#689889');
+  },
+  punchingBag(c, x, y, f, t) {
+    const dx = f?.active ? Math.round(Math.sin(t * 8) * 2) : 0;
+    R(c, x + 11, y - 18, 2, 31, '#8c7180');
+    R(c, x + 5, y - 18, 8, 2, '#8c7180');
+    R(c, x + 5, y + 11, 11, 4, '#a78a91');
+    box(c, x + 2 + dx, y - 14, 9, 19, '#dea0a2', '#aa707f');
+    R(c, x + 4 + dx, y - 12, 2, 13, '#f4c2bb');
+  },
+  craftBench(c, x, y, f, t) {
+    R(c, x + 4, y - 10, 24, 10, '#d2b69f');
+    R(c, x + 8, y - 8, 1, 6, '#9f7c76');
+    R(c, x + 17, y - 7, 4, 4, '#bd8eb0');
+    hobbyTable(c, x, y, '#e3b98b');
+    R(c, x + 5, y - 4, 8, 4, '#e4aac1');
+    R(c, x + 18, y - 3, 8, 4, f?.active && Math.floor(t * 4) % 2 ? '#d6b7d4' : '#a7cbb5');
+  },
+  toolbox(c, x, y) {
+    box(c, x + 1, y + 4, 14, 10, '#dfb873', '#a18469');
+    box(c, x + 5, y + 1, 6, 5, '#fff0cf', '#9e856d');
+    R(c, x + 2, y + 7, 12, 2, '#f6d79e');
+    R(c, x + 7, y + 8, 2, 2, '#94748a');
+  },
+  scrapbook(c, x, y) {
+    hobbyTable(c, x, y, '#bea2ca');
+    box(c, x + 6, y - 6, 15, 7, '#fff3dd', '#a982a3');
+    R(c, x + 13, y - 5, 1, 5, '#d5adc9');
+    R(c, x + 8, y - 4, 4, 3, '#92bcc0');
+    R(c, x + 16, y - 4, 3, 1, '#cf9eb8');
+    R(c, x + 24, y - 5, 4, 5, '#d69fb9');
+  },
+  herbStand(c, x, y, f, t) {
+    R(c, x + 2, y - 9, 2, 24, '#a28b71');
+    R(c, x + 12, y - 9, 2, 24, '#a28b71');
+    for (const [i, dy] of [-9, 5].entries()) {
+      R(c, x + 2, y + dy + 4, 12, 2, '#ba9e7b');
+      box(c, x + 5, y + dy, 6, 5, '#d4a098', '#97796e');
+      R(c, x + 7, y + dy - 8, 2, 8, '#638d6e');
+      R(c, x + 4 + i, y + dy - 5, 7, 2, '#96bf91');
+    }
+    if (f?.active) R(c, x + 11, y - 10 + Math.floor(t * 9) % 4, 1, 2, '#c4e1e1');
+  },
+  teaTray(c, x, y, f, t) {
+    hobbyTable(c, x, y, '#d7b48a');
+    box(c, x + 9, y - 5, 8, 6, '#f2ddaa', '#b29886');
+    R(c, x + 17, y - 3, 2, 2, '#b29886');
+    R(c, x + 21, y - 3, 4, 4, '#f4eadb');
+    if (f?.active) R(c, x + 12, y - 7 - Math.floor(t * 3) % 3, 1, 2, '#fff9e4');
+  },
+  corkboard(c, x, y) {
+    box(c, x + 2, y + 1, 28, 13, '#d5b38d', '#a48372');
+    for (const [dx, dy, color] of [[5, 5, '#f7e3b0'], [13, 3, '#e6b2c7'], [22, 6, '#bfdac7']]) {
+      R(c, x + dx, y + dy, 5, 5, color);
+      R(c, x + dx + 2, y + dy, 1, 1, '#98758a');
+    }
+  },
+  plushRabbit(c, x, y) {
+    R(c, x + 4, y - 8, 3, 10, '#f6e4d5');
+    R(c, x + 9, y - 7, 3, 10, '#f6e4d5');
+    R(c, x + 5, y - 6, 1, 5, '#e5b1c0');
+    box(c, x + 2, y, 12, 9, '#f5e2d4', '#bd9a91');
+    box(c, x + 4, y + 8, 8, 6, '#e9ccbc', '#bd9a91');
+    R(c, x + 5, y + 3, 1, 2, '#77596b');
+    R(c, x + 10, y + 3, 1, 2, '#77596b');
+    R(c, x + 7, y + 6, 2, 1, '#d68fa9');
+  },
+  paperLantern(c, x, y) {
+    R(c, x + 7, y, 2, 4, '#9c808b');
+    box(c, x + 3, y + 4, 10, 10, '#ebafc4', '#b5829b');
+    R(c, x + 5, y + 6, 6, 6, '#f3d0d4');
+    R(c, x + 7, y + 6, 2, 6, '#ffebc4');
+    R(c, x + 7, y + 14, 2, 2, '#b5829b');
+  },
+});
+</script>
+<script>
 // 家庭基金、家具商店、仓库、扩建
 // 上班的人领工资时自动存 20% 进家庭基金；玩家每月还能号召一次大家凑钱。
 // 家具要用基金买，删掉的家具收进仓库可以再拿出来；扩建会让房子真的变宽，并解锁新家具。
@@ -2778,16 +2973,19 @@ const SHOP = {
   toilet: [240, 1], washstand: [180, 1], shower: [520, 1], cloudBed: [740, 1],
   moonLamp: [130, 1], bunnyPicture: [85, 1], cloudMobile: [120, 1], tulips: [95, 1], pawRug: [160, 1],
   recordPlayer: [420, 1], chessTable: [360, 1], knitting: [140, 1], ukulele: [280, 1],
+  vanity: [380, 1], laundry: [150, 1], yogaMat: [180, 1], punchingBag: [420, 1],
+  craftBench: [420, 1], toolbox: [250, 1], scrapbook: [300, 1], herbStand: [210, 1],
+  corkboard: [110, 1], plushRabbit: [130, 1], paperLantern: [120, 1], teaTray: [260, 1],
 };
 
 const FURNITURE_GROUPS = {
   essentials: ['toilet', 'washstand', 'shower', 'bath', 'cloudBed', 'bed', 'bigbed',
-    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror'],
+    'sofa', 'beanbag', 'chair', 'table', 'fridge', 'stove', 'coffee', 'mirror', 'vanity', 'laundry', 'teaTray'],
   decor: ['moonLamp', 'bunnyPicture', 'cloudMobile', 'tulips', 'pawRug',
     'plant', 'lamp', 'rug', 'rug2', 'window', 'painting', 'clock', 'poster',
-    'shelfwall', 'garland', 'xmastree', 'lantern'],
+    'shelfwall', 'garland', 'xmastree', 'lantern', 'corkboard', 'plushRabbit', 'paperLantern'],
   hobbies: ['recordPlayer', 'chessTable', 'knitting', 'ukulele', 'piano', 'shelf',
-    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill'],
+    'desk', 'arcade', 'aquarium', 'tv', 'catbed', 'pc', 'speaker', 'easel', 'treadmill', 'yogaMat', 'punchingBag', 'craftBench', 'toolbox', 'scrapbook', 'herbStand'],
 };
 
 const LEVELS = [null,
@@ -2808,6 +3006,7 @@ function setWorldSize(cols) {
 
 // 放一件家具前调用：优先用仓库里的，否则从基金里买
 function acquire(id) {
+  if (TEST_MODE) return Object.hasOwn(SHOP, id);
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }
   const [price, lv] = SHOP[id];
   if (lv > G.level) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${FURNITURE[id].name}`, true); return false; }
@@ -3199,11 +3398,31 @@ const MBTI_NAMES = {
   ISTJ: '物流师', ISFJ: '守卫者', ESTJ: '总经理', ESFJ: '执政官', ISTP: '鉴赏家', ISFP: '探险家', ESTP: '企业家', ESFP: '表演者',
 };
 const MBTI_AXES = [['E', 'I', '外向', '内向'], ['S', 'N', '实感', '直觉'], ['T', 'F', '思考', '情感'], ['J', 'P', '判断', '感知']];
-const mb = d => d.mbti || 'ESFJ';
+const mb = d => Object.hasOwn(MBTI_NAMES, d.mbti) ? d.mbti : 'ESFJ';
 const isE = d => mb(d)[0] === 'E', isN = d => mb(d)[1] === 'N', isF = d => mb(d)[2] === 'F', isJ = d => mb(d)[3] === 'J';
 
 // 经典“黄金搭档”
 const GOLDEN = [['INTJ', 'ENFP'], ['INFJ', 'ENFP'], ['ENTJ', 'INFP'], ['INTP', 'ENTJ'], ['INFJ', 'ENTP'], ['ISFJ', 'ESTP'], ['ISTJ', 'ESFP'], ['ESFJ', 'ISFP'], ['ESTJ', 'ISTP'], ['ENFJ', 'INFP']];
+
+// MBTI influences in-game interests, alongside each resident's base personality.
+const MBTI_INTERESTS = {
+  INTJ: ['planChess', 'catalogue', 'study'],
+  INTP: ['repair', 'skyNotes', 'planChess'],
+  ENTJ: ['planChess', 'boxPractice', 'chess'],
+  ENTP: ['clapGame', 'repair', 'recipeSwap'],
+  INFJ: ['skyNotes', 'writeCard', 'catalogue'],
+  INFP: ['scrapbook', 'writeCard', 'cloudWatch'],
+  ENFJ: ['checkIn', 'compliment', 'writeCard'],
+  ENFP: ['rehearse', 'scrapbook', 'clapGame'],
+  ISTJ: ['catalogue', 'tidy', 'repair'],
+  ISFJ: ['tidy', 'recipeSwap', 'careHerbs'],
+  ESTJ: ['tidy', 'boxPractice', 'checkIn'],
+  ESFJ: ['recipeSwap', 'checkIn', 'compliment'],
+  ISTP: ['repair', 'boxPractice', 'planChess'],
+  ISFP: ['craft', 'scrapbook', 'style'],
+  ESTP: ['boxPractice', 'clapGame', 'yoga'],
+  ESFP: ['rehearse', 'style', 'compliment'],
+};
 
 /* ---------- 打分加成：活动偏好 ---------- */
 function traitBonus(d, use) {
@@ -3214,7 +3433,8 @@ function traitBonus(d, use) {
   if (['read', 'paint', 'piano', 'pc', 'study'].includes(use) && isN(d)) b += 8;
   if (use === 'wander') b += isJ(d) ? -5 : 15;
   if (use === 'join') b += isE(d) ? 10 : -5;
-  return b;
+  const interest = (MBTI_INTERESTS[mb(d)] || []).indexOf(use);
+  return b + (interest < 0 ? 0 : 14 - interest * 3);
 }
 // P 型更随性：随机部分放大；J 型更按部就班
 const noiseMul = d => (isJ(d) ? 0.8 : 1.4);
@@ -3274,6 +3494,156 @@ function astroLine(d) {
 }
 function randomZodiac() { return pick(ZODIAC).id; }
 function randomMbti() { return MBTI_AXES.map(a => a[Math.random() < 0.5 ? 0 : 1]).join(''); }
+</script>
+<script>
+// Short household moments share the usual needs and pathfinding.
+const ROUTINES = {
+  stretch: { label: '伸个懒腰', personas: ['genki', 'active'], motion: 'stretch', gain: { energy: 5 },
+    when: d => G.time >= 360 && G.time < 690 && d.needs.energy >= 35, line: '活动一下肩膀～' },
+  rehearse: { label: '对镜练舞', personas: ['genki', 'stylist'], furniture: ['mirror', 'vanity'],
+    motion: 'stretch', gain: { fun: 12, energy: -4 }, when: d => !G.night && d.needs.energy >= 50, line: '一、二、三，转身！' },
+  clapGame: { label: '拍手游戏', personas: ['genki', 'active'], partner: true, motion: 'stretch',
+    gain: { fun: 9, social: 9 }, when: d => !G.night && d.needs.energy >= 48, recipient: p => p.persona !== 'lazy' || p.needs.fun < 55,
+    line: '跟得上我的节奏吗？', reply: '再来一次，这回我先！' },
+  couchNap: { label: '靠在沙发上打盹', personas: ['lazy'], furniture: ['sofa', 'beanbag'],
+    motion: 'doze', seat: true, gain: { energy: 14 }, when: d => !G.night && d.needs.energy < 72, line: '就眯一小会儿…' },
+  cloudWatch: { label: '在窗边看雨雪', personas: ['lazy'], furniture: ['window'], motion: 'watch',
+    gain: { fun: 10, energy: 3 }, when: () => ['rain', 'snow'].includes(G.weather), line: '在屋里听着还挺舒服' },
+  comics: { label: '翻漫画', personas: ['lazy'], furniture: ['shelf'], motion: 'book',
+    gain: { fun: 11 }, line: '再翻一页就合上' },
+  catalogue: { label: '整理读书笔记', personas: ['nerd', 'tidy'], furniture: ['shelf', 'desk', 'corkboard'],
+    motion: 'book', gain: { fun: 14 }, line: '把这一条摘下来' },
+  planChess: { label: '研究残局', personas: ['nerd'], furniture: ['chessTable'], motion: 'book',
+    gain: { fun: 13 }, line: '如果先走这枚棋子呢？' },
+  skyNotes: { label: '在窗边记星图', personas: ['nerd', 'maker'], furniture: ['window'], motion: 'book',
+    gain: { fun: 13 }, when: () => G.night && G.weather === 'sunny', line: '那一颗比昨晚还亮' },
+  recipeBook: { label: '抄写食谱', personas: ['foodie', 'tidy'], furniture: ['desk', 'table', 'scrapbook'],
+    motion: 'book', gain: { fun: 12 }, line: '下次少放一点糖' },
+  smellHerbs: { label: '闻闻香草', personas: ['foodie', 'tidy'], furniture: ['herbStand', 'plant'],
+    motion: 'watch', gain: { fun: 10 }, line: '闻起来像刚泡好的薄荷茶' },
+  recipeSwap: { label: '交换食谱', personas: ['foodie', 'maker'], partner: true, motion: 'book',
+    gain: { fun: 8, social: 10 }, when: () => G.time >= 660 && G.time <= 1260, recipient: p => p.persona === 'foodie' || p.needs.hunger <= 80,
+    line: '你要不要试试这份配方？', reply: '好呀，下次做给你尝尝' },
+  compliment: { label: '夸室友的穿搭', personas: ['social', 'stylist'], partner: true, motion: 'spark',
+    gain: { fun: 7, social: 9 }, line: '你今天这一身配色很好看！', reply: '谢谢，我挑了好一会儿呢' },
+  checkIn: { label: '问问室友近况', personas: ['social'], partner: true, motion: 'spark',
+    gain: { fun: 5, social: 12 }, recipient: p => p.needs.fun <= 68 || p.needs.social <= 65,
+    line: '今天过得怎么样？我可以陪你聊一会儿', reply: '有人听我说说，心里好多了' },
+  writeCard: { label: '写小卡片', personas: ['social', 'maker', 'stylist'], furniture: ['desk', 'table', 'craftBench'],
+    motion: 'book', gain: { fun: 11 }, line: '留一句话，晚点给室友看' },
+};
+
+for (const [id, routine] of Object.entries(ROUTINES)) {
+  ACT_NAMES[id] = routine.label;
+  ACT_LINES[id] = [routine.line];
+}
+
+function routineDistance(d, x, y) {
+  return Math.abs(d.tx - x) + Math.abs(d.ty - y);
+}
+
+function routineAvailable(d, id) {
+  const routine = ROUTINES[id];
+  const likes = (MBTI_INTERESTS[mb(d)] || []).includes(id);
+  return !!routine && (routine.personas.includes(d.persona) || likes)
+    && d.needs.energy >= 24 && d.needs.hunger >= 20 && (d.needs.bladder >= 16 || !G.furniture.some(f => f.id === 'toilet'))
+    && (d.routineTimes[id] ?? -Infinity) + 220 <= absNow()
+    && (!routine.when || routine.when(d));
+}
+
+function routinePartnerAvailable(d, p, id) {
+  const routine = ROUTINES[id];
+  return p !== d && p.state === 'idle' && roomOf(d) === roomOf(p)
+    && routineDistance(d, p.tx, p.ty) >= 1 && routineDistance(d, p.tx, p.ty) <= 3 && p.needs.energy >= 24
+    && p.needs.hunger >= 20 && (p.needs.bladder >= 16 || !G.furniture.some(f => f.id === 'toilet')) && rel(d, p).f >= 25
+    && (p.routineTimes[id] ?? -Infinity) + 220 <= absNow()
+    && (!routine.recipient || routine.recipient(p));
+}
+
+function routineFurnitureRow(f) {
+  return layerOf(f.id) === 'wall' ? (f.y < 0 ? FLOOR_SPLIT : WALL_ROWS) : f.y;
+}
+
+function routineOptions(d, want) {
+  const out = [];
+  for (const [type, routine] of Object.entries(ROUTINES)) {
+    if (!routineAvailable(d, type)) continue;
+    const s = 45 + want(routine.gain) + traitBonus(d, type) + Math.random() * 16 * noiseMul(d);
+    if (routine.partner) {
+      const partner = G.dolls.filter(p => routinePartnerAvailable(d, p, type))
+        .sort((a, b) => rel(d, b).f - rel(d, a).f)[0];
+      if (partner) out.push({ type, partner, s });
+    } else if (routine.furniture) {
+      const venues = G.furniture.filter(f => routine.furniture.includes(f.id) && !f.users.length);
+      if (venues.length) out.push({ type, venues, s: s - 1.5 * Math.min(...venues.map(f => routineDistance(d, f.x, routineFurnitureRow(f)))) });
+    } else {
+      out.push({ type, s });
+    }
+  }
+  return out;
+}
+
+function startRoutine(d, { type, partner, venues = [] }) {
+  if (!routineAvailable(d, type)) return false;
+  const routine = ROUTINES[type];
+  if (routine.partner && (!partner || !routinePartnerAvailable(d, partner, type))) return false;
+  if (routine.furniture) {
+    for (const f of venues.slice().sort((a, b) =>
+      routineDistance(d, a.x, routineFurnitureRow(a)) - routineDistance(d, b.x, routineFurnitureRow(b)))) {
+      if (!G.furniture.includes(f) || f.users.length) continue;
+      const row = routineFurnitureRow(f);
+      const targets = layerOf(f.id) === 'wall'
+        ? Array.from({ length: FURNITURE[f.id].w }, (_, i) => [{ x: f.x + i, y: row }, { x: f.x + i, y: row + 1 }]).flat()
+        : approachTiles(f);
+      const route = findPath(d.tx, d.ty, targets);
+      if (!route) continue;
+      f.users.push(d);
+      d.path = route;
+      d.act = { type, furn: f };
+      d.state = route.length ? 'walk' : 'arrive';
+      if (!route.length) beginRoutine(d);
+      return true;
+    }
+    return false;
+  }
+  d.act = { type, partner };
+  beginRoutine(d);
+  return true;
+}
+
+function beginRoutine(d) {
+  const { type, furn, partner } = d.act, routine = ROUTINES[type];
+  if (!routineAvailable(d, type)) { endAct(d); return; }
+  const t = (routine.seat ? 11 : 5 + Math.random() * 3) * durMul(d);
+  d.state = 'act';
+  d.ft = 0;
+  Object.assign(d.act, { t, gain: routine.gain });
+  d.routineTimes[type] = absNow();
+  if (furn) {
+    furn.active = true;
+    face(d, furn.x * T + FURNITURE[furn.id].w * T / 2, routineFurnitureRow(furn) * T);
+    if (routine.seat) {
+      d.act.back = { x: d.tx, y: d.ty };
+      d.act.onFurn = true;
+      d.x = furn.x * T + 8; d.y = furn.y * T + 13; d.dir = 'down';
+    }
+  }
+  const accessory = partner && OUTFIT.acc[partner.look.acc];
+  const line = type === 'compliment' && accessory && partner.look.acc !== 'none'
+    ? `你戴的${accessory}真好看！` : routine.line;
+  say(d, line);
+  if (partner) {
+    partner.ft = 0;
+    partner.state = 'act';
+    partner.act = { type, partner: d, t, gain: routine.gain };
+    partner.routineTimes[type] = absNow();
+    face(d, partner.x, partner.y); face(partner, d.x, d.y);
+    bump(d, partner, 2);
+    const replyAct = partner.act;
+    setTimeout(() => { if (partner.act === replyAct) say(partner, routine.reply); }, 850);
+  }
+  countHouseActivity('routine', partner ? `${d.name}与${partner.name} · ${routine.label}` : `${d.name} · ${routine.label}`);
+}
 </script>
 <script>
 // Two cutaway storeys over the existing simulation grid. The front edges
@@ -3529,6 +3899,7 @@ function dollPose(d) {
   if (d.state === 'lift') return 'lift';
   if (d.state === 'walk') return 'walk';
   if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
+  if (d.state === 'act' && (['yoga', 'boxPractice'].includes(d.act?.type) || ROUTINES[d.act?.type]?.motion === 'stretch')) return 'dance';
   if (d.act && d.state === 'act' && (d.act.type === 'dance' || (d.act.type === 'join' && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
@@ -3537,9 +3908,25 @@ function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
-    blink: d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
+    blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
   });
+  if (d.state !== 'act') return;
+  const motion = ROUTINES[d.act?.type]?.motion;
+  if (motion === 'book') {
+    const side = d.dir === 'left' ? -1 : 1;
+    box(c, x + side * 9 - 3, y - 12, 7, 5, '#fff1d7', '#8e6d82');
+    R(c, x + side * 9, y - 11, 1, 3, '#c69eb4');
+  }
+  if (motion === 'doze') {
+    R(c, x + 7, y - 23, 4, 1, '#f4e5ff');
+    R(c, x + 8, y - 22, 2, 1, '#f4e5ff');
+    R(c, x + 7, y - 21, 4, 1, '#f4e5ff');
+  }
+  if (motion === 'spark') {
+    R(c, x + 9, y - 18, 1, 5, '#f7d485');
+    R(c, x + 7, y - 16, 5, 1, '#f7d485');
+  }
 }
 
 function render() {
@@ -3595,7 +3982,7 @@ function render() {
       lctx.rect(HOUSE_X, storey.wall, W, storey.front - storey.wall);
       lctx.clip();
       if (f.id === 'lamp') hole(x + 8, y - 10, 54);
-      if (f.id === 'moonLamp') hole(x + 8, y + 8, 34, .85);
+      if (f.id === 'moonLamp' || f.id === 'paperLantern') hole(x + 8, y + 8, 34, .85);
       if (f.id === 'garland') for (let i = 0; i < 8; i += 2) hole(x + 4 + i * 6, y + 9, 16, .55);
       if (f.id === 'aquarium') hole(x + 16, y - 6, 22, .5);
       if (f.id === 'xmastree') hole(x + 8, y - 2, 30, .8);
@@ -3893,6 +4280,7 @@ function renderInfo() {
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
+    <div class="persona">MBTI 偏好 · ${(MBTI_INTERESTS[mb(d)] || []).map(use => ACT_NAMES[use]).join('、')}</div>
     <div class="money">💰 存款 <b id="infoMoney"></b></div>
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
@@ -3918,7 +4306,7 @@ function tickInfo() {
   if (d && !$('#dollInfo').hidden) {
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
-    const m = $('#infoMoney'); if (m) { m.textContent = yuan(d.money); m.classList.toggle('neg', d.money < 0); }
+    const m = $('#infoMoney'); if (m) { m.textContent = TEST_MODE ? '∞' : yuan(d.money); m.classList.toggle('neg', !TEST_MODE && d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
@@ -4000,7 +4388,7 @@ $('#btnTrash').onclick = () => {
 };
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
-  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
+  const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
@@ -4019,10 +4407,10 @@ function renderPalette() {
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
-      const tag = have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
+      const tag = TEST_MODE ? '无限库存' : have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
       const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
       b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
-        el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
+        el('small', 'price' + (TEST_MODE || have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
       b.title = `${F.name} · ${purpose}`;
       b.onclick = () => {
         if (locked) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${F.name}`, true); SFX.play('deny'); return; }
@@ -4047,15 +4435,15 @@ HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette();
 
 /* ---------- 家庭基金与扩建 ---------- */
 function renderShopBar() {
-  $('#fundAmt').textContent = yuan(G.fund);
-  $('#fundTop').textContent = yuan(G.fund);
+  const fund = TEST_MODE ? '∞' : yuan(G.fund);
+  $('#fundAmt').textContent = $('#fundTop').textContent = fund;
   const L = LEVELS[G.level], next = LEVELS[G.level + 1];
   $('#houseLv').textContent = `🏠 ${L.name}（Lv${G.level} · 最多 ${L.cap} 人）`;
   const ex = $('#btnExpand');
   ex.textContent = next ? `🔨 扩建成「${next.name}」${yuan(next.cost)}` : '🏰 已经是最大的房子了';
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
-  $('#btnCrowd').disabled = G.crowdDay === G.day;
+  $('#btnCrowd').disabled = TEST_MODE || G.crowdDay === G.day;
 }
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
@@ -4144,7 +4532,7 @@ function renderWardrobe() {
   section('性格', pers);
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
-    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/天${k === 'student' ? ' · 不谈恋爱' : ''}`;
+    const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/月${k === 'student' ? ' · 不谈恋爱' : ''}`;
     const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
     b.onclick = () => {
       d.job = k; SFX.play('pop');
@@ -4168,16 +4556,18 @@ function renderWardrobe() {
     zs.append(b);
   }
   section('星座', zs);
-  const ms = el('div', 'chips');
-  MBTI_AXES.forEach(([a, b, na, nb], i) => {
-    for (const [letter, label] of [[a, na], [b, nb]]) {
-      const btn = el('button', 'chip' + (mb(d)[i] === letter ? ' on' : ''), `${letter} ${label}`);
-      btn.onclick = () => { const m = mb(d).split(''); m[i] = letter; d.mbti = m.join(''); SFX.play('pop'); renderWardrobe(); };
-      ms.append(btn);
-    }
-    if (i < 3) ms.append(el('span', 'mbti-sep', '·'));
-  });
-  section(`MBTI：${mb(d)} ${MBTI_NAMES[mb(d)]}`, ms);
+  const mbtiPicker = el('select', 'mbti-picker');
+  mbtiPicker.setAttribute('aria-label', 'MBTI 类型');
+  for (const [code, name] of Object.entries(MBTI_NAMES)) {
+    const option = el('option', null, `${code} · ${name}`);
+    option.value = code;
+    mbtiPicker.append(option);
+  }
+  mbtiPicker.value = mb(d);
+  mbtiPicker.onchange = () => { d.mbti = mbtiPicker.value; SFX.play('pop'); renderWardrobe(); };
+  const mbtiBox = el('div', 'mbti-settings');
+  mbtiBox.append(mbtiPicker, el('small', 'hint', `常见偏好 · ${MBTI_INTERESTS[mb(d)].map(use => ACT_NAMES[use]).join('、')}`));
+  section('MBTI', mbtiBox);
   const hearts = el('div', 'chips');
   for (const [k, H] of Object.entries(HEARTS)) {
     const b = el('button', 'chip' + (d.heart === k ? ' on' : ''), `${H.icon} ${H.name}<small>${H.desc}</small>`);
@@ -4228,9 +4618,10 @@ document.getElementById('paperCopy').onclick=async event=>{
   catch{event.target.textContent='请选中月报文字复制';}
 };
 const paperAuto=document.getElementById('paperAuto');
+const paperPreference = TEST_MODE ? 'house-test-paper-auto' : 'house-paper-auto';
 paperAuto.checked=true;
-try{paperAuto.checked=localStorage.getItem('house-paper-auto')!=='off';}catch{}
-paperAuto.onchange=()=>{try{localStorage.setItem('house-paper-auto',paperAuto.checked?'on':'off');}catch{}};
+try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
+paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
 </script>
 </body>
