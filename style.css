@@ -213,3 +213,16 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .mbti-picker{background:var(--panel);color:var(--ink);border:1px solid var(--line);
   border-radius:6px;padding:5px 8px;font:inherit}
 .mbti-settings .hint{margin:0}
+
+
+.community-panel{display:grid;gap:6px}
+.community-status{font-size:12px;line-height:1.4;margin:0;padding:7px 9px;border-radius:7px;background:var(--panel);color:var(--ink)}
+.guest-tag{font-size:10px;font-style:normal;font-weight:600;border-radius:5px;padding:2px 5px;background:#ecd6f3;color:#59355e}
+.community-dialog h3{margin:14px 0 6px;font-size:15px}
+.community-choices{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.community-choices button:disabled,.community-dialog button:disabled{opacity:.55;cursor:default}
+.application-row{display:flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin:8px 0;background:var(--panel)}
+.application-row canvas{width:30px;height:36px;image-rendering:pixelated}
+.application-info{display:grid;gap:3px;flex:1;min-width:0}
+.application-info small{color:var(--muted)}
+#btnRandomResident{margin-top:12px}
