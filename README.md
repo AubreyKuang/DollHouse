@@ -105,6 +105,9 @@
 - 卧室有双人床又没人时，花心的人会把暧昧对象叫进卧室、**关上门**——门外的恋人看不见，但要是推门进来……
 - 合不来的会吵架，严重时会闹翻，恋人也可能分手
 
+<img width="274" height="174" alt="image" src="https://github.com/user-attachments/assets/c7bb26e2-0a3b-4a1b-8f23-26fb49d2c4cb" />
+
+
 </td>
 </tr>
 </table>
