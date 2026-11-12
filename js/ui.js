@@ -98,7 +98,7 @@ function renderLog() {
   let day = null;
   for (let i = G.log.length - 1; i >= 0; i--) {
     const e = G.log[i];
-    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', `第 ${e.d} 天 · ${WEEKDAYS[weekday(e.d)]}`)); }
+    if (e.d !== day) { day = e.d; box.append(el('div', 'log-day', monthLabel(e.d))); }
     box.append(el('div', 'log-item', `<time>${hhmm(e.t)}</time><span>${esc(e.text)}</span>`));
   }
 }
@@ -128,18 +128,25 @@ function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   const S = seasonOf(G.day), Hd = holidayOf(G.day);
-  $('#dayLabel').textContent = `第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
+  $('#dayLabel').textContent = `${monthLabel(G.day)} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
   const sky = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
   $('#timeIcon').textContent = G.weather && G.weather !== 'sunny' ? WEATHER[G.weather].icon : sky;
   $('#timeIcon').title = WEATHER[G.weather || 'sunny'].name;
 }
 
 /* ---------- 布置面板 ---------- */
-let tab = 'furniture';
-document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
-  tab = b.dataset.tab;
-  document.querySelectorAll('.tab').forEach(o => o.classList.toggle('on', o === b));
-  G.build.placing = null; renderPalette(); SFX.play('click');
+let tab = 'essentials';
+const catalogTabs = document.querySelectorAll('#buildBar [data-tab]');
+catalogTabs.forEach(button => button.onclick = () => {
+  if (tab === button.dataset.tab) return;
+  if (G.build.placing) cancelPlacing();
+  tab = button.dataset.tab;
+  catalogTabs.forEach(option => {
+    option.classList.toggle('on', option === button);
+    option.setAttribute('aria-pressed', String(option === button));
+  });
+  renderPalette();
+  SFX.play('click');
 });
 $('#btnTrash').onclick = () => {
   if (G.build.placing) cancelPlacing();
@@ -151,7 +158,7 @@ $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
   const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
-  const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
+  const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -159,17 +166,20 @@ const iconCache = {};
 function renderPalette() {
   const pal = $('#palette'); pal.innerHTML = '';
   $('#btnTrash').classList.toggle('on', G.build.trash);
-  if (tab === 'furniture') {
-    for (const id of Object.keys(FURNITURE)) {
+  pal.dataset.category = tab;
+  const group = FURNITURE_GROUPS[tab];
+  if (group) {
+    for (const id of group) {
       const F = FURNITURE[id];
-      if (F.fixed) continue;
-      const [price, lv] = SHOP[id] || [0, 1], have = G.inv[id] || 0, locked = lv > G.level && !have;
+      const [price, lv] = SHOP[id], have = G.inv[id] || 0, locked = lv > G.level && !have;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
       const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
       const tag = have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
-      b.append(c, el('span', null, F.name), el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
-      b.title = F.use ? `${F.name} · ${ACT_NAMES[F.use] || ''}` : F.name;
+      const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
+      b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
+        el('small', 'price' + (have ? ' own' : price > G.fund && !locked ? ' poor' : ''), tag));
+      b.title = `${F.name} · ${purpose}`;
       b.onclick = () => {
         if (locked) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${F.name}`, true); SFX.play('deny'); return; }
         if (G.build.placing && G.build.placing.moved) cancelPlacing();
@@ -371,7 +381,7 @@ window.addEventListener('beforeunload', save);
 document.getElementById('dailyPaper').onclick=showHousePaper;
 document.getElementById('paperCopy').onclick=async event=>{
   try{await navigator.clipboard.writeText(document.getElementById('paperText').textContent);event.target.textContent='已复制';}
-  catch{event.target.textContent='请选中日报文字复制';}
+  catch{event.target.textContent='请选中月报文字复制';}
 };
 const paperAuto=document.getElementById('paperAuto');
 paperAuto.checked=true;
