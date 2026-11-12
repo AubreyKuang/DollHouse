@@ -63,7 +63,7 @@ function crowdfund() {
   if (G.crowdDay === G.day) { HOOK.toast('本月已经凑过钱了，下个月再来吧', true); return; }
   G.crowdDay = G.day;
   let total = 0; const parts = [];
-  for (const d of G.dolls) {
+  for (const d of residents()) {
     const spare = d.money - 300;
     const amt = spare > 0 ? Math.round(spare * (GENEROSITY[d.persona] || 0.1) / 10) * 10 : 0;
     const home = d.state !== 'away';

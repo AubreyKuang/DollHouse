@@ -168,3 +168,13 @@ function dollPortrait(cv, L, dir = 'down', frame = 0, pose = 'stand') {
   c.clearRect(0, 0, cv.width, cv.height);
   drawDoll(c, cv.width / 2, cv.height - 1, L, { dir, frame, pose, happy: true });
 }
+
+function randomLook() {
+  const keys = o => Object.keys(o), r = n => (Math.random() * n) | 0;
+  const top = pick(keys(OUTFIT.top));
+  return {
+    skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
+    top, topColor: r(OUTFIT.clothColor.length), bottom: pick(keys(OUTFIT.bottom)), bottomColor: r(OUTFIT.clothColor.length),
+    shoes: r(OUTFIT.shoes.length), acc: pick(keys(OUTFIT.acc)),
+  };
+}

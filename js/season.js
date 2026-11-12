@@ -130,7 +130,7 @@ function startHouseMonth() {
   if (!hasDeco) addLog(`${H.icon} 家里还没有${FURNITURE[H.deco].name}，去商店买一个会更有节日气氛`);
   if (H.name === '春节') {
     // 有工作的人给学生发红包
-    for (const g of G.dolls) for (const s of G.dolls) if (g !== s && s.job === 'student' && JOBS[g.job].wage > 100 && g.money >= 200) {
+    for (const g of residents()) for (const s of residents()) if (g !== s && s.job === 'student' && JOBS[g.job].wage > 100 && g.money >= 200) {
       g.money -= 88; s.money += 88; bump(g, s, 4); addLog(`🧧 ${g.name} 给 ${s.name} 发了个红包 ¥88`);
     }
   }
@@ -140,8 +140,9 @@ function startHouseMonth() {
   }
   if (H.name === '圣诞节') {
     // 恋人和好朋友互送礼物
-    for (let i = 0; i < G.dolls.length; i++) for (let j = i + 1; j < G.dolls.length; j++) {
-      const a = G.dolls[i], b = G.dolls[j], r = rel(a, b);
+    const people = residents();
+    for (let i = 0; i < people.length; i++) for (let j = i + 1; j < people.length; j++) {
+      const a = people[i], b = people[j], r = rel(a, b);
       if (!(r.lovers || r.f >= 70)) continue;
       const [giver, getter] = a.money >= b.money ? [a, b] : [b, a];
       if (giver.money < 80) continue;

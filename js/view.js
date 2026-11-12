@@ -21,7 +21,7 @@ function dollPose(d) {
   if (d.state === 'walk') return 'walk';
   if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
   if (d.state === 'act' && (['yoga', 'boxPractice'].includes(d.act?.type) || ROUTINES[d.act?.type]?.motion === 'stretch')) return 'dance';
-  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (d.act.type === 'join' && d.act.dance))) return 'dance';
+  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (['join', 'visitStay'].includes(d.act.type) && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
 }
@@ -30,9 +30,23 @@ function drawDollObj(c, d) {
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
     blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
-    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
+    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
   });
   if (d.state !== 'act') return;
+  if (d.act?.type === 'visitStay') {
+    const px = x + 8, py = y - 13 - Math.floor(d.ft * 2) % 3;
+    if (d.act.theme === 'music') {
+      R(c, px + 2, py - 5, 1, 6, '#f4b6cb');
+      R(c, px, py, 3, 2, '#f4b6cb');
+      R(c, px + 2, py - 5, 3, 1, '#f8d9e3');
+    } else if (d.act.theme === 'games') {
+      box(c, px, py, 5, 5, '#f8e6c7', '#8e6d82');
+      R(c, px + 2, py + 2, 1, 1, '#a67696');
+    } else if (d.act.theme === 'tea') {
+      box(c, px, py, 6, 5, '#ffefdc', '#a0747e');
+      R(c, px + 6, py + 1, 2, 2, '#f6c8b5');
+    }
+  }
   const motion = ROUTINES[d.act?.type]?.motion;
   if (motion === 'book') {
     const side = d.dir === 'left' ? -1 : 1;

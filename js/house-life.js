@@ -26,7 +26,7 @@ function helpWithMeal(d, table) {
 
 function finishHouseMonth() {
   const lines = [monthLabel(G.day)];
-  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友', routine:'住户日常' };
+  const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容', chess:'棋友', routine:'住户日常', visitors:'来访与派对' };
   for (const [kind,title] of Object.entries(labels)) {
     const top = Object.entries(G.daily[kind] || {}).sort((a,b)=>b[1]-a[1])[0];
     if (top) lines.push(`${title}　${top[0]} · ${top[1]} 次`);
