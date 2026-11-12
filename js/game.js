@@ -33,7 +33,7 @@ const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function save() {
   try {
     return SaveManager.save(localStorage,SAVE_KEY,{
-      floorsV: 1, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+      floorsV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
       wall: G.wall, floor: G.floor, time: G.time, day: G.day,
       furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
       dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -45,7 +45,9 @@ function save() {
 }
 function load() {
   const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave);
-  if (s && s.furniture) { applySave(s); return; }
+  applySave(s || defaultHouseSave());
+}
+function defaultHouseSave() {
   const initial = JSON.parse(JSON.stringify(DEFAULT_SAVE));
   if (TEST_MODE) {
     for (const [id, x, y] of [
@@ -53,11 +55,11 @@ function load() {
       ['craftBench', 17, 14], ['scrapbook', 20, 13], ['punchingBag', 23, 15],
     ]) initial.furniture.push({ id, x, y });
   }
-  applySave(initial);
+  return initial;
 }
 function applySave(s) {
   G.npcMemory = s.npcMemory; G.paper = (s.paper || []).map(formatSavedPaper); G.daily=s.daily || {};
-  G.wall = s.wall; G.floor = s.floor; G.time = s.time ?? 480; G.day = s.day ?? 1;
+  G.wall = s.wall; G.floor = s.floor; G.bathroom = s.bathroom === true; G.time = s.time ?? 480; G.day = s.day ?? 1;
   G.monthEvents = s.monthEvents ?? G.day;
   G.community = restoreCommunity(s.community);
   if (G.community.active) G.community.active.reserved = {};
@@ -99,8 +101,8 @@ function canPlace(id, x, y, ignore) {
     if (id === 'door' && y !== WALL_ROWS - 2) return false;
   }
   else if (y < WALL_ROWS || y + d.h > ROWS) return false;
-  if (straddles(x, d.w)) return false;                                   // 不能骑在卧室隔墙上
-  if (L === 'solid') for (let i = 0; i < d.w; i++) for (let j = 0; j < d.h; j++) if (isDoorTile(x + i, y + j)) return false;
+  if (straddles(x, y, d.w)) return false;
+  if (L === 'solid' && blocksDoor({ x, y }, d)) return false;
   for (const f of G.furniture) {
     if (f === ignore || layerOf(f.id) !== L) continue;
     const e = FURNITURE[f.id];
@@ -183,7 +185,9 @@ function approachTiles(f) {
   const front = f.y + d.h < end;
   if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
   if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
-    out.push({ x: f.x - 1, y: f.y + j }, { x: f.x + d.w, y: f.y + j });
+    const y = f.y + j, right = f.x + d.w;
+    if (!wallBetween(f.x, y, f.x - 1, y)) out.push({ x: f.x - 1, y });
+    if (!wallBetween(right - 1, y, right, y)) out.push({ x: right, y });
   }
   if (!front && f.y - 1 >= (f.y < FLOOR_SPLIT ? WALL_ROWS : FLOOR_SPLIT)) {
     for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y - 1 });

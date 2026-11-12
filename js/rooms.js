@@ -4,17 +4,32 @@
 const BX = 8;
 const DY = 5;
 const UPPER_DOOR_Y = 16;
+const BATH_X = 4;
+const BATH_DOOR_Y = 17;
 G.bedDoor = true;
 
-const roomOf = d => d.ty >= FLOOR_SPLIT ? (d.tx < BX ? 'upperBedroom' : 'study') : (d.tx < BX ? 'bed' : 'living');
+const roomOf = d => d.ty >= FLOOR_SPLIT
+  ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
+  : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
 const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty < FLOOR_SPLIT && G.bedDoor);
 const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
+const crossesDivider = (x1, x2, divider) => Math.min(x1, x2) === divider - 1 && Math.max(x1, x2) === divider;
 const wallBetween = (x1, y1, x2, y2) =>
   ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
-  (Math.min(x1, x2) === BX - 1 && Math.max(x1, x2) === BX && y1 !== passageRow(y1));
-const isDoorTile = (x, y) => y === passageRow(y) && (x === BX - 1 || x === BX);
-const straddles = (x, w) => x < BX && x + w > BX;
+  (crossesDivider(x1, x2, BX) && y1 !== passageRow(y1)) ||
+  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y);
+const isDoorTile = (x, y) => (y === passageRow(y) && (x === BX - 1 || x === BX)) ||
+  (G.bathroom && y === BATH_DOOR_Y && (x === BATH_X - 1 || x === BATH_X));
+const straddles = (x, y, w) => (x < BX && x + w > BX) ||
+  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X);
+
+function blocksDoor({ x, y }, { w, h }) {
+  for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {
+    if (isDoorTile(col, row)) return true;
+  }
+  return false;
+}
 
 function blocksStairs(f) {
   const { w, h } = FURNITURE[f.id], column = stairsColumn();
@@ -29,9 +44,7 @@ function fitHouseFurniture() {
     const upper = f.y < 0 || f.y >= FLOOR_SPLIT;
     const first = wall ? (upper ? UPPER_WALL : 0) : (upper ? FLOOR_SPLIT : WALL_ROWS);
     const end = wall ? first + WALL_ROWS : (upper ? ROWS : FLOOR_SPLIT);
-    const byDoor = layer === 'solid' && [DY, UPPER_DOOR_Y].some(y =>
-      f.y <= y && y < f.y + F.h && f.x <= BX && f.x + F.w > BX - 1);
-    if (!straddles(f.x, F.w) && !byDoor && !(layer === 'solid' && blocksStairs(f))) continue;
+    if (!straddles(f.x, f.y, F.w) && !(layer === 'solid' && (blocksDoor(f, F) || blocksStairs(f)))) continue;
 
     let best = null;
     for (let y = first; y + F.h <= end; y++) for (let x = 0; x + F.w <= COLS; x++) {
@@ -60,7 +73,7 @@ function bedroomDoorRect() {
 
 function partitionDrawables(c) {
   const { x, y } = bedroomDoorRect();
-  return [{ y: y + FLOOR_STEP, draw: () => {
+  const drawables = [{ y: y + FLOOR_STEP, draw: () => {
     R(c, x - 5, y + 2, 10, 2, '#b29a81');
     if (!doorOpenNow()) {
       R(c, x - 5, y - 16, 6, 18, '#78645d');
@@ -68,6 +81,11 @@ function partitionDrawables(c) {
       R(c, x - 2, y - 7, 1, 1, '#f7d390');
     }
   } }];
+  if (G.bathroom) {
+    const bx = HOUSE_X + BATH_X * T, by = houseY(BATH_DOOR_Y * T, STOREYS[1]);
+    drawables.push({ y: by + FLOOR_STEP, draw: () => R(c, bx - 5, by + 2, 10, 2, '#ddcfaf') });
+  }
+  return drawables;
 }
 
 function hitBedDoor(p) {

@@ -152,10 +152,14 @@ function drawRoomDetails(c, x, right, top, back, storey, i) {
 function drawStorey(c, storey, wall, floor) {
   const left = HOUSE_X, right = left + W, mid = left + BX * T;
   const { back, front, wall: top } = storey;
-  for (const [i, x, end] of [[0, left, mid], [1, mid, right]]) {
-    const base = wall.id === 'cream' ? storey.rooms[i] : shade(wall.base, i ? .01 : -.05);
+  const bathEdge = G.bathroom && storey === STOREYS[1] ? left + BATH_X * T : left;
+  const spans = [[0, bathEdge, mid], [1, mid, right]];
+  if (bathEdge > left) spans.unshift([2, left, bathEdge]);
+  for (const [i, x, end] of spans) {
+    const bath = i === 2;
+    const base = bath ? '#b5d8ce' : wall.id === 'cream' ? storey.rooms[i] : shade(wall.base, i ? .01 : -.05);
     const alt = wall.id === 'cream' ? shade(base, .045) : wall.alt;
-    const floorBase = floor.id === 'oak' ? storey.floors[i] : floor.base;
+    const floorBase = bath ? '#d1e4dd' : floor.id === 'oak' ? storey.floors[i] : floor.base;
     const inset = 9;
 
     c.save();
@@ -164,7 +168,7 @@ function drawStorey(c, storey, wall, floor) {
     c.translate(left, back);
     c.scale(1, FLOOR_STEP / T);
     c.translate(0, -storey.row * T);
-    drawFloor(c, { ...floor, base: floorBase, alt: shade(floorBase, -.06) },
+    drawFloor(c, { pat: bath ? 'check' : floor.pat, base: floorBase, alt: shade(floorBase, -.09) },
       storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
     c.restore();
 
@@ -174,7 +178,14 @@ function drawStorey(c, storey, wall, floor) {
     c.rect(x + inset, top, end - x - inset * 2, back - top - 1);
     c.clip();
     c.translate(left, top);
-    drawWall(c, { ...wall, base, alt }, back - top);
+    if (bath) {
+      R(c, x - left, back - top - 36, end - x, 36, '#e4eee6');
+      for (let row = back - top - 36; row < back - top; row += 8) {
+        R(c, x - left, row, end - x, 1, '#a9cbc4');
+        for (let col = x - left + (row % 16); col < end - left; col += 16) R(c, col, row, 1, 8, '#b7d4ca');
+      }
+      R(c, x - left, back - top - 37, end - x, 1, '#83b4aa');
+    } else drawWall(c, { ...wall, base, alt }, back - top);
     c.restore();
     housePoly(c, shade(base, -.10), [x, top], [x + inset, top + 6], [x + inset, back], [x, front]);
     housePoly(c, shade(base, -.045), [end, top], [end - inset, top + 6], [end - inset, back], [end, front]);
@@ -183,11 +194,13 @@ function drawStorey(c, storey, wall, floor) {
     R(c, x + inset, back - 13, end - x - inset * 2, 1, shade(base, -.09));
     R(c, x + inset, back - 2, end - x - inset * 2, 2, shade(base, -.13));
     R(c, x, top, end - x, 3, '#49364d28');
-    if (wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
+    if (!bath && wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
   }
-  R(c, mid - 2, top, 5, front - top, '#928482');
-  R(c, mid - 2, top, 1, front - top, '#c7b5a9');
-  R(c, mid + 2, top, 1, front - top, '#6f656c');
+  for (const x of bathEdge > left ? [bathEdge, mid] : [mid]) {
+    R(c, x - 2, top, 5, front - top, '#928482');
+    R(c, x - 2, top, 1, front - top, '#c7b5a9');
+    R(c, x + 2, top, 1, front - top, '#6f656c');
+  }
 }
 
 function drawHouseStairs(c) {

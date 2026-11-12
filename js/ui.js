@@ -33,7 +33,7 @@ function renderDollList() {
     const b = el('button', 'doll-row' + (d.uid === G.sel ? ' sel' : '') + (d.state === 'away' ? ' away' : ''));
     const c = el('canvas'); c.width = 20; c.height = 24; dollPortrait(c, d.look);
     const P = PERSONAS[d.persona];
-    const m = el('div', 'meta', `<b>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small data-doing="${d.uid}">${doingText(d)}</small>`);
+    const m = el('div', 'meta', `<b>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small class="couple-label" data-partners="${d.uid}" hidden></small><small data-doing="${d.uid}">${esc(doingText(d))}</small>`);
     b.append(c, m);
     b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
     box.append(b);
@@ -48,6 +48,7 @@ function renderInfo() {
   const P = PERSONAS[d.persona];
   card.hidden = false;
   card.innerHTML = `<h3>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''}</h3>
+    <div id="infoPartners" class="partner-list" hidden></div>
     <div class="persona">${P.icon} ${P.name} · ${P.desc}</div>
     <div class="persona">${jobLine(d)}</div>
     <div class="persona">${astroLine(d)}</div>
@@ -57,7 +58,7 @@ function renderInfo() {
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
-      <div class="rel"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
+      <div class="rel" data-rel-row="${o.uid}"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
       <div class="rel-bars"><span title="友好度">🤝</span><div class="bar"><i data-rf="${o.uid}" style="background:#7cc576"></i></div>
       <span title="恋爱度">💗</span><div class="bar"><i data-rlv="${o.uid}" style="background:#ec6a8a"></i></div></div></div>`).join('')}</div>` : ''}
     <div class="hint" style="margin:4px 0 0">选中后点家具，可以让 TA 去用</div>
@@ -66,15 +67,29 @@ function renderInfo() {
       <button class="btn small" id="btnDress"${d.guest ? ' hidden' : ''}>👗 换装</button>
       <button class="btn small ghost" id="btnWake">📣 叫 TA</button>
     </div>`;
+  $('#infoPartners').onclick = e => {
+    const uid = Number(e.target.closest('[data-partner]')?.dataset.partner);
+    if (!uid) return;
+    G.sel = uid;
+    SFX.play('click');
+    HOOK.select();
+    $('#infoPartners [data-partner]')?.focus();
+  };
   $('#btnPet').onclick = () => petDoll(d);
   $('#btnDress').onclick = () => openWardrobe(d.uid);
   $('#btnWake').onclick = () => { if (d.state === 'away') { HOOK.toast(`${d.name} 不在家哦`, true); return; } if (d.act) endAct(d); d.path = []; d.state = 'idle'; d.think = 3; d.dir = 'down'; say(d, '叫我吗？'); };
-  tickInfo();
 }
 
 function tickInfo() {
   const d = G.dolls.find(o => o.uid === G.sel);
   if (d && !$('#dollInfo').hidden) {
+    const partners = confirmedPartners(d), strip = $('#infoPartners');
+    const signature = JSON.stringify(partners.map(o => [o.uid, o.name]));
+    if (strip.dataset.pairing !== signature) {
+      strip.dataset.pairing = signature;
+      strip.hidden = !partners.length;
+      strip.innerHTML = partners.map(o => `<button class="partner-link" type="button" data-partner="${o.uid}">♥ 恋人 · ${esc(o.name)}</button>`).join('');
+    }
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
     const m = $('#infoMoney'); if (m) { m.textContent = TEST_MODE ? '∞' : yuan(d.money); m.classList.toggle('neg', !TEST_MODE && d.money < 0); }
@@ -83,6 +98,7 @@ function tickInfo() {
       const r = rel(d, o), lab = document.querySelector(`[data-rl="${o.uid}"]`);
       if (!lab) continue;
       lab.textContent = relLabel(r);
+      document.querySelector(`[data-rel-row="${o.uid}"]`).classList.toggle('couple-rel', arePartners(d, o));
       document.querySelector(`[data-rf="${o.uid}"]`).style.width = Math.max(0, r.f).toFixed(0) + '%';
       document.querySelector(`[data-rlv="${o.uid}"]`).style.width = r.l.toFixed(0) + '%';
     }
@@ -90,9 +106,17 @@ function tickInfo() {
   for (const s of document.querySelectorAll('[data-doing]')) {
     const o = G.dolls.find(x => x.uid === +s.dataset.doing); if (o) s.textContent = doingText(o);
   }
+  for (const s of document.querySelectorAll('[data-partners]')) {
+    const o = G.dolls.find(x => x.uid === +s.dataset.partners);
+    if (!o) continue;
+    const names = confirmedPartners(o).map(p => p.name).join('、');
+    s.hidden = !names;
+    const caption = names ? `♥ 恋人 · ${names}` : '';
+    if (s.textContent !== caption) s.textContent = caption;
+  }
 }
 
-HOOK.select = () => { renderDollList(); renderInfo(); updateCommunityStatus(); };
+HOOK.select = () => { renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus(); };
 
 /* ---------- 生活日志 ---------- */
 function renderLog() {
@@ -161,7 +185,7 @@ $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
   const keepDolls = G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
-  const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
+  const s = defaultHouseSave(); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
