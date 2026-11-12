@@ -76,7 +76,7 @@ function pickPartner(d, others) {
     const r = rel(d, o);
     let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
     if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
-    return [o, w * compat(d, o)];
+    return [o, Math.max(1, w + 5 * NPCMemory.influence(G, d.pid, o.pid)) * compat(d, o)];
   }));
 }
 
@@ -161,6 +161,36 @@ function startSocial(d, p) {
   // 恋人之间的日常亲昵太频繁，几小时内只记一次，免得刷屏
   const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
+  if (!routine && ['argue', 'hug', 'kiss', 'flirt'].includes(kind)) {
+    const outcome = kind === 'flirt' ? (flirtOk ? 'accepted' : 'rejected') : 'completed';
+    const emotion = kind === 'argue' ? -.9 : outcome === 'rejected' ? -.85 : .55;
+    const impact = kind === 'argue' || kind === 'flirt' ? 90 : 45;
+    const descriptions = {
+      argue: [`我找${p.name}理论，结果吵了起来`, `${d.name}来找我理论，我们吵了一架`],
+      hug: [`我拥抱了${p.name}`, `${d.name}拥抱了我`],
+      kiss: [`我亲了${p.name}`, `${d.name}亲了我`],
+      flirt: [`我向${p.name}表白，${flirtOk ? '对方答应了' : '我被拒绝了'}`,
+        `${d.name}向我表白，${flirtOk ? '我接受了' : '我拒绝了'}`]
+    };
+    const views = [
+      { person: d.pid, subject: p.pid, interpretation: descriptions[kind][0], emotion, impact },
+      { person: p.pid, subject: d.pid, interpretation: descriptions[kind][1],
+        emotion: outcome === 'rejected' ? -.35 : emotion, impact }
+    ];
+    if (kind === 'argue') {
+      for (const observer of G.dolls) {
+        if (observer === d || observer === p || ['away', 'lift'].includes(observer.state) || lying(observer)) continue;
+        if (Math.abs(observer.tx - d.tx) + Math.abs(observer.ty - d.ty) > 4 ||
+            !canSee(observer, d) || !canSee(observer, p)) continue;
+        views.push({ person: observer.pid, subject: d.pid, channel: 'witness',
+          interpretation: `我看到${d.name}和${p.name}在争吵`, emotion: -.3, impact: 40, confidence: .8 });
+      }
+    }
+    NPCMemory.record(G, {
+      type: kind, time: absNow(), location: { x: d.x, y: d.y },
+      participants: [d.pid, p.pid], outcome
+    }, views);
+  }
   if (LOGK[kind] && !routine) addLog(jealousTalk ? `😤 ${d.name} 吃醋，找 ${p.name} 吵了一架` : LOGK[kind]);
   if (kind === 'flirt') addLog(`💌 ${d.name} 向 ${p.name} 表白${flirtOk ? '，对方答应了' : '，被拒绝了'}`);
   if (['hug', 'kiss', 'flirt'].includes(kind) && !r.lovers && canRomance(d, p)) witness(d, p, r.secret || kind === 'kiss' ? 'caught' : 'jealous');
@@ -210,6 +240,17 @@ function caught(L, cheater, third) {
     r.lovers = false;
     HOOK.toast(`💔 ${L.name} 撞见 ${cheater.name} 和 ${third.name}，两人分手了！`);
   } else HOOK.toast(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 在一起！`);
+  NPCMemory.record(G, {
+    type: 'caught-affair', time: absNow(), location: { x: L.x, y: L.y },
+    participants: [L.pid, cheater.pid, third.pid], outcome: r.lovers ? 'confronted' : 'separated'
+  }, [
+    { person: L.pid, subject: cheater.pid, channel: 'witness',
+      interpretation: `我撞见${cheater.name}和${third.name}亲密`, emotion: -1, impact: 100 },
+    { person: cheater.pid, subject: L.pid,
+      interpretation: `${L.name}撞见了我和${third.name}`, emotion: -.9, impact: 90 },
+    { person: third.pid, subject: L.pid,
+      interpretation: `${L.name}撞见了我和${cheater.name}`, emotion: -.7, impact: 80 }
+  ]);
 }
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
