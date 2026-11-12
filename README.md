@@ -7,7 +7,15 @@
 小人们会在房子里自己生活：上班上学、吃饭睡觉、弹琴打游戏、交朋友、谈恋爱……偶尔还会闹出点狗血剧情。
 你负责布置房间、给他们换衣服，偶尔把谁拎起来换个地方。
 
-### [▶️ 在线试玩](https://aubreykuang.github.io/DollHouse/)
+
+**在线玩**：打开 <https://aubreykuang.github.io/DollHouse/> 就行。
+
+**测试模式（金手指）· Test mode · テストモード**：[打开测试小屋](https://aubreykuang.github.io/DollHouse/dev.html)。开局就是 24 格宽、可住 8 人的最大户型，家庭基金显示 ∞，所有可购买家具无限取用。住户仍会按性格和需求活动。测试模式拥有独立存档，可随时回到正式版继续原进度。
+
+![测试模式的最大户型，摆有梳妆台、手工台、手账桌和沙袋](docs/test-house.png)
+
+**离线玩**：下载 [`pixel-dollhouse.html`](pixel-dollhouse.html)，双击用浏览器打开。
+
 
 <sub>打开就能玩，电脑和手机都可以</sub>
 
@@ -294,16 +302,6 @@
 - 存档升级到 v2：旧版存档会自动补上信任、醋意和搭子数据，不会被丢弃；比当前版本新的存档会拒绝读取。
 
 ---
-
-## 🚀 怎么玩
-
-**在线玩**：打开 <https://aubreykuang.github.io/DollHouse/> 就行。
-
-**测试模式（金手指）· Test mode · テストモード**：[打开测试小屋](https://aubreykuang.github.io/DollHouse/dev.html)。开局就是 24 格宽、可住 8 人的最大户型，家庭基金显示 ∞，所有可购买家具无限取用。住户仍会按性格和需求活动。测试模式拥有独立存档，可随时回到正式版继续原进度。
-
-![测试模式的最大户型，摆有梳妆台、手工台、手账桌和沙袋](docs/test-house.png)
-
-**离线玩**：下载 [`pixel-dollhouse.html`](pixel-dollhouse.html)，双击用浏览器打开。
 
 ```bash
 git clone git@github.com:AubreyKuang/DollHouse.git
