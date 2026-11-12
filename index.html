@@ -19,6 +19,7 @@
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
+    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋日报</button>
   </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
@@ -49,8 +50,15 @@
   </aside>
 </main>
 
-<div style="padding:.5rem"><button type="button" id="dailyPaper">📰 小屋日报</button></div>
-<dialog id="paperDialog"><form method="dialog"><button aria-label="关闭">关闭</button></form><h2>小屋日报</h2><label><input id="paperAuto" type="checkbox"> 每日自动打开</label><pre id="paperText" style="white-space:pre-wrap"></pre><button type="button" id="paperCopy">复制日报</button></dialog>
+<dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
+  <header class="paper-head">
+    <h2 id="paperTitle">小屋日报</h2>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭日报">关闭</button></form>
+  </header>
+  <label><input id="paperAuto" type="checkbox"> 每日自动打开</label>
+  <pre id="paperText" aria-live="polite"></pre>
+  <button type="button" id="paperCopy" class="btn small">复制日报</button>
+</dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
     <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>

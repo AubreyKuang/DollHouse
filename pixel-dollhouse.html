@@ -198,6 +198,14 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   #side{flex:1 1 100%}
   .bubble{font-size:11px;padding:2px 6px}
 }
+
+.paper-button{white-space:nowrap;background:var(--sel)!important;color:#3b2a2f}
+.paper-dialog{width:min(560px,calc(100% - 24px));max-height:85vh;padding:20px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink)}
+.paper-dialog::backdrop{background:var(--backdrop)}
+.paper-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.paper-head h2{font-weight:600}
+.paper-dialog label{font-size:14px}
+#paperText{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:var(--panel-2);border-radius:8px;padding:14px;font:inherit;line-height:1.6}
 </style>
 </head>
 <body>
@@ -213,6 +221,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
+    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋日报</button>
   </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
@@ -243,8 +252,15 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   </aside>
 </main>
 
-<div style="padding:.5rem"><button type="button" id="dailyPaper">📰 小屋日报</button></div>
-<dialog id="paperDialog"><form method="dialog"><button aria-label="关闭">关闭</button></form><h2>小屋日报</h2><label><input id="paperAuto" type="checkbox"> 每日自动打开</label><pre id="paperText" style="white-space:pre-wrap"></pre><button type="button" id="paperCopy">复制日报</button></dialog>
+<dialog id="paperDialog" class="paper-dialog" aria-labelledby="paperTitle">
+  <header class="paper-head">
+    <h2 id="paperTitle">小屋日报</h2>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭日报">关闭</button></form>
+  </header>
+  <label><input id="paperAuto" type="checkbox"> 每日自动打开</label>
+  <pre id="paperText" aria-live="polite"></pre>
+  <button type="button" id="paperCopy" class="btn small">复制日报</button>
+</dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
     <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
@@ -1217,6 +1233,18 @@ function houseRelations(){
   return Object.fromEntries(Object.entries(G.rel).map(([key,value])=>[key,value.f]));
 }
 
+function helpWithMeal(d, table) {
+  const guest=table.users.find(person=>person!==d&&person.state==='act'&&person.needs.hunger<35);
+  if(!guest)return;
+  guest.needs.hunger=Math.min(100,guest.needs.hunger+10);
+  const text=`${d.name} 给饿着的 ${guest.name} 分了一份晚饭`;
+  NPCMemory.record(G,{type:'meal-help',time:absNow(),participants:[d.pid,guest.pid],outcome:'shared'},[
+    {person:guest.pid,subject:d.pid,emotion:.85,impact:90,interpretation:`我饿着的时候，${d.name} 给我分了晚饭`},
+    {person:d.pid,subject:guest.pid,emotion:.45,impact:55,interpretation:`我给 ${guest.name} 分了晚饭`}
+  ]);
+  addLog(`🍲 ${text}`);
+}
+
 function finishHouseDay() {
   const lines = [`第 ${G.day} 天 · ${WEEKDAYS[weekday(G.day)]}`];
   const labels = { social:'社交', meal:'用餐', study:'书桌', audience:'钢琴围观', partners:'游戏伙伴', groom:'整理仪容' };
@@ -1227,22 +1255,32 @@ function finishHouseDay() {
   const now=houseRelations();
   for(const [key,friendship] of Object.entries(now)){
     const delta=friendship-(G.dayRelations[key]??friendship);
-    if(Math.abs(delta)<8)continue;
+    if(!Number.isFinite(delta)||Math.abs(delta)<8)continue;
     const people=key.split('|').map(id=>G.dolls.find(person=>person.pid===id)?.name);
     if(people.every(Boolean))lines.push(`关系变化　${people.join('与')}：友好 ${delta>0?'+':''}${Math.round(delta)}`);
   }
   G.dayRelations=now;
   for (const entry of G.log.filter(entry=>entry.d===G.day).slice(-8)) lines.push(entry.text);
+  const residents=G.dolls.filter(d=>d.state!=='away');
+  if(residents.length>=2&&residents.every(d=>d.heart==='fickle')&&G.log.some(e=>e.d===G.day&&/表白|暧昧|分手/.test(e.text)))lines.push('小屋趣闻　花心室友们今天把日子过成了恋综。');
+  if(residents.length>=2&&residents.every(d=>d.mbti?.startsWith('I'))&&!Object.keys(G.daily.social||{}).length)lines.push('小屋趣闻　内向的室友们今天各忙各的，小屋格外安静。');
   if (lines.length===1) lines.push('今天小屋里很安静。');
   G.paper.push(lines.join('\n'));
   if (G.paper.length>30) G.paper.shift();
   G.daily={};
+  updateHousePaperButton();
   if (document.getElementById('paperAuto')?.checked) showHousePaper();
+}
+
+function updateHousePaperButton(){
+  const button=document.getElementById('dailyPaper');
+  if(button)button.textContent=G.paper.length?`📰 小屋日报 · ${G.paper.length}`:'📰 小屋日报';
 }
 
 function showHousePaper() {
   const dialog=document.getElementById('paperDialog');
-  document.getElementById('paperText').textContent=G.paper.slice(-7).reverse().join('\n\n')||'今晚结束后会生成第一份日报。';
+  document.getElementById('paperText').textContent=G.paper.slice().reverse().join('\n\n')||`第 ${G.day} 天的日报将在游戏时间 00:00 生成。可以用顶部的 ⏩ 快进，之后随时从「小屋日报」回看。`;
+  document.getElementById('paperCopy').disabled=!G.paper.length;
   if (!dialog.open) dialog.showModal();
 }
 
@@ -1598,7 +1636,10 @@ function arrive(d) {
     face(d, cx, cy);
   }
   countHouseDay(a.type,d.name);
-  if(a.type==='meal'&&f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+  if(a.type==='meal'){
+    if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+    if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
+  }
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
@@ -1724,7 +1765,7 @@ function update(realDt) {
   G.t += realDt;
   if (dt > 0 && !document.getElementById('paperDialog')?.open) {
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); SFX.play('newday'); }
+    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); save(); SFX.play('newday'); }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
@@ -3393,7 +3434,7 @@ $('#btnReset').onclick = () => {
   const keepDolls = G.dolls.map(d => ({ pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
   const keepRel = G.rel;
   const s = JSON.parse(JSON.stringify(DEFAULT_SAVE)); s.dolls = keepDolls; s.time = G.time; s.day = G.day;
-  s.rel = keepRel; s.npcMemory = G.npcMemory; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
+  s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
 const iconCache = {};
@@ -3615,8 +3656,10 @@ document.getElementById('paperCopy').onclick=async event=>{
   catch{event.target.textContent='请选中日报文字复制';}
 };
 const paperAuto=document.getElementById('paperAuto');
-paperAuto.checked=localStorage.getItem('house-paper-auto')!=='off';
-paperAuto.onchange=()=>localStorage.setItem('house-paper-auto',paperAuto.checked?'on':'off');
+paperAuto.checked=true;
+try{paperAuto.checked=localStorage.getItem('house-paper-auto')!=='off';}catch{}
+paperAuto.onchange=()=>{try{localStorage.setItem('house-paper-auto',paperAuto.checked?'on':'off');}catch{}};
+updateHousePaperButton();
 </script>
 </body>
 </html>

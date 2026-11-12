@@ -191,3 +191,11 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   #side{flex:1 1 100%}
   .bubble{font-size:11px;padding:2px 6px}
 }
+
+.paper-button{white-space:nowrap;background:var(--sel)!important;color:#3b2a2f}
+.paper-dialog{width:min(560px,calc(100% - 24px));max-height:85vh;padding:20px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink)}
+.paper-dialog::backdrop{background:var(--backdrop)}
+.paper-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+.paper-head h2{font-weight:600}
+.paper-dialog label{font-size:14px}
+#paperText{white-space:pre-wrap;overflow-wrap:anywhere;max-height:55vh;overflow:auto;background:var(--panel-2);border-radius:8px;padding:14px;font:inherit;line-height:1.6}

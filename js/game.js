@@ -333,7 +333,10 @@ function arrive(d) {
     face(d, cx, cy);
   }
   countHouseDay(a.type,d.name);
-  if(a.type==='meal'&&f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+  if(a.type==='meal'){
+    if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+    if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
+  }
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
@@ -459,7 +462,7 @@ function update(realDt) {
   G.t += realDt;
   if (dt > 0 && !document.getElementById('paperDialog')?.open) {
     G.time += dt * MIN_PER_SEC;
-    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); SFX.play('newday'); }
+    if (G.time >= 1440) { finishHouseDay(); G.time -= 1440; G.day++; HOOK.toast(`☀️ 第 ${G.day} 天开始啦`); nightlyBills(); seasonNewDay(); save(); SFX.play('newday'); }
     const h = G.time / 60;
     G.sky = lerpKeys(SKY, h, mixHex); G.dark = lerpKeys(DARK, h, mixNum);
     G.night = h >= 21 || h < 6;
