@@ -15,8 +15,8 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
     getBoundingClientRect() { return { left: 0, top: 0, width: this.width, height: this.height }; },
   };
   const context = vm.createContext({
-    assert, pointer, setTimeout() {}, window: { addEventListener() {} },
-    document: { body: { dataset: { mode } }, getElementById: id => id === 'cv' ? canvas : { style: {} }, createElement: () => canvas },
+    assert, pointer, canvas, setTimeout() {}, window: { addEventListener() {} },
+    document: { body: { dataset: { mode } }, getElementById: id => id === 'cv' ? canvas : { style: { setProperty() {} } }, createElement: () => canvas },
     localStorage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) },
   });
   for (const [, script] of read('index.html').matchAll(/<script src="([^"]+)"/g)) {
@@ -38,6 +38,23 @@ test('every purchasable furnishing has one category, a price, and a sprite', () 
       if (FURNITURE[id].use) assert.ok(ACT_NAMES[FURNITURE[id].use], id);
     }
   `);
+});
+
+test('pointer coordinates and overlay anchors use the full scaled canvas in either orientation', () => {
+  runGame(`
+    load();
+    for (const width of [300, 720]) {
+      const height = width * canvas.height / canvas.width;
+      canvas.getBoundingClientRect = () => ({ left: 21, top: 84, width, height });
+      const point = toScene({ clientX: 21 + width * .75, clientY: 84 + height * .9 });
+      assert.ok(Math.abs(point.x / canvas.width - .75) < 1e-9);
+      assert.ok(Math.abs(point.y / canvas.height - .9) < 1e-9);
+      const marker = { style: {} };
+      positionOverlay(marker, point.x, point.y);
+      assert.equal(marker.style.left, '75%');
+      assert.ok(Math.abs(parseFloat(marker.style.top) - 90) < 1e-9);
+    }
+  `, { withView: true });
 });
 
 test('dropping onto or beside a resident starts a mutual interaction on separate tiles', () => {
