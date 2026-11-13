@@ -161,8 +161,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 #readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
-#readingSeatControls select,#soloReading,#readingNotes,#bookSeat,#bookMove,#bookDiscuss,#bookPublic,#bookPaper,#bookReply{min-height:48px}
-#bookMoveControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
+#readingSeatControls :is(select,button){min-height:48px}
+:is(#bookMoveControls,#bookReaderControls):not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
 #bookMoveStatus:empty{position:absolute}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
 :is(#soloReading,#readingNotes,#bookSeat,#bookDiscuss,#bookPublic)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
@@ -617,6 +617,11 @@ body{
         <button type="button" class="btn small" id="bookPaper" aria-describedby="readingSeatHint" hidden>收起便条，交给月报</button>
         <button type="button" class="btn small" id="bookReply" aria-describedby="readingSeatHint" hidden>回信给推荐人</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
+        <div id="bookReaderControls" hidden>
+          <label for="bookNextReader">下一位传阅读者</label>
+          <select id="bookNextReader" aria-describedby="readingSeatHint"></select>
+          <button type="button" class="btn small" id="bookPickReader">确认读者</button>
+        </div>
         <div id="bookMoveControls" hidden>
           <label for="bookDestination">便条移到</label>
           <select id="bookDestination"></select>
@@ -6998,9 +7003,32 @@ function bookRecommendation(chair) {
 const BOOK_SEAT_MINUTES = 60;
 const BOOK_PUBLIC_READERS = 2;
 const BOOK_PUBLIC_FUN = 4;
+const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
+}
+
+function canReadSharedBook(note, readers, reader) {
+  return !reader.guest && reader.pid !== note.from && !readers.includes(reader.pid);
+}
+
+function pickedBookReader(note) {
+  const readers = publicBookReaders(note);
+  const reader = note?.nextReader && communityDoll(note.nextReader);
+  return readers?.length === 1 && reader && canReadSharedBook(note, readers, reader) ? reader : null;
+}
+
+function pickNextBookReader(chair, pid) {
+  if (!G.furniture.includes(chair) || !firstPublicBookReader(chair)) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  const { nextReader, ...openNote } = note;
+  const updated = pid ? { ...openNote, nextReader: pid } : openNote;
+  if (pid && !pickedBookReader(updated)) return false;
+  notes[chair.key] = updated;
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
 }
 
 function firstPublicBookReader(chair) {
@@ -7108,10 +7136,11 @@ function finishBookRecommendation(reader, chair) {
   if (!note || reader.guest || !chair.readingNotes || !isWindowChair(chair)) return false;
   const readers = publicBookReaders(note);
   if (readers) {
-    if (reader.pid === note.from || readers.includes(reader.pid) || readers.length >= BOOK_PUBLIC_READERS) return false;
+    const picked = pickedBookReader(note);
+    if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
     readers.push(reader.pid);
     if (readers.length === BOOK_PUBLIC_READERS) delete G.keepsakes.bookRecommendations[chair.key];
-    reader.needs.fun = Math.min(100, reader.needs.fun + BOOK_PUBLIC_FUN);
+    reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN));
     say(reader, '这一段也值得推荐。');
     addLog(`📖 ${reader.name}读完了窗边传阅的书摘。`);
     return true;
@@ -7155,7 +7184,10 @@ function readingNeighbor(d, f) {
 function readingCornerBonus(d, f) {
   const note = f.readingNotes && isWindowChair(f) && bookRecommendation(f);
   const readers = publicBookReaders(note);
-  if (readers && !d.guest && d.pid !== note.from && !readers.includes(d.pid)) return 12;
+  if (readers && canReadSharedBook(note, readers, d)) {
+    const picked = pickedBookReader(note);
+    if (!picked || picked === d) return 12;
+  }
   if (!readers && note?.to === d.pid) return 24;
   if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
@@ -9238,11 +9270,15 @@ const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
 const bookReplyButton = $('#bookReply');
+const bookReaderControls = $('#bookReaderControls');
+const bookNextReader = $('#bookNextReader');
+const bookPickReaderButton = $('#bookPickReader');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
 let readingSeatOptions = '';
 let bookDestinationOptions = '';
+let bookReaderOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 readingSeat.onchange = () => {
   bookMoveStatus.textContent = '';
@@ -9250,6 +9286,19 @@ readingSeat.onchange = () => {
   refreshReadingSeats();
 };
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+bookNextReader.onchange = () => {
+  bookMoveStatus.textContent = '';
+  refreshReadingSeats();
+};
+bookPickReaderButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (pickNextBookReader(chair, bookNextReader.value)) {
+    bookMoveStatus.textContent = bookNextReader.value ? '已指定下一位传阅读者。' : '已恢复自由传阅。';
+    bookNextReader.focus();
+  } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，传阅安排照旧。';
+  refreshReadingSeats();
+};
 bookDestination.onchange = () => { bookMoveButton.disabled = !bookDestination.value; };
 bookMoveButton.onclick = () => {
   const source = selectedReadingSeat();
@@ -9362,6 +9411,26 @@ function refreshReadingSeats() {
   const paperAction = draft ? '替换本期书摘' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
   const firstReader = firstPublicBookReader(chair);
+  const pickedReader = pickedBookReader(recommendation);
+  const candidates = publicReaders?.length === 1
+    ? residents().filter(d => canReadSharedBook(recommendation, publicReaders, d)) : [];
+  bookReaderControls.hidden = !candidates.length;
+  const readerOptions = JSON.stringify([chair.key, pickedReader?.pid, candidates.map(d => [d.pid, d.name, d.state === 'away'])]);
+  if (readerOptions !== bookReaderOptions) {
+    const previous = bookReaderOptions && JSON.parse(bookReaderOptions);
+    const pending = previous?.[0] === chair.key && previous[1] === (pickedReader?.pid || null) ? bookNextReader.value : null;
+    const open = el('option', '', `自由传阅 · 乐趣 +${BOOK_PUBLIC_FUN}`);
+    open.value = '';
+    bookNextReader.replaceChildren(open, ...candidates.map(d => {
+      const option = el('option', '', `${d.name}${d.state === 'away' ? '（外出）' : ''} · 乐趣 +${BOOK_PICKED_FUN}`);
+      option.value = d.pid;
+      return option;
+    }));
+    bookNextReader.value = pending === '' || candidates.some(d => d.pid === pending) ? pending : pickedReader?.pid || '';
+    bookReaderOptions = readerOptions;
+  }
+  bookNextReader.disabled = !firstReader;
+  bookPickReaderButton.disabled = !firstReader || bookNextReader.value === (pickedReader?.pid || '');
   bookPaperButton.disabled = !firstReader;
   bookReplyButton.hidden = !publicReaders?.length;
   bookReplyButton.disabled = !firstReader;
@@ -9381,13 +9450,15 @@ function refreshReadingSeats() {
   const discussion = recommendation && chair.readingNotes
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
+  const waiting = pickedReader ? `正在等${pickedReader.name}${pickedReader.state === 'away' ? '回家' : '来读'}。 ` : '';
+  const pickHint = candidates.length ? `${waiting}指定后只等这位住户，便条在 ${monthLabel(recommendation.until)}月底到期。 ` : '';
   const publicChoice = publicReaders?.length
-    ? `空座时可${draft ? '替换月报原稿' : '交给月报'}，或结束传阅，给${communityDoll(recommendation.from).name}留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
+    ? `${pickHint}空座时也可${draft ? '替换月报原稿' : '交给月报'}，或结束传阅，给${communityDoll(recommendation.from).name}留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
     : '座位空闲时可改回私下荐书。';
   const hint = recommendation?.reply
     ? `${communityDoll(recommendation.from).name}的回信留给${communityDoll(recommendation.to).name}，须在原便条到期前读完。读完得 ${BOOK_PRIVATE_FUN} 点乐趣，友情也会增加。${reader ? ' ' + text : ''}`
     : publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicChoice}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。${publicReaders.length ? '' : `推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。`}${publicChoice}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 

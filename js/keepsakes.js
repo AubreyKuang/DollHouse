@@ -129,9 +129,32 @@ function bookRecommendation(chair) {
 const BOOK_SEAT_MINUTES = 60;
 const BOOK_PUBLIC_READERS = 2;
 const BOOK_PUBLIC_FUN = 4;
+const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
+}
+
+function canReadSharedBook(note, readers, reader) {
+  return !reader.guest && reader.pid !== note.from && !readers.includes(reader.pid);
+}
+
+function pickedBookReader(note) {
+  const readers = publicBookReaders(note);
+  const reader = note?.nextReader && communityDoll(note.nextReader);
+  return readers?.length === 1 && reader && canReadSharedBook(note, readers, reader) ? reader : null;
+}
+
+function pickNextBookReader(chair, pid) {
+  if (!G.furniture.includes(chair) || !firstPublicBookReader(chair)) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  const { nextReader, ...openNote } = note;
+  const updated = pid ? { ...openNote, nextReader: pid } : openNote;
+  if (pid && !pickedBookReader(updated)) return false;
+  notes[chair.key] = updated;
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
 }
 
 function firstPublicBookReader(chair) {
@@ -239,10 +262,11 @@ function finishBookRecommendation(reader, chair) {
   if (!note || reader.guest || !chair.readingNotes || !isWindowChair(chair)) return false;
   const readers = publicBookReaders(note);
   if (readers) {
-    if (reader.pid === note.from || readers.includes(reader.pid) || readers.length >= BOOK_PUBLIC_READERS) return false;
+    const picked = pickedBookReader(note);
+    if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
     readers.push(reader.pid);
     if (readers.length === BOOK_PUBLIC_READERS) delete G.keepsakes.bookRecommendations[chair.key];
-    reader.needs.fun = Math.min(100, reader.needs.fun + BOOK_PUBLIC_FUN);
+    reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN));
     say(reader, '这一段也值得推荐。');
     addLog(`📖 ${reader.name}读完了窗边传阅的书摘。`);
     return true;
@@ -286,7 +310,10 @@ function readingNeighbor(d, f) {
 function readingCornerBonus(d, f) {
   const note = f.readingNotes && isWindowChair(f) && bookRecommendation(f);
   const readers = publicBookReaders(note);
-  if (readers && !d.guest && d.pid !== note.from && !readers.includes(d.pid)) return 12;
+  if (readers && canReadSharedBook(note, readers, d)) {
+    const picked = pickedBookReader(note);
+    if (!picked || picked === d) return 12;
+  }
   if (!readers && note?.to === d.pid) return 24;
   if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;

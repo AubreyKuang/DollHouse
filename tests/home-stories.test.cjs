@@ -437,6 +437,39 @@ test('a public recommendation rewards two distinct residents across reloads and 
   assert.equal(bookRecommendation(chair),null);
 `));
 
+test('a picked second reader persists, can be released, and exclusively earns the larger reward', () => game(`
+  const [author,first,chosen,other]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  const note={from:author.pid,to:first.pid,until:G.day+1,readBy:[]};
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.equal(pickNextBookReader(seat,chosen.pid),false);
+  assert.ok(finishBookRecommendation(first,seat));
+  assert.equal(pickNextBookReader(seat,first.pid),false);
+  assert.equal(pickNextBookReader(seat,author.pid),false);
+  const write=save;
+  save=()=>false;
+  assert.equal(pickNextBookReader(seat,chosen.pid),false);
+  assert.equal(bookRecommendation(seat),note);
+  save=write;
+  assert.ok(pickNextBookReader(seat,chosen.pid));
+  assert.equal(finishBookRecommendation(other,seat),false);
+  assert.ok(pickNextBookReader(seat,''));
+  assert.equal(pickedBookReader(bookRecommendation(seat)),null);
+  assert.ok(pickNextBookReader(seat,chosen.pid));
+  load();
+  const chair=G.furniture.find(f=>f.key===seat.key),reader=communityDoll(chosen.pid),bystander=communityDoll(other.pid);
+  assert.equal(bookRecommendation(chair).until,note.until);
+  assert.equal(pickedBookReader(bookRecommendation(chair)),reader);
+  assert.equal(finishBookRecommendation(bystander,chair),false);
+  const day=G.day;
+  G.day=note.until+1;assert.equal(finishBookRecommendation(reader,chair),false);G.day=day;
+  assert.ok(finishBookRecommendation(reader,chair));
+  assert.equal(reader.needs.fun,56);
+  assert.equal(bystander.needs.fun,50);
+  assert.equal(bookRecommendation(chair),null);
+`));
+
 test('the first public reader can send a private reply with the original deadline', () => game(`
   const [author,reader,other]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
