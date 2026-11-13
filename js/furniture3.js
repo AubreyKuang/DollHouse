@@ -34,37 +34,101 @@ JOIN.strum = { verb: '听{n}弹尤克里里', like: 'strum', dance: .3,
 const FURNITURE_OUTLINE = '#715d67';
 Object.assign(DRAW, {
   toilet(c, x, y, f, t) {
-    drawCottageSprite(c, 'toilet', x + 1, y - 8, 14, 23);
-    if (f?.active && Math.floor(t * 4) % 2) detail(c, x + 6, y + 4, 2, .5, '#e1f3e7');
+    const ceramic = '#fff2df', edge = '#927b80';
+    contactShadow(c, x + 3, y + 14, 10);
+    bevel(c, x + 3, y - 10, 10, 14, ceramic, edge);
+    R(c, x + 4, y - 9, 8, 2, '#fffcf2');
+    detail(c, x + 10.5, y - 7, 1.5, 8, '#e7cfc7');
+    detail(c, x + 9, y - 6.5, 2, 1, '#c79a80');
+    bevel(c, x + 5, y + 7, 7, 8, '#ead6c7', edge);
+    bevel(c, x + 1, y + 1, 14, 9, ceramic, edge);
+    R(c, x + 3, y + 2, 10, 2, '#fffcf3');
+    R(c, x + 4, y + 4, 8, 3, f?.active ? '#95bdc2' : '#c3d5cc');
+    R(c, x + 3, y + 8, 10, 1, '#e7cfc7');
+    if (f?.active && Math.floor(t * 4) % 2) detail(c, x + 6, y + 4, 4, .5, '#e1f3e7');
   },
   washstand(c, x, y, f, t) {
-    drawCottageSprite(c, 'washstand', x, y - 14, 16, 29);
-    if (f?.active) detail(c, x + 8, y - 1 + Math.floor(t * 9) % 3, .5, 2, '#f6fffc');
+    const edge = '#607f77', brass = '#b8875e';
+    contactShadow(c, x + 2, y + 14, 12);
+    bevel(c, x + 3, y - 14, 10, 11, '#b4d5d2', '#a68b79');
+    R(c, x + 5, y - 12, 6, 1, '#eaf6e9');
+    detail(c, x + 5, y - 11, .5, 4, '#eaf6e9');
+    bevel(c, x + 2, y + 2, 12, 13, '#87af9d', edge);
+    bevel(c, x + 4, y + 5, 8, 8, '#a5c5ad', '#6e9386');
+    detail(c, x + 6.5, y + 8.5, 3, 1, '#f0cc8a');
+    bevel(c, x, y - 1, 16, 6, '#fff1df', FURNITURE_OUTLINE);
+    R(c, x + 2, y, 12, 1, '#fffaf0');
+    bevel(c, x + 4, y + 1, 8, 3, '#c4dcd2', '#a4c4b9');
+    detail(c, x + 7, y - 4.5, 1.5, 4, brass);
+    detail(c, x + 7, y - 4.5, 3, 1, '#dcb17e');
+    detail(c, x + 9.5, y - 4, .5, 1, brass);
+    if (f?.active) detail(c, x + 9.5, y - 1 + Math.floor(t * 9) % 3, .5, 2, '#f6fffc');
   },
   shower(c, x, y, f, t) {
-    drawCottageSprite(c, 'shower', x + 1, y - 22, 14, 36);
-    if (f?.active) for (let i = 0; i < 3; i++) {
-      detail(c, x + 6 + i * 2, y - 14 + (Math.floor(t * 20) + i * 3) % 19, .5, 3, '#f6fffa');
+    const edge = '#6e8985', frame = '#a4bcb2';
+    bevel(c, x + 1, y - 22, 14, 36, '#d6e6dd', edge);
+    R(c, x + 2, y - 20, 5, 31, '#abcac6');
+    R(c, x + 2, y - 19, 1, 29, '#e9f4e7');
+    detail(c, x + 7, y - 20, .5, 30, frame);
+    detail(c, x + 13, y - 20, 1, 30, frame);
+    for (let i = 0; i < 4; i++) detail(c, x + 9 + i, y - 12 - i, .5, 2, '#f4f8e8');
+    R(c, x + 7, y - 18, 5, 2, '#e9c399');
+    R(c, x + 11, y - 20, 1, 5, '#ad896c');
+    detail(c, x + 11, y - 5, 1, 5, '#a88367');
+    detail(c, x + 11, y - 5, .5, 4.5, '#e3bd8b');
+    R(c, x + 2, y + 10, 12, 3, '#c5b6b7');
+    R(c, x + 2, y + 11, 12, 1, '#f3e2d5');
+    if (f?.active) for (let i = 0; i < 4; i++) {
+      detail(c, x + 6 + i * 2, y - 15 + (Math.floor(t * 20) + i * 3) % 23, .5, 3, '#f6fffa');
     }
   },
   cloudBed(c, x, y, f) {
-    drawBed(c, x, y, f, 'cloudBed');
+    drawBed(c, x, y, f, false, '#9eb7cf');
+    R(c, x + 5, y + 6, 8, 5, '#fff1e1');
+    R(c, x + 8, y + 4, 7, 6, '#fff1e1');
+    R(c, x + 13, y + 2, 8, 9, '#fff7e7');
+    R(c, x + 20, y + 5, 7, 6, '#fff1e1');
+    R(c, x + 6, y + 10, 20, 1, '#e4cdd1');
   },
   moonLamp(c, x, y) {
-    drawCottageSprite(c, 'moonLamp', x + 1, y, 14, 16);
+    R(c, x + 6, y + 2, 5, 2, '#a68079');
+    R(c, x + 4, y + 4, 3, 7, '#ffdb8f');
+    R(c, x + 6, y + 3, 3, 5, '#fff0b9');
+    R(c, x + 6, y + 9, 7, 3, '#ffdb8f');
+    R(c, x + 7, y + 8, 7, 2, '#fff0b9');
+    R(c, x + 9, y + 12, 3, 1, '#c98e7d');
+    R(c, x + 11, y + 4, 2, 1, '#fff3ce');
+    R(c, x + 12, y + 3, 1, 3, '#fff3ce');
   },
   bunnyPicture(c, x, y) {
-    drawCottageSprite(c, 'bunnyPicture', x + 1, y, 14, 16);
+    box(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
+    R(c, x + 3, y + 3, 10, 10, '#d5e2cd');
+    R(c, x + 5, y + 4, 2, 5, '#fff6e4');
+    R(c, x + 9, y + 4, 2, 5, '#fff6e4');
+    R(c, x + 4, y + 8, 8, 4, '#fff6e4');
+    R(c, x + 6, y + 9, 1, 1, '#71565f');
+    R(c, x + 9, y + 9, 1, 1, '#71565f');
+    R(c, x + 7, y + 11, 2, 1, '#d497a2');
   },
   cloudMobile(c, x, y, f, t) {
-    c.save();
-    c.translate(x + 16, y);
-    c.rotate(Math.sin(t * 1.4) * .06);
-    drawCottageSprite(c, 'cloudMobile', -10, 0, 20, 16);
-    c.restore();
+    R(c, x + 15, y, 1, 4, '#806d78');
+    R(c, x + 5, y + 4, 22, 1, '#a58a8d');
+    for (const [i, dx] of [6, 15, 24].entries()) {
+      const dy = Math.round(Math.sin(t * 1.4 + i)), top = y + 5 + (i % 2) * 2;
+      R(c, x + dx, top, 1, 4 + dy, '#9e8589');
+      R(c, x + dx - 2, top + 4 + dy, 5, 3, ['#fff0bb', '#f6e5e7', '#d5e8ec'][i]);
+      R(c, x + dx, top + 3 + dy, 1, 5, '#fff0d6');
+    }
   },
   tulips(c, x, y) {
-    drawCottageSprite(c, 'tulips', x, y - 11, 16, 26);
+    R(c, x + 5, y - 6, 1, 12, '#5b9679');
+    R(c, x + 8, y - 8, 1, 15, '#70a585');
+    R(c, x + 11, y - 5, 1, 11, '#5b9679');
+    R(c, x + 3, y - 6, 4, 3, '#e697a2');
+    R(c, x + 7, y - 10, 4, 4, '#f3c1ab');
+    R(c, x + 10, y - 5, 4, 3, '#e8adbf');
+    box(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
+    R(c, x + 6, y + 6, 1, 6, '#d5efdf');
   },
   pawRug(c, x, y) {
     const patches = [[7, 11, 18, 15], [2, 3, 6, 11], [9, 0, 6, 10], [17, 0, 6, 10], [24, 4, 6, 10]];
@@ -75,8 +139,17 @@ Object.assign(DRAW, {
     }
   },
   recordPlayer(c, x, y, f, t) {
-    drawCottageSprite(c, 'recordPlayer', x + 1, y - 10, 30, 25);
-    if (f?.active) detail(c, x + 11 + Math.floor(t * 8) % 8, y + 5, 1, .5, '#ead4c7');
+    box(c, x + 2, y - 10, 28, 12, '#d59a93', FURNITURE_OUTLINE);
+    R(c, x + 4, y - 8, 24, 7, '#f0c7b7');
+    R(c, x + 8, y - 7, 13, 5, '#77667a');
+    R(c, x + 11, y - 8, 7, 7, '#77667a');
+    R(c, x + 14, y - 6, 2, 2, '#f2cfaa');
+    if (f?.active) R(c, x + 11 + Math.floor(t * 8) % 8, y - 5, 1, 1, '#c3a6be');
+    R(c, x + 23, y - 7, 1, 4, '#96757d');
+    R(c, x + 20, y - 4, 4, 1, '#96757d');
+    box(c, x + 2, y + 1, 28, 8, '#efb3a7', FURNITURE_OUTLINE);
+    R(c, x + 5, y + 9, 2, 6, '#826667');
+    R(c, x + 25, y + 9, 2, 6, '#826667');
   },
   chessTable(c, x, y, f, t) {
     R(c, x + 4, y + 5, 2, 10, '#846b65');

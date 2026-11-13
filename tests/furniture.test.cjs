@@ -27,14 +27,12 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
   vm.runInContext(scenario, context);
 }
 
-test('all entry points open residents and the offline copy embeds the furniture atlas', () => {
+test('all entry points open residents and draw the room without external art', () => {
   for (const file of ['index.html', 'dev.html', 'pixel-dollhouse.html']) {
-    assert.match(read(file), /<details id="side" open>/);
-    assert.doesNotMatch(read(file), /id="dollAtlas"/);
+    const html = read(file);
+    assert.match(html, /<details id="side" open>/);
+    assert.doesNotMatch(html, /id="(?:cottage|doll)Atlas"/);
   }
-  const atlas = read('pixel-dollhouse.html').match(/id="cottageAtlas" src="data:image\/webp;base64,([^"]+)"/);
-  assert.ok(atlas);
-  assert.deepEqual(Buffer.from(atlas[1], 'base64'), fs.readFileSync(path.join(root, 'assets', 'cottage-atlas.webp')));
 });
 
 test('kitchen appliances and yard furniture follow their placement row', () => {
