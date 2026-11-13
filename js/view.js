@@ -35,6 +35,17 @@ function drawDollObj(c, d) {
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
   });
   if (d.state !== 'act') return;
+  if (d.act?.type === 'rainTea') {
+    const px = Math.round(x + 7), py = Math.round(y - 10);
+    bevel(c, px, py, 6, 5, '#fff0d4', '#95777b');
+    detail(c, px + 5, py + 1, 1.5, 2, '#d4a195');
+    if (Math.floor(G.t * 3) % 2) detail(c, px + 2, py - 3, .5, 2, '#fff8e4');
+  }
+  if (d.act?.type === 'makeKeepsake' && Math.floor(G.t * 3) % 2) {
+    const px = Math.round(x + 5), py = Math.round(y - 16);
+    detail(c, px, py - 1, .5, 3, '#e7bb7f');
+    detail(c, px - 1, py, 2.5, .5, '#e7bb7f');
+  }
   if (d.act?.type === 'visitStay') {
     const px = x + 8, py = y - 13 - Math.floor(d.ft * 2) % 3;
     if (d.act.theme === 'music') {
@@ -213,6 +224,7 @@ function drawHouseFurniture(c, f, t) {
     return;
   }
   DRAW[f.id](c, x, y, f, t);
+  if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
 function houseHeadPoint(d) {
@@ -227,7 +239,7 @@ function houseHeadPoint(d) {
 function drawBuildOverlay(c, t) {
   const B = G.build, hv = B.hover;
   if (B.placing && hv) {
-    const id = B.placing.id, f = { id, ...hv };
+    const { id, piece } = B.placing, f = { id, piece, ...hv };
     const F = FURNITURE[id], rect = houseFurnitureRect(f);
     const wall = layerOf(id) === 'wall';
     const x = rect.x, w = rect.w, bottom = rect.bottom;
@@ -401,19 +413,21 @@ cv.addEventListener('pointerdown', e => {
         return;
       }
       B.placing.confirm = null;
-      if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
-      addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
+      if (!B.placing.moved && !B.placing.piece && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
+      const placed = B.placing;
+      addFurniture(placed.id, g.x, g.y, placed);
+      if (placed.moved || placed.piece) B.placing = null;
+      HOOK.refresh(); rebuild(); SFX.play('place'); save();
       const hint = document.getElementById('buildHint');
       if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
-      if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
     } else SFX.play('deny');
     return;
   }
   const f = furnAt(p);
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
-  if (B.trash) { removeFurniture(f); stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
   if (press && press.pointerId !== e.pointerId) return;
@@ -486,6 +500,9 @@ cv.addEventListener('pointerup', e => {
     }
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select(true);
+  } else if (press.furn?.piece) {
+    const piece = keepsakePiece(press.furn.piece);
+    if (piece) HOOK.toast(keepsakeLabel(piece), true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
@@ -519,7 +536,7 @@ function cancelPlacing() {
   const B = G.build;
   if (B.placing && B.placing.moved && B.placing.orig) {
     const o = B.placing.orig;
-    if (canPlace(B.placing.id, o.x, o.y, null)) addFurniture(B.placing.id, o.x, o.y);
+    if (canPlace(B.placing.id, o.x, o.y, null)) addFurniture(B.placing.id, o.x, o.y, B.placing);
     rebuild();
   }
   B.placing = null; HOOK.refresh();

@@ -52,6 +52,7 @@
     <div class="community-panel">
       <button id="btnCommunity" class="btn ghost" aria-haspopup="dialog">🎉 串门与派对</button>
       <button id="btnNeighbor" class="btn ghost" aria-haspopup="dialog">🏡 隔壁麦麦家</button>
+      <button id="btnKeepsakes" class="btn ghost" aria-haspopup="dialog">🧵 小屋手记</button>
       <p id="communityStatus" class="community-status" aria-live="polite" hidden></p>
     </div>
     <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
@@ -111,6 +112,24 @@
   <p id="neighborTie" class="hint"></p>
   <button id="neighborGo" type="button" class="btn small">去麦麦家坐坐</button>
 </dialog>
+<dialog id="keepsakesDialog" class="paper-dialog community-dialog" aria-labelledby="keepsakesTitle">
+  <header class="paper-head">
+    <h2 id="keepsakesTitle">小屋手记</h2>
+    <form method="dialog"><button class="btn small ghost">关闭</button></form>
+  </header>
+  <h3>一起做花架</h3>
+  <p id="keepsakeStatus" class="hint" aria-live="polite"></p>
+  <div class="keepsake-fields">
+    <label>第一位住户<select id="keepsakeMaker1" class="mbti-picker"></select></label>
+    <label>第二位住户<select id="keepsakeMaker2" class="mbti-picker"></select></label>
+    <label>花架颜色<select id="keepsakeFinish" class="mbti-picker"></select></label>
+  </div>
+  <button id="keepsakeStart" class="btn small" type="button">一起做花架</button>
+  <h3>小角落与两人的传统</h3>
+  <ul id="keepsakeNotes" class="keepsake-notes"></ul>
+  <h3>手作纪念物</h3>
+  <ul id="keepsakePieces" class="keepsake-notes"></ul>
+</dialog>
 <dialog id="applicationsDialog" class="paper-dialog community-dialog" aria-labelledby="applicationsTitle">
   <header class="paper-head">
     <h2 id="applicationsTitle">邀请新住户</h2>
@@ -134,6 +153,7 @@
     <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
     <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
     <button class="tab" data-tab="yard" aria-pressed="false">院子家具</button>
+    <button class="tab" data-tab="keepsakes" aria-pressed="false">纪念物</button>
     <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
     <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
@@ -197,6 +217,7 @@
 <script src="js/picnic.js"></script>
 <script src="js/house-view.js"></script>
 <script src="js/yard.js"></script>
+<script src="js/keepsakes.js"></script>
 <script src="js/view.js"></script>
 <script src="js/paper-card.js"></script>
 <script src="js/ui.js"></script>

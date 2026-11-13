@@ -306,3 +306,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .rewind-box{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px}.rewind-box summary{cursor:pointer;font-weight:600}
 .rewind-list{display:grid;gap:6px;margin-top:6px}.rewind-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+
+.keepsake-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:10px 0}
+.keepsake-fields label{display:grid;gap:4px;font-size:.9rem}
+.keepsake-fields select{width:100%;min-width:0}
+.keepsake-notes{margin:6px 0 16px;padding-left:1.3em;display:grid;gap:6px}

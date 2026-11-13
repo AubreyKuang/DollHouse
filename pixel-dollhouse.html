@@ -313,6 +313,11 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .rewind-box{margin-top:12px;border-top:1px dashed var(--line);padding-top:8px}.rewind-box summary{cursor:pointer;font-weight:600}
 .rewind-list{display:grid;gap:6px;margin-top:6px}.rewind-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:14px}
+
+.keepsake-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(105px,1fr));gap:8px;margin:10px 0}
+.keepsake-fields label{display:grid;gap:4px;font-size:.9rem}
+.keepsake-fields select{width:100%;min-width:0}
+.keepsake-notes{margin:6px 0 16px;padding-left:1.3em;display:grid;gap:6px}
 </style>
 </head>
 <body>
@@ -361,6 +366,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <div class="community-panel">
       <button id="btnCommunity" class="btn ghost" aria-haspopup="dialog">🎉 串门与派对</button>
       <button id="btnNeighbor" class="btn ghost" aria-haspopup="dialog">🏡 隔壁麦麦家</button>
+      <button id="btnKeepsakes" class="btn ghost" aria-haspopup="dialog">🧵 小屋手记</button>
       <p id="communityStatus" class="community-status" aria-live="polite" hidden></p>
     </div>
     <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
@@ -420,6 +426,24 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   <p id="neighborTie" class="hint"></p>
   <button id="neighborGo" type="button" class="btn small">去麦麦家坐坐</button>
 </dialog>
+<dialog id="keepsakesDialog" class="paper-dialog community-dialog" aria-labelledby="keepsakesTitle">
+  <header class="paper-head">
+    <h2 id="keepsakesTitle">小屋手记</h2>
+    <form method="dialog"><button class="btn small ghost">关闭</button></form>
+  </header>
+  <h3>一起做花架</h3>
+  <p id="keepsakeStatus" class="hint" aria-live="polite"></p>
+  <div class="keepsake-fields">
+    <label>第一位住户<select id="keepsakeMaker1" class="mbti-picker"></select></label>
+    <label>第二位住户<select id="keepsakeMaker2" class="mbti-picker"></select></label>
+    <label>花架颜色<select id="keepsakeFinish" class="mbti-picker"></select></label>
+  </div>
+  <button id="keepsakeStart" class="btn small" type="button">一起做花架</button>
+  <h3>小角落与两人的传统</h3>
+  <ul id="keepsakeNotes" class="keepsake-notes"></ul>
+  <h3>手作纪念物</h3>
+  <ul id="keepsakePieces" class="keepsake-notes"></ul>
+</dialog>
 <dialog id="applicationsDialog" class="paper-dialog community-dialog" aria-labelledby="applicationsTitle">
   <header class="paper-head">
     <h2 id="applicationsTitle">邀请新住户</h2>
@@ -443,6 +467,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button class="tab" data-tab="decor" aria-pressed="false">装饰摆件</button>
     <button class="tab" data-tab="hobbies" aria-pressed="false">兴趣家具</button>
     <button class="tab" data-tab="yard" aria-pressed="false">院子家具</button>
+    <button class="tab" data-tab="keepsakes" aria-pressed="false">纪念物</button>
     <button class="tab" data-tab="wall" aria-pressed="false">墙纸</button>
     <button class="tab" data-tab="floor" aria-pressed="false">地板</button>
     <span class="spacer"></span>
@@ -1073,7 +1098,7 @@ const DRAW = {
 const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
-function furnitureIcon(id, size = 56) {
+function furnitureIcon(id, size = 56, props = {}) {
   const d = FURNITURE[id], top = d.layer ? 0 : (TALL[id] || 0);
   const pw = d.w * T, ph = d.h * T + top;
   const cv = document.createElement('canvas');
@@ -1086,7 +1111,7 @@ function furnitureIcon(id, size = 56) {
   tmp.height = ph * PIXEL_SCALE;
   const tc = tmp.getContext('2d');
   tc.scale(PIXEL_SCALE, PIXEL_SCALE);
-  DRAW[id](tc, 0, top, { color: null }, 0);
+  DRAW[id](tc, 0, top, { color: null, ...props }, 0);
   const s = Math.min(size / pw, size / ph);
   const scale = s >= 1 ? Math.floor(s) : s;
   const w = Math.round(pw * PIXEL_SCALE * scale), h = Math.round(ph * PIXEL_SCALE * scale);
@@ -1713,6 +1738,9 @@ const PAPER_EVENTS = [
   [/表白|偷偷暧昧/, '感情动态', '💗', 90],
   [/搬进来|入住申请|搬走了/, '新面孔', '🏡', 82],
   [/成了.*搭子|成为挚友/, '新交情', '🤝', 76],
+  [/又下雨了.+书房/, '两人的小传统', '🫖', 85],
+  [/一起做成了.+花架/, '一起做的小物', '🪴', 83],
+  [/有了自己的.+角|习惯给彼此留个位置/, '小屋里的习惯', '📖', 64],
   [/生日/, '小屋庆祝', '🎂', 72],
   [/野餐搬进|撑伞|雨里继续野餐|野餐重新开场|收起野餐篮|安静的书房聊熟/, '雨天插曲', '🌧', 74],
   [/邻居.*(面包|螺丝刀|回赠|约.+家里|吃完一顿饭)/, '邻里往来', '🍞', 65],
@@ -2068,7 +2096,9 @@ function houseSaveData() {
   return {
     floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+    keepsakes: G.keepsakes,
+    furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
+      .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
@@ -2151,12 +2181,14 @@ function applySave(s) {
       event.joined = [];
     }
   }
+  G.keepsakes = restoreKeepsakes(s.keepsakes);
+  G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
-  for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y, f);
   if (!s.yardV) for (const [id, x, y] of YARD_DEFAULT) {
     if (canPlace(id, x, y)) addFurniture(id, x, y);
   }
@@ -2175,8 +2207,9 @@ function applySave(s) {
 }
 
 /* ---------------- 家具与格子 ---------------- */
-function addFurniture(id, x, y) {
-  const f = { uid: G.uid++, id, x, y, active: false, users: [] };
+function addFurniture(id, x, y, saved = {}) {
+  const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
+  const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
   G.furniture.push(f);
   return f;
 }
@@ -2346,7 +2379,7 @@ function decide(d) {
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use || (d.guest && F.use === 'sleep')) continue;
+    if (!F.use || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
     const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
     if (f.users.length >= cap) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
@@ -2354,6 +2387,7 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (cornerRegular(f, d)) s += 17;
     if (F.outdoor) {
       if (G.weather === 'rain' || G.night) continue;
       s += F.use === 'swing' && ['active', 'genki'].includes(d.persona) ? 24 : 13;
@@ -2438,6 +2472,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
+  if (G.keepsakes.project?.bench === f.key) return false;
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
   const distinct = F.cap > 1;
@@ -2456,6 +2491,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
   if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
   if (a?.type === 'visitGather') { arriveAtGathering(d); return; }
@@ -2504,6 +2540,7 @@ function arrive(d) {
   d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
   completePaperFollowup(d, f);
+  noteCornerUse(d, f);
   if ((F.outdoor || a.type === 'puzzle') && F.cap > 1) {
     const companion = f.users.find(o => o !== d && o.state === 'act');
     if (companion) {
@@ -2685,6 +2722,7 @@ function update(realDt) {
     communityTick();
     // 有小人被拎在手里时，其他人先定住不动：落点目标不会自己跑开
     const carrying = G.dolls.some(d => d.state === 'lift');
+    if (!carrying) tickKeepsakes(dt);
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
@@ -2984,7 +3022,7 @@ function caught(L, cheater, third) {
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
 const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
-  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && x.act.type !== 'visitStay');
+  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && !['visitStay', 'makeKeepsake', 'rainTea'].includes(x.act.type));
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
@@ -3949,7 +3987,7 @@ function fitHouseFurniture() {
       addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}移到了同层的空位`);
     } else {
       G.furniture = G.furniture.filter(other => other !== f);
-      stash(f.id);
+      if (!f.piece) stash(f.id);
       addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}收进了仓库`);
     }
   }
@@ -4696,7 +4734,7 @@ function endGetTogether() {
     }
   }
   event.leavingAt = absNow() + 50;
-  for (const d of G.dolls) if (d.act && ['visitGather', 'visitStay'].includes(d.act.type)) {
+  for (const d of G.dolls) if (d.act && (['visitGather', 'visitStay'].includes(d.act.type) || (d.guest && d.act.type === 'rainTea'))) {
     endAct(d); d.path = [];
   }
   if (!guest) { finishGuestDeparture(); return; }
@@ -5053,6 +5091,7 @@ function arrivePicnic(d, event) {
   const other = communityDoll(event.quietPids.find(pid => pid !== d.pid));
   if (event.quietDone || other?.act?.theme !== 'quiet' || other.state !== 'act') return;
   event.quietDone = true;
+  noteRainTradition(d, other);
   bump(d, other, 10);
   addTrust(d, other, 5); addTrust(other, d, 5);
   const text = `${d.name}和${other.name}躲到二楼，在安静的书房聊熟了。`;
@@ -5490,6 +5529,265 @@ Object.assign(DRAW, {
 });
 </script>
 <script>
+// Furniture keeps its identity when moved. These records contain only saveable IDs.
+function restoreKeepsakes(saved) {
+  return {
+    nextFurniture: saved?.nextFurniture || 1,
+    corners: saved?.corners || {},
+    pieces: saved?.pieces || [],
+    traditions: saved?.traditions || {},
+    project: saved?.project || null,
+  };
+}
+
+const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
+const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
+const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
+
+function cornerKind(f) {
+  if (G.keepsakes.corners[f.key]?.kind) return G.keepsakes.corners[f.key].kind;
+  if (f.id === 'teaTray') return 'tea';
+  if (f.id === 'piano') return 'music';
+  if (f.id === 'shelf') return 'read';
+  if (f.id === 'chair' && G.furniture.some(w => w.id === 'window' && cornerRoom(w) === cornerRoom(f) &&
+      Math.abs(w.x + 1 - f.x) <= 3)) return 'read';
+  return null;
+}
+
+const CORNER_NAMES = { tea: '茶角', music: '练琴角', read: '阅读角' };
+const cornerOwner = f => G.keepsakes.corners[f.key]?.owner;
+const cornerRegular = (f, d) => G.keepsakes.corners[f.key]?.regulars?.includes(d.pid);
+
+function noteCornerUse(d, f) {
+  const kind = cornerKind(f);
+  if (!kind || d.guest) return;
+  const record = G.keepsakes.corners[f.key] ||= { kind, visits: {}, regulars: [] };
+  const last = record.visits[d.pid];
+  const companion = kind === 'tea' ? f.users.find(other => other !== d && other.state === 'act' && cornerRegular(f, other)) :
+    kind === 'read' && record.owner && G.dolls.find(other => other !== d && other.state === 'act' && other.act?.furn &&
+      cornerOwner(other.act.furn) === other.pid && cornerKind(other.act.furn) === 'read' &&
+      cornerRoom(other.act.furn) === cornerRoom(f) && cornerDistance(other.act.furn, f) <= 3);
+  if (companion && cornerRegular(f, d) && record.sharedMonth !== G.day) {
+    record.sharedMonth = G.day;
+    if (kind === 'read') G.keepsakes.corners[companion.act.furn.key].sharedMonth = G.day;
+    bump(d, companion, 3);
+    addLog(`🫖 ${d.name}和${companion.name}又在老地方一起${kind === 'tea' ? '喝茶' : '看书'}。`);
+  }
+  if (last?.month === G.day) return;
+  const months = (last?.months || 0) + 1;
+  record.visits[d.pid] = { month: G.day, months };
+  if (months < 2 || record.regulars.includes(d.pid)) return;
+  record.regulars.push(d.pid);
+  if (!record.owner || !communityDoll(record.owner)) {
+    record.owner = d.pid;
+    addLog(`📖 ${d.name}有了自己的${CORNER_NAMES[kind]}，下次还想来这里。`);
+  } else {
+    const owner = communityDoll(record.owner);
+    if (owner) addLog(`🫖 ${d.name}也常来${owner.name}的${CORNER_NAMES[kind]}，两人习惯给彼此留个位置。`);
+  }
+}
+
+function drawCornerMark(c, f, x, y) {
+  const owner = cornerOwner(f);
+  if (!owner || !communityDoll(owner)) return;
+  if (f.id === 'piano') {
+    bevel(c, x + 20, y - 10, 6, 5, '#f1d7a5', '#937481');
+    detail(c, x + 21, y - 8, 3.5, .5, '#b48388');
+  } else if (f.id === 'teaTray') {
+    bevel(c, x + 4, y - 3, 5, 4, '#f1d7b1', '#9d7780');
+    if (G.keepsakes.corners[f.key].regulars.length > 1) detail(c, x + 3, y - 1.5, 1, 1, '#a5847d');
+  } else if (f.id === 'chair' || f.id === 'shelf') {
+    const bx = x + (f.id === 'chair' ? 4 : 24), by = y + (f.id === 'chair' ? 2 : 3);
+    bevel(c, bx, by, 6, 4, '#ca8a9b', '#795661');
+    detail(c, bx + 1, by + 2, 4, .5, '#f2d3aa');
+  }
+}
+
+function pairRoutes(a, b, tiles) {
+  const routes = d => tiles.map(tile => ({ tile, path: findPath(d.tx, d.ty, [tile]) })).filter(r => r.path);
+  let best = null;
+  for (const left of routes(a)) for (const right of routes(b)) {
+    if (left.tile === right.tile || cornerDistance(left.tile, right.tile) !== 1) continue;
+    const cost = left.path.length + right.path.length;
+    if (!best || cost < best.cost) best = { cost, routes: [left.path, right.path] };
+  }
+  return best?.routes;
+}
+
+function sendKeepsakePair(pair, routes, type, key) {
+  for (const [i, d] of pair.entries()) {
+    if (d.act) endAct(d);
+    d.path = routes[i];
+    d.act = { type, keepsakeKey: key };
+    d.state = d.path.length ? 'walk' : 'arrive';
+  }
+}
+
+function readyForKeepsake(d) {
+  return d && d.state !== 'away' && d.state !== 'lift' && !takingStairs(d) && !takingYardPath(d) &&
+    !lying(d) && d.needs.energy >= 25 && d.needs.bladder >= 18 && !['leave', 'neighborLeave', 'visitLeave', 'makeKeepsake', 'rainTea'].includes(d.act?.type);
+}
+
+function startKeepsakeProject(a, b, finish) {
+  if (G.keepsakes.project || !a || !b || a === b || a.guest || b.guest ||
+      !Object.hasOwn(KEEPSAKE_FINISHES, finish) || ![a, b].every(readyForKeepsake)) return false;
+  const bench = G.furniture.find(f => f.id === 'craftBench' && f.users.every(d => d === a || d === b) &&
+    pairRoutes(a, b, approachTiles(f)));
+  if (!bench) return false;
+  G.keepsakes.project = { people: [a.pid, b.pid], finish, bench: bench.key, expires: absNow() + 240, work: 0 };
+  tickKeepsakes(0);
+  save();
+  return true;
+}
+
+function finishKeepsake(project, pair) {
+  const names = pair.map(d => d.name);
+  G.keepsakes.pieces.push({ key: 'piece-' + G.keepsakes.nextFurniture++, finish: project.finish,
+    makers: names, month: G.day });
+  const text = `${names.join('和')}一起做成了${KEEPSAKE_FINISHES[project.finish][0]}花架。`;
+  rememberKeepsakePair(pair, 'shared-craft', text);
+  addLog(`🪴 ${text}成品已收进布置里的纪念物。`);
+  G.keepsakes.project = null;
+  pair.forEach(endAct);
+  HOOK.refresh();
+  save();
+}
+
+function rememberKeepsakePair(pair, type, text) {
+  const [a, b] = pair;
+  bump(a, b, 5);
+  addTrust(a, b, 3);
+  addTrust(b, a, 3);
+  NPCMemory.record(G, { type, time: absNow(), participants: [a.pid, b.pid], outcome: 'shared' },
+    pair.map((d, i) => ({ person: d.pid, subject: pair[1 - i].pid, emotion: .7, impact: 70, interpretation: text })));
+}
+
+function arriveKeepsake(d) {
+  const work = d.act.type === 'makeKeepsake';
+  d.state = 'act';
+  d.act.t = 60;
+  d.act.gain = { fun: 8, social: 10 };
+  d.dir = 'up';
+  say(d, work ? ({
+    maker: '我来把木边磨圆。', stylist: '这里再添一点颜色。', genki: '我已经想好放什么花了！',
+    tidy: '我把螺丝都排好了。', nerd: '我量一量，两边得一样高。',
+  })[d.persona] || '我来扶住这边。' : '给你留了一杯热茶。');
+}
+
+function noteRainTradition(a, b) {
+  const key = relKey(a, b);
+  G.keepsakes.traditions[key] ||= { people: [a.pid, b.pid], first: G.day, last: G.day };
+}
+
+function startRainTea(key, pair) {
+  const tiles = [];
+  for (const f of G.furniture) {
+    if (!['teaTray', 'chair', 'shelf'].includes(f.id) || cornerRoom(f) !== 'study') continue;
+    tiles.push(...approachTiles(f));
+  }
+  const backup = [];
+  for (let y = FLOOR_SPLIT; y < ROWS; y++) for (let x = BX; x < COLS; x++) backup.push({ x, y });
+  const open = candidates => [...new Map(candidates.map(tile => [`${tile.x},${tile.y}`, tile])).values()]
+    .filter(tile => tile.x >= BX && tile.y >= FLOOR_SPLIT && tile.y < ROWS && free(tile.x, tile.y) &&
+      !isDoorTile(tile.x, tile.y) && !(tile.x === stairsColumn() && tile.y === UPPER_LANDING));
+  const routes = pairRoutes(...pair, open(tiles)) || pairRoutes(...pair, open(backup));
+  if (!routes) return false;
+  sendKeepsakePair(pair, routes, 'rainTea', key);
+  return true;
+}
+
+function tickKeepsakes(dt) {
+  const k = G.keepsakes;
+  const project = k.project;
+  if (project) {
+    const pair = project.people.map(communityDoll);
+    const bench = G.furniture.find(f => f.key === project.bench);
+    const assigned = d => d?.act?.type === 'makeKeepsake' && d.act.keepsakeKey === project.bench;
+    if (!bench || pair.some(d => !d) || absNow() >= project.expires) {
+      pair.filter(assigned).forEach(endAct);
+      k.project = null;
+      addLog('🪵 手工暂时搁下了，有空可以再约。');
+      save();
+    } else if (pair.every(assigned)) {
+      if (pair.every(d => d.state === 'act')) {
+        project.work += dt;
+        if (project.work >= 5) finishKeepsake(project, pair);
+      }
+    } else {
+      pair.filter(assigned).forEach(endAct);
+      if (pair.every(readyForKeepsake) && bench.users.every(d => pair.includes(d))) {
+        const routes = pairRoutes(...pair, approachTiles(bench));
+        if (routes) sendKeepsakePair(pair, routes, 'makeKeepsake', bench.key);
+      }
+    }
+  }
+
+  // Once a rain-day ritual has begun, finish it only if both actually reach the study.
+  for (const [key, tie] of Object.entries(k.traditions)) {
+    const pair = tie.people.map(communityDoll);
+    const assigned = d => d?.act?.type === 'rainTea' && d.act.keepsakeKey === key;
+    if (pair.every(assigned)) {
+      if (!pair.every(d => d.state === 'act')) continue;
+      tie.last = G.day;
+      const text = `又下雨了，${pair[0].name}给${pair[1].name}在二楼留了一杯茶，两人又在书房坐到了一起。`;
+      rememberKeepsakePair(pair, 'rain-tea-tradition', text);
+      addLog(`🫖 ${text}`);
+      for (const d of pair) {
+        d.act.t = 5;
+        d.act.keepsakeKey = null;
+      }
+      save();
+      continue;
+    }
+    pair.filter(assigned).forEach(endAct);
+    if (tie.last >= G.day || G.weather !== 'rain' || G.time < 13 * 60 || G.time >= 20 * 60) continue;
+    if (pair.every(readyForKeepsake) && !G.community.outing && !G.community.active?.leavingAt && !G.community.active?.rainDeadline) {
+      if (G.community.active && G.community.active.guestPid !== pair.find(d => d.guest)?.pid) continue;
+      startRainTea(key, pair);
+    } else if (!G.community.active && !G.community.outing && tie.invited !== G.day) {
+      const host = pair.find(d => d && !d.guest && readyForKeepsake(d));
+      const friend = G.community.friends.find(f => tie.people.includes(f.pid) && !communityDoll(f.pid));
+      if (host && friend && startGetTogether(host, 'visit', { friend })) {
+        tie.invited = G.day;
+        save();
+      }
+    }
+  }
+}
+
+function keepsakeLabel(piece) {
+  return `${KEEPSAKE_FINISHES[piece.finish][0]}花架 · ${piece.makers.join('和')}一起做 · ${monthLabel(piece.month)}`;
+}
+
+function keepsakePiece(key) { return G.keepsakes.pieces.find(p => p.key === key); }
+function unplacedKeepsakes() {
+  const inRoom = new Set(G.furniture.map(f => f.piece));
+  if (G.build.placing?.moved) inRoom.add(G.build.placing.piece);
+  return G.keepsakes.pieces.filter(p => !inRoom.has(p.key));
+}
+
+FURNITURE.handmadePlanter = { name: '手作花架', w: 1, h: 1, fixed: true };
+TALL.handmadePlanter = 10;
+DRAW.handmadePlanter = (c, x, y, f) => {
+  const finish = KEEPSAKE_FINISHES[keepsakePiece(f?.piece)?.finish] || KEEPSAKE_FINISHES.honey;
+  contactShadow(c, x + 1, y + 13, 14);
+  for (const px of [x + 2, x + 12]) R(c, px, y - 1, 2, 15, '#785247');
+  for (const [i, row] of [-3, 6].entries()) {
+    bevel(c, x + 1, y + row + 4, 14, 4, finish[1], '#795b5c');
+    bevel(c, x + 4 + i * 2, y + row, 6, 5, i ? '#d9a68a' : '#e5cbae', '#94716f');
+    R(c, x + 6 + i * 2, y + row - 4, 1, 5, '#689071');
+    R(c, x + 4 + i * 2, y + row - 5, 5, 2, i ? '#e5a7ac' : '#f3d68e');
+    detail(c, x + 6 + i * 2, y + row - 4.5, 1, .5, '#fff0c8');
+  }
+};
+
+FURNITURE.teaTray.cap = 2;
+ACT_NAMES.makeKeepsake = '一起做花架';
+ACT_NAMES.rainTea = '在书房喝雨天茶';
+ACT_LINES.makeKeepsake = ['漆快干了，再等一会儿。'];
+ACT_LINES.rainTea = ['雨声和上次一样。'];
+</script>
+<script>
 // 画面渲染 + 指针交互（拎小人、摆家具）
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -5527,6 +5825,17 @@ function drawDollObj(c, d) {
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
   });
   if (d.state !== 'act') return;
+  if (d.act?.type === 'rainTea') {
+    const px = Math.round(x + 7), py = Math.round(y - 10);
+    bevel(c, px, py, 6, 5, '#fff0d4', '#95777b');
+    detail(c, px + 5, py + 1, 1.5, 2, '#d4a195');
+    if (Math.floor(G.t * 3) % 2) detail(c, px + 2, py - 3, .5, 2, '#fff8e4');
+  }
+  if (d.act?.type === 'makeKeepsake' && Math.floor(G.t * 3) % 2) {
+    const px = Math.round(x + 5), py = Math.round(y - 16);
+    detail(c, px, py - 1, .5, 3, '#e7bb7f');
+    detail(c, px - 1, py, 2.5, .5, '#e7bb7f');
+  }
   if (d.act?.type === 'visitStay') {
     const px = x + 8, py = y - 13 - Math.floor(d.ft * 2) % 3;
     if (d.act.theme === 'music') {
@@ -5705,6 +6014,7 @@ function drawHouseFurniture(c, f, t) {
     return;
   }
   DRAW[f.id](c, x, y, f, t);
+  if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
 function houseHeadPoint(d) {
@@ -5719,7 +6029,7 @@ function houseHeadPoint(d) {
 function drawBuildOverlay(c, t) {
   const B = G.build, hv = B.hover;
   if (B.placing && hv) {
-    const id = B.placing.id, f = { id, ...hv };
+    const { id, piece } = B.placing, f = { id, piece, ...hv };
     const F = FURNITURE[id], rect = houseFurnitureRect(f);
     const wall = layerOf(id) === 'wall';
     const x = rect.x, w = rect.w, bottom = rect.bottom;
@@ -5893,19 +6203,21 @@ cv.addEventListener('pointerdown', e => {
         return;
       }
       B.placing.confirm = null;
-      if (!B.placing.moved && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
-      addFurniture(B.placing.id, g.x, g.y); HOOK.refresh(); rebuild(); SFX.play('place'); save();
+      if (!B.placing.moved && !B.placing.piece && !acquire(B.placing.id)) { SFX.play('deny'); return; }   // 新放的家具要从仓库拿或者花钱买
+      const placed = B.placing;
+      addFurniture(placed.id, g.x, g.y, placed);
+      if (placed.moved || placed.piece) B.placing = null;
+      HOOK.refresh(); rebuild(); SFX.play('place'); save();
       const hint = document.getElementById('buildHint');
       if (hint) hint.textContent = '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
-      if (B.placing.moved) { B.placing = null; HOOK.refresh(); }
     } else SFX.play('deny');
     return;
   }
   const f = furnAt(p);
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
-  if (B.trash) { removeFurniture(f); stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
   if (press && press.pointerId !== e.pointerId) return;
@@ -5978,6 +6290,9 @@ cv.addEventListener('pointerup', e => {
     }
   } else if (d) {
     G.sel = d.uid; SFX.play('click'); HOOK.select(true);
+  } else if (press.furn?.piece) {
+    const piece = keepsakePiece(press.furn.piece);
+    if (piece) HOOK.toast(keepsakeLabel(piece), true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
@@ -6011,7 +6326,7 @@ function cancelPlacing() {
   const B = G.build;
   if (B.placing && B.placing.moved && B.placing.orig) {
     const o = B.placing.orig;
-    if (canPlace(B.placing.id, o.x, o.y, null)) addFurniture(B.placing.id, o.x, o.y);
+    if (canPlace(B.placing.id, o.x, o.y, null)) addFurniture(B.placing.id, o.x, o.y, B.placing);
     rebuild();
   }
   B.placing = null; HOOK.refresh();
@@ -6368,6 +6683,7 @@ $('#btnReset').onclick = () => {
   const keepRel = G.rel;
   const s = defaultHouseSave(); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.paperMoments = G.paperMoments;
+  s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -6377,13 +6693,29 @@ function renderPalette() {
   $('#btnTrash').classList.toggle('on', G.build.trash);
   pal.dataset.category = tab;
   const group = FURNITURE_GROUPS[tab];
-  if (group) {
+  if (tab === 'keepsakes') {
+    for (const piece of unplacedKeepsakes()) {
+      const b = el('button', 'item' + (G.build.placing?.piece === piece.key ? ' on' : ''));
+      b.type = 'button';
+      b.append(furnitureIcon('handmadePlanter', 56, { piece: piece.key }), el('span', 'item-name', KEEPSAKE_FINISHES[piece.finish][0] + '花架'),
+        el('small', 'item-purpose', piece.makers.join('和')));
+      b.title = keepsakeLabel(piece);
+      b.onclick = () => {
+        if (G.build.placing?.moved) cancelPlacing();
+        G.build.trash = false;
+        G.build.placing = G.build.placing?.piece === piece.key ? null : { id: 'handmadePlanter', piece: piece.key };
+        renderPalette();
+      };
+      pal.append(b);
+    }
+    if (!pal.children.length) pal.append(el('p', 'hint', '成品会出现在这里。到「小屋手记」约两位住户一起做花架。'));
+  } else if (group) {
     for (const id of group) {
       const F = FURNITURE[id];
       const [price, lv] = SHOP[id], have = G.inv[id] || 0, locked = lv > G.level && !have;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
-      const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
+      const c = el('canvas'); c.width = c.height = 56 * PIXEL_SCALE; c.getContext('2d').drawImage(iconCache[id], 0, 0);
       const tag = TEST_MODE ? '无限库存' : have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
       const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
       b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
@@ -6714,6 +7046,67 @@ function renderApplications() {
 $('#btnAddDoll').onclick = () => { renderApplications(); $('#applicationsDialog').showModal(); };
 $('#btnRandomResident').onclick = () => {
   if (residents().length < residentLimit()) welcomeResident(addDoll(newcomerProfile()));
+};
+
+function updateKeepsakeDialog(reset = false) {
+  if (reset) {
+    for (const [i, id] of ['keepsakeMaker1', 'keepsakeMaker2'].entries()) {
+      const select = $('#' + id);
+      select.replaceChildren(...residents().map(d => {
+        const option = el('option', null, '');
+        option.textContent = d.name;
+        option.value = d.pid;
+        return option;
+      }));
+      select.selectedIndex = Math.min(i, residents().length - 1);
+    }
+    $('#keepsakeFinish').replaceChildren(...Object.entries(KEEPSAKE_FINISHES).map(([id, [name]]) => {
+      const option = el('option', null, name);
+      option.value = id;
+      return option;
+    }));
+  }
+  const project = G.keepsakes.project;
+  const bench = G.furniture.some(f => f.id === 'craftBench');
+  $('#keepsakeStatus').textContent = project ? project.people.map(pid => communityDoll(pid)?.name).join('和') +
+    (project.work ? '正在给花架上色。' : '正准备去手工台。') : bench ?
+    '选两位住户和一种颜色。等他们一起到手工台，成品就会放进「布置 → 纪念物」。' :
+    '先到「布置 → 兴趣家具」摆一张奶糖手工台，台前给两位住户留出空位。';
+  $('#keepsakeStart').disabled = !bench || !!project || residents().length < 2;
+  const nameOf = pid => (communityDoll(pid) || G.community.friends.find(p => p.pid === pid))?.name;
+  const notes = [];
+  for (const f of G.furniture) {
+    const record = G.keepsakes.corners[f.key], name = nameOf(record?.owner);
+    if (!name) continue;
+    const companions = record.regulars.filter(pid => pid !== record.owner).map(nameOf).filter(Boolean);
+    notes.push(`${name}的${CORNER_NAMES[cornerKind(f) || 'read']} · ${FURNITURE[f.id].name}${companions.length ? ' · 也常来的有 ' + companions.join('、') : ''}`);
+  }
+  for (const tie of Object.values(G.keepsakes.traditions)) {
+    const names = tie.people.map(nameOf);
+    if (names.every(Boolean)) notes.push(`${names.join('和')} · 下雨时想再去书房喝茶`);
+  }
+  const list = (selector, items, empty) => {
+    const nodes = (items.length ? items : [empty]).map(text => {
+      const item = el('li', null, '');
+      item.textContent = text;
+      return item;
+    });
+    $(selector).replaceChildren(...nodes);
+  };
+  list('#keepsakeNotes', notes, '常来坐坐，过几个月就会有属于自己的小角落。');
+  list('#keepsakePieces', G.keepsakes.pieces.map(keepsakeLabel), '还没有一起做过的纪念物。');
+}
+
+$('#btnKeepsakes').onclick = () => {
+  updateKeepsakeDialog(true);
+  $('#keepsakesDialog').showModal();
+};
+$('#keepsakeStart').onclick = () => {
+  const pair = ['#keepsakeMaker1', '#keepsakeMaker2'].map(id => communityDoll($(id).value));
+  if (startKeepsakeProject(...pair, $('#keepsakeFinish').value)) {
+    $('#keepsakesDialog').close();
+    HOOK.toast('🧵 两位住户要去手工台做花架了', true);
+  } else $('#keepsakeStatus').textContent = '请选择两位不同的住户。两人要在家有空，手工台前也要有两个能走到的空位。';
 };
 
 /* ---------- 主循环 ---------- */

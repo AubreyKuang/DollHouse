@@ -197,6 +197,7 @@ $('#btnReset').onclick = () => {
   const keepRel = G.rel;
   const s = defaultHouseSave(); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.paperMoments = G.paperMoments;
+  s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -206,13 +207,29 @@ function renderPalette() {
   $('#btnTrash').classList.toggle('on', G.build.trash);
   pal.dataset.category = tab;
   const group = FURNITURE_GROUPS[tab];
-  if (group) {
+  if (tab === 'keepsakes') {
+    for (const piece of unplacedKeepsakes()) {
+      const b = el('button', 'item' + (G.build.placing?.piece === piece.key ? ' on' : ''));
+      b.type = 'button';
+      b.append(furnitureIcon('handmadePlanter', 56, { piece: piece.key }), el('span', 'item-name', KEEPSAKE_FINISHES[piece.finish][0] + '花架'),
+        el('small', 'item-purpose', piece.makers.join('和')));
+      b.title = keepsakeLabel(piece);
+      b.onclick = () => {
+        if (G.build.placing?.moved) cancelPlacing();
+        G.build.trash = false;
+        G.build.placing = G.build.placing?.piece === piece.key ? null : { id: 'handmadePlanter', piece: piece.key };
+        renderPalette();
+      };
+      pal.append(b);
+    }
+    if (!pal.children.length) pal.append(el('p', 'hint', '成品会出现在这里。到「小屋手记」约两位住户一起做花架。'));
+  } else if (group) {
     for (const id of group) {
       const F = FURNITURE[id];
       const [price, lv] = SHOP[id], have = G.inv[id] || 0, locked = lv > G.level && !have;
       const b = el('button', 'item' + (G.build.placing && G.build.placing.id === id && !G.build.placing.moved ? ' on' : '') + (locked ? ' locked' : ''));
       iconCache[id] = iconCache[id] || furnitureIcon(id);
-      const c = el('canvas'); c.width = c.height = 56; c.getContext('2d').drawImage(iconCache[id], 0, 0);
+      const c = el('canvas'); c.width = c.height = 56 * PIXEL_SCALE; c.getContext('2d').drawImage(iconCache[id], 0, 0);
       const tag = TEST_MODE ? '无限库存' : have ? `仓库 ×${have}` : locked ? `🔒 ${LEVELS[lv].name}` : yuan(price);
       const purpose = F.use ? ACT_NAMES[F.use] : F.layer === 'wall' ? '挂墙' : '摆在地面';
       b.append(c, el('span', 'item-name', F.name), el('small', 'item-purpose', purpose),
@@ -543,6 +560,67 @@ function renderApplications() {
 $('#btnAddDoll').onclick = () => { renderApplications(); $('#applicationsDialog').showModal(); };
 $('#btnRandomResident').onclick = () => {
   if (residents().length < residentLimit()) welcomeResident(addDoll(newcomerProfile()));
+};
+
+function updateKeepsakeDialog(reset = false) {
+  if (reset) {
+    for (const [i, id] of ['keepsakeMaker1', 'keepsakeMaker2'].entries()) {
+      const select = $('#' + id);
+      select.replaceChildren(...residents().map(d => {
+        const option = el('option', null, '');
+        option.textContent = d.name;
+        option.value = d.pid;
+        return option;
+      }));
+      select.selectedIndex = Math.min(i, residents().length - 1);
+    }
+    $('#keepsakeFinish').replaceChildren(...Object.entries(KEEPSAKE_FINISHES).map(([id, [name]]) => {
+      const option = el('option', null, name);
+      option.value = id;
+      return option;
+    }));
+  }
+  const project = G.keepsakes.project;
+  const bench = G.furniture.some(f => f.id === 'craftBench');
+  $('#keepsakeStatus').textContent = project ? project.people.map(pid => communityDoll(pid)?.name).join('和') +
+    (project.work ? '正在给花架上色。' : '正准备去手工台。') : bench ?
+    '选两位住户和一种颜色。等他们一起到手工台，成品就会放进「布置 → 纪念物」。' :
+    '先到「布置 → 兴趣家具」摆一张奶糖手工台，台前给两位住户留出空位。';
+  $('#keepsakeStart').disabled = !bench || !!project || residents().length < 2;
+  const nameOf = pid => (communityDoll(pid) || G.community.friends.find(p => p.pid === pid))?.name;
+  const notes = [];
+  for (const f of G.furniture) {
+    const record = G.keepsakes.corners[f.key], name = nameOf(record?.owner);
+    if (!name) continue;
+    const companions = record.regulars.filter(pid => pid !== record.owner).map(nameOf).filter(Boolean);
+    notes.push(`${name}的${CORNER_NAMES[cornerKind(f) || 'read']} · ${FURNITURE[f.id].name}${companions.length ? ' · 也常来的有 ' + companions.join('、') : ''}`);
+  }
+  for (const tie of Object.values(G.keepsakes.traditions)) {
+    const names = tie.people.map(nameOf);
+    if (names.every(Boolean)) notes.push(`${names.join('和')} · 下雨时想再去书房喝茶`);
+  }
+  const list = (selector, items, empty) => {
+    const nodes = (items.length ? items : [empty]).map(text => {
+      const item = el('li', null, '');
+      item.textContent = text;
+      return item;
+    });
+    $(selector).replaceChildren(...nodes);
+  };
+  list('#keepsakeNotes', notes, '常来坐坐，过几个月就会有属于自己的小角落。');
+  list('#keepsakePieces', G.keepsakes.pieces.map(keepsakeLabel), '还没有一起做过的纪念物。');
+}
+
+$('#btnKeepsakes').onclick = () => {
+  updateKeepsakeDialog(true);
+  $('#keepsakesDialog').showModal();
+};
+$('#keepsakeStart').onclick = () => {
+  const pair = ['#keepsakeMaker1', '#keepsakeMaker2'].map(id => communityDoll($(id).value));
+  if (startKeepsakeProject(...pair, $('#keepsakeFinish').value)) {
+    $('#keepsakesDialog').close();
+    HOOK.toast('🧵 两位住户要去手工台做花架了', true);
+  } else $('#keepsakeStatus').textContent = '请选择两位不同的住户。两人要在家有空，手工台前也要有两个能走到的空位。';
 };
 
 /* ---------- 主循环 ---------- */

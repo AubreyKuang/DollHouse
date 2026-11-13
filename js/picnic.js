@@ -112,6 +112,7 @@ function arrivePicnic(d, event) {
   const other = communityDoll(event.quietPids.find(pid => pid !== d.pid));
   if (event.quietDone || other?.act?.theme !== 'quiet' || other.state !== 'act') return;
   event.quietDone = true;
+  noteRainTradition(d, other);
   bump(d, other, 10);
   addTrust(d, other, 5); addTrust(other, d, 5);
   const text = `${d.name}和${other.name}躲到二楼，在安静的书房聊熟了。`;

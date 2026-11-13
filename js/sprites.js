@@ -349,7 +349,7 @@ const DRAW = {
 const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
-function furnitureIcon(id, size = 56) {
+function furnitureIcon(id, size = 56, props = {}) {
   const d = FURNITURE[id], top = d.layer ? 0 : (TALL[id] || 0);
   const pw = d.w * T, ph = d.h * T + top;
   const cv = document.createElement('canvas');
@@ -362,7 +362,7 @@ function furnitureIcon(id, size = 56) {
   tmp.height = ph * PIXEL_SCALE;
   const tc = tmp.getContext('2d');
   tc.scale(PIXEL_SCALE, PIXEL_SCALE);
-  DRAW[id](tc, 0, top, { color: null }, 0);
+  DRAW[id](tc, 0, top, { color: null, ...props }, 0);
   const s = Math.min(size / pw, size / ph);
   const scale = s >= 1 ? Math.floor(s) : s;
   const w = Math.round(pw * PIXEL_SCALE * scale), h = Math.round(ph * PIXEL_SCALE * scale);
