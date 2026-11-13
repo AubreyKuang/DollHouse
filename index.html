@@ -26,6 +26,9 @@
     <button data-speed="1" class="on" title="正常">▶</button>
     <button data-speed="3" title="快进">⏩</button>
     <button id="btnSound" title="声音">🔇</button>
+    <label class="away-toggle" title="关页或切到后台时继续计时，回来最多补算一个游戏昼夜">
+      <input id="houseOffline" type="checkbox"> 离开时继续
+    </label>
   </div>
 </header>
 
@@ -82,7 +85,6 @@
   <details class="paper-settings">
     <summary>设置</summary>
     <label><input id="paperAuto" type="checkbox"> 每月自动打开</label>
-    <label><input id="paperOffline" type="checkbox"> 关掉页面后，小屋继续过日子（最多补一天）</label>
   </details>
   <details class="rewind-box">
     <summary>🕰 时光回溯</summary>
@@ -195,13 +197,13 @@
 <script src="js/calendar.js?v=a40460b9fe31"></script>
 <script src="js/data.js?v=9c54852153db"></script>
 <script src="js/sprites.js?v=eff102d1e2e3"></script>
-<script src="js/doll.js?v=c5f09ab38463"></script>
+<script src="js/doll.js?v=327fcaec7c24"></script>
 <script src="js/audio.js?v=bfed272d2ce4"></script>
 <script src="js/npc-memory.js?v=aa25de9db61f"></script>
 <script src="js/save-manager.js?v=d5ebb3e28e51"></script>
-<script src="js/house-life.js?v=9add2d9725c2"></script>
+<script src="js/house-life.js?v=024717a48e87"></script>
 <script src="js/bonds.js?v=aa9e0843e094"></script>
-<script src="js/game.js?v=954dd30e004d"></script>
+<script src="js/game.js?v=b20756040859"></script>
 <script src="js/social.js?v=6fd0f97fff8b"></script>
 <script src="js/work.js?v=1527eb9f2ee5"></script>
 <script src="js/furniture2.js?v=75e3bdc0b1e2"></script>
@@ -220,6 +222,6 @@
 <script src="js/keepsakes.js?v=7b1b610a1807"></script>
 <script src="js/view.js?v=613510b4cb29"></script>
 <script src="js/paper-card.js?v=2092b1e0a5eb"></script>
-<script src="js/ui.js?v=80075aa45176"></script>
+<script src="js/ui.js?v=7ee2ac689f10"></script>
 </body>
 </html>

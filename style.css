@@ -59,6 +59,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .modes button:active,.speed button:active,.btn:active,.tab:active{transform:translateY(2px);box-shadow:0 1px 0 var(--shadow)}
 .modes button.on,.speed button.on,.tab.on{background:var(--sel);color:#3b2a2f}
 .speed button{padding:6px 9px}
+.away-toggle{display:inline-flex;align-items:center;gap:5px;min-height:34px;padding:0 7px;border:1px solid var(--line);border-radius:6px;font-size:12px;white-space:nowrap;cursor:pointer}
+.away-toggle input{accent-color:var(--accent);margin:0}
 .btn.small{padding:4px 10px;font-size:13px}
 .btn.ghost{background:transparent}
 .btn.danger,.btn.on{background:var(--accent);color:var(--accent-ink)}

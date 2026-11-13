@@ -50,6 +50,25 @@ test('both online entry points request scripts using their current content versi
   }
 });
 
+test('away-time preference pauses the clock or catches up at normal speed with a one-day cap', () => {
+  runGame(`
+    load();
+    G.speed = 3;
+    const time = absNow();
+    const since = Date.now() - 12_500;
+    localStorage.setItem(OFFLINE_KEY, 'off');
+    assert.equal(catchUpOffline(since, since + 12_500), null);
+    assert.equal(absNow(), time);
+    localStorage.setItem(OFFLINE_KEY, 'on');
+    assert.equal(catchUpOffline(since, since + 12_500).minutes, 50);
+    assert.equal(absNow(), time + 50);
+    assert.equal(catchUpOffline(since, since + 3_600_000).minutes, 1440);
+    assert.equal(absNow(), time + 1490);
+    assert.equal(G.speed, 3);
+    assert.equal(catchingUp, false);
+  `);
+});
+
 test('kitchen appliances and yard furniture follow their placement row', () => {
   runGame(`
     load();

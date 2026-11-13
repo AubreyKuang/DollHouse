@@ -628,6 +628,10 @@ load(); rebuild(); HOOK.select(); updateClock(); renderLog(); renderShopBar();
 let last = performance.now(), uiT = 0;
 function loop(now) {
   const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (document.hidden) {
+    requestAnimationFrame(loop);
+    return;
+  }
   update(dt); render();
   // 月报曾因玩家正忙（拖小人、衣橱、别的弹窗）而挂起：等空闲了再弹出来
   if (G.paperPending && typeof playerBusy === 'function' && !playerBusy()) { G.paperPending = false; updateHousePaperButton(); showHousePaper(); }
@@ -637,7 +641,6 @@ function loop(now) {
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
-window.addEventListener('beforeunload', save);
 
 document.getElementById('dailyPaper').onclick=showHousePaper;
 document.getElementById('paperOlder').onclick = () => renderHousePaper(housePaperIndex - 1);
@@ -657,9 +660,17 @@ try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
 paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
 
-const paperOffline=document.getElementById('paperOffline');
-paperOffline.checked=offlineEnabled();
-paperOffline.onchange=()=>{try{localStorage.setItem(OFFLINE_KEY,paperOffline.checked?'on':'off');}catch{}};
+const houseOffline = $('#houseOffline');
+houseOffline.checked = offlineEnabled();
+houseOffline.onchange = () => {
+  try {
+    localStorage.setItem(OFFLINE_KEY, houseOffline.checked ? 'on' : 'off');
+  } catch {
+    houseOffline.checked = offlineEnabled();
+    HOOK.toast('浏览器暂时无法保存这项设置。', true);
+  }
+};
+
 document.getElementById('paperCard').onclick = () => {
   const issue = currentHousePaper();
   if (issue) saveHousePaperCard(issue);
@@ -684,6 +695,32 @@ function renderRewind(){
 }
 document.querySelector('.rewind-box').addEventListener('toggle',renderRewind);
 
-// 离线模拟：补上关掉页面期间的生活
-const away=catchUpOffline();
-if(away){renderLog();HOOK.select();updateClock();if(away.hours>=1)HOOK.toast(`🌙 你不在的 ${away.hours} 小时里，小屋发生了 ${away.happened} 件事`,true);}
+// A visibility change and pagehide can describe the same departure.
+let awaySince = lastSavedAt || Date.now();
+function leaveHouse() {
+  if (awaySince) return;
+  awaySince = Date.now();
+  save();
+}
+
+function returnToHouse() {
+  if (document.hidden || !awaySince) return;
+  const since = awaySince;
+  awaySince = 0;
+  last = performance.now();
+  const away = catchUpOffline(since);
+  if (away) {
+    renderLog();
+    HOOK.select();
+    updateClock();
+    if (away.happened) HOOK.toast(`🌙 离开期间，小屋发生了 ${away.happened} 件事`, true);
+  }
+  save();
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) leaveHouse();
+  else returnToHouse();
+});
+window.addEventListener('pagehide', leaveHouse);
+window.addEventListener('pageshow', returnToHouse);
+returnToHouse();

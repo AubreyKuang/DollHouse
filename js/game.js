@@ -74,26 +74,38 @@ function load() {
   lastSavedAt = s?.savedAt || 0;
   if (!SaveManager.snapshots(localStorage, SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
 }
-// 离线模拟：关掉页面的这段时间，小屋最多继续过一整天（现实 6 分钟）
+// Hidden and closed pages both use the same capped catch-up simulation.
 const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
-function offlineEnabled() { try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; } }
-function catchUpOffline() {
-  if (TEST_MODE || !lastSavedAt || !offlineEnabled()) return null;
-  const seconds = Math.min(360, Math.max(0, (Date.now() - lastSavedAt) / 1000));
-  if (seconds < 15) return null;
-  const hooks = { toast: HOOK.toast, logged: HOOK.logged }, speed = G.speed, startDay = G.day, startTime = G.time;
+let catchingUp = false;
+
+function offlineEnabled() {
+  try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; }
+}
+
+function catchUpOffline(since, now = Date.now()) {
+  if (!since || !offlineEnabled()) return null;
+  const seconds = Math.min(1440 / MIN_PER_SEC, Math.max(0, (now - since) / 1000));
+  if (!seconds) return null;
+  const hooks = { toast: HOOK.toast, logged: HOOK.logged };
+  const speed = G.speed;
   let happened = 0;
-  HOOK.toast = () => {}; HOOK.logged = () => { happened++; };
+  HOOK.toast = () => {};
+  HOOK.logged = () => { happened++; };
   G.speed = 1;
+  catchingUp = true;
   try {
-    for (let t = 0; t < seconds && !document.getElementById('paperDialog')?.open; t += 0.25) update(0.25);
+    for (let t = 0; t < seconds; t += .25) update(Math.min(.25, seconds - t));
   } finally {
-    Object.assign(HOOK, hooks); G.speed = speed;
+    catchingUp = false;
+    Object.assign(HOOK, hooks);
+    G.speed = speed;
   }
-  const minutes = (G.day - startDay) * 1440 + G.time - startTime;
-  const hours = Math.round(minutes / 60);
-  addLog(`🌙 你不在的 ${hours} 小时里，小屋照常过日子，发生了 ${happened} 件事`);
-  return { hours, happened };
+  const minutes = Math.round(seconds * MIN_PER_SEC);
+  if (happened || minutes >= 60) {
+    const duration = minutes >= 60 ? `约 ${Math.round(minutes / 60)} 小时` : `${minutes} 分钟`;
+    addLog(`🌙 离开期间，小屋过了${duration}，发生了 ${happened} 件事`);
+  }
+  return { minutes, happened };
 }
 function defaultHouseSave() {
   const initial = JSON.parse(JSON.stringify(DEFAULT_SAVE));
@@ -642,14 +654,15 @@ let saveT = 0;
 function update(realDt) {
   const dt = realDt * G.speed;
   G.t += realDt;
-  if (dt > 0 && !document.getElementById('paperDialog')?.open) {
+  const running = dt > 0 && (catchingUp || !document.getElementById('paperDialog')?.open);
+  if (running) {
     if (G.monthEvents !== G.day) {
       startHouseMonth();
       save();
     }
     G.time += dt * MIN_PER_SEC;
     if (G.time >= 1440) {
-      finishHouseMonth();
+      finishHouseMonth(catchingUp);
       G.time -= 1440;
       G.day++;
       HOOK.toast(`☀️ ${monthLabel(G.day)}开始啦`);
@@ -670,7 +683,7 @@ function update(realDt) {
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
-  if (dt > 0 && !document.getElementById('paperDialog')?.open) { socialTick(dt); trystTick(); bondsTick(dt); }
+  if (running) { socialTick(dt); trystTick(); bondsTick(dt); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
   saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
 }
