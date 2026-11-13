@@ -24,16 +24,23 @@ function lateWorker(d) {
   const wait = d.awayUntil - absNow(), hour = ((d.awayUntil % 1440) + 1440) % 1440;
   return wait > 0 && wait <= 12 * 60 && (hour >= 18 * 60 || d.job === 'night' || d.overtime);
 }
-function planSavedMeal(cook) {
-  if (cook.guest || !G.care || G.care.prepared.some(p => p.pid === cook.pid && p.month === G.day)) return false;
-  if (G.care.meals.filter(m => ['packing', 'ready'].includes(m.phase)).length >= 2) return false;
-  const guests = residents().filter(d => d !== cook && lateWorker(d) && caringFor(cook, d) &&
+function savedMealGuests(cook) {
+  if (cook.guest || !G.care || G.care.prepared.some(p => p.pid === cook.pid && p.month === G.day)) return [];
+  if (G.care.meals.filter(m => ['packing', 'ready'].includes(m.phase)).length >= 2) return [];
+  return residents().filter(d => d !== cook && lateWorker(d) && caringFor(cook, d) &&
     !G.care.meals.some(m => m.to === d.pid && ['packing', 'ready'].includes(m.phase)));
-  guests.sort((a, b) => Number(arePartners(cook, b)) - Number(arePartners(cook, a)) || a.needs.hunger - b.needs.hunger);
-  const guest = guests[0]; if (!guest) return false;
-  const table = G.furniture.find(f => f.id === 'table' && !homeFurnitureReserved(f) &&
+}
+function savedMealTable(cook) {
+  return G.furniture.find(f => f.id === 'table' && !homeFurnitureReserved(f) &&
     !G.care.meals.some(m => m.table === f.key && ['packing', 'ready'].includes(m.phase)) &&
     findPath(cook.tx, cook.ty, approachTiles(f)));
+}
+function planSavedMeal(cook, recipient) {
+  const guests = savedMealGuests(cook);
+  const guest = recipient ? guests.find(d => d.pid === recipient)
+    : guests.sort((a, b) => Number(arePartners(cook, b)) - Number(arePartners(cook, a)) || a.needs.hunger - b.needs.hunger)[0];
+  if (!guest) return false;
+  const table = savedMealTable(cook);
   if (!table) return false;
   const note = cook.persona === 'foodie' ? '多盛了一份，回来慢慢吃。' : cook.persona === 'tidy' ? '饭盖好了，碗筷也放在旁边。'
     : isE(cook) ? '辛苦啦！给你留了饭，吃饱再休息。' : '桌上这份是你的。不急，慢慢吃。';
@@ -42,6 +49,18 @@ function planSavedMeal(cook) {
   G.care.prepared = G.care.prepared.filter(p => p.pid !== cook.pid && p.month >= G.day - 1);
   G.care.prepared.push({ pid: cook.pid, month: G.day });
   while (G.care.meals.length > 12) G.care.meals.splice(G.care.meals.findIndex(m => ['eaten', 'thanked'].includes(m.phase)), 1);
+  return true;
+}
+function stoveForSavedMeal(cook) {
+  if (!cook || !canAfford(cook, PRICES.cook) || cook.act?.mealRecipient || !savedMealTable(cook)) return;
+  const back = cook.act?.onFurn && cook.act.back;
+  return G.furniture.find(f => f.id === 'stove' && !homeFurnitureReserved(f) && !furnitureOrderBlock(cook, f) &&
+    (back ? furniturePath(cook, f, back.x, back.y) : furniturePath(cook, f)));
+}
+function orderSavedMeal(cook, recipient) {
+  const stove = stoveForSavedMeal(cook);
+  if (!stove || !savedMealGuests(cook).some(d => d.pid === recipient) || !orderUse(cook, stove)) return false;
+  cook.act.mealRecipient = recipient;
   return true;
 }
 function savedMealFor(d, table) {

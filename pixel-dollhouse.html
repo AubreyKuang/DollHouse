@@ -738,6 +738,13 @@ body{
     <p class="home-intro">不是每个月都要发生大事。有人在等一顿饭，有人想把故事讲给你听。</p>
     <div id="homeOccasions" class="home-occasions"></div>
     <div id="homeWishes" class="home-wishes"></div>
+    <section class="home-invite" aria-labelledby="homeMealTitle" id="homeMeal" hidden>
+      <h3 id="homeMealTitle">给晚归的人留饭</h3>
+      <label class="home-focus">谁来下厨？ <select id="homeMealCook"></select></label>
+      <label class="home-focus">留给谁？ <select id="homeMealGuest" aria-describedby="homeMealStatus"></select></label>
+      <p class="hint" id="homeMealStatus" role="status"></p>
+      <button class="btn" type="button" id="homeMealStart">安排下厨留饭</button>
+    </section>
     <section class="home-invite" aria-label="邀请家人一起活动">
       <h3>给彼此留一小段时间</h3>
       <div id="homeKinds" class="home-kinds"></div>
@@ -3397,7 +3404,10 @@ function updateDoll(d, dt) {
     if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
-    if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
+    if (a.type === 'cook' && a.t <= 0) {
+      shareCookedMeal(d);
+      if (!planSavedMeal(d, a.mealRecipient) && a.mealRecipient) HOOK.toast('这次没能留饭。室友已回来，或餐桌暂时不可用。', true);
+    }
     if (a.t <= 0 || wake) endAct(d);
     return;
   }
@@ -7266,16 +7276,23 @@ function lateWorker(d) {
   const wait = d.awayUntil - absNow(), hour = ((d.awayUntil % 1440) + 1440) % 1440;
   return wait > 0 && wait <= 12 * 60 && (hour >= 18 * 60 || d.job === 'night' || d.overtime);
 }
-function planSavedMeal(cook) {
-  if (cook.guest || !G.care || G.care.prepared.some(p => p.pid === cook.pid && p.month === G.day)) return false;
-  if (G.care.meals.filter(m => ['packing', 'ready'].includes(m.phase)).length >= 2) return false;
-  const guests = residents().filter(d => d !== cook && lateWorker(d) && caringFor(cook, d) &&
+function savedMealGuests(cook) {
+  if (cook.guest || !G.care || G.care.prepared.some(p => p.pid === cook.pid && p.month === G.day)) return [];
+  if (G.care.meals.filter(m => ['packing', 'ready'].includes(m.phase)).length >= 2) return [];
+  return residents().filter(d => d !== cook && lateWorker(d) && caringFor(cook, d) &&
     !G.care.meals.some(m => m.to === d.pid && ['packing', 'ready'].includes(m.phase)));
-  guests.sort((a, b) => Number(arePartners(cook, b)) - Number(arePartners(cook, a)) || a.needs.hunger - b.needs.hunger);
-  const guest = guests[0]; if (!guest) return false;
-  const table = G.furniture.find(f => f.id === 'table' && !homeFurnitureReserved(f) &&
+}
+function savedMealTable(cook) {
+  return G.furniture.find(f => f.id === 'table' && !homeFurnitureReserved(f) &&
     !G.care.meals.some(m => m.table === f.key && ['packing', 'ready'].includes(m.phase)) &&
     findPath(cook.tx, cook.ty, approachTiles(f)));
+}
+function planSavedMeal(cook, recipient) {
+  const guests = savedMealGuests(cook);
+  const guest = recipient ? guests.find(d => d.pid === recipient)
+    : guests.sort((a, b) => Number(arePartners(cook, b)) - Number(arePartners(cook, a)) || a.needs.hunger - b.needs.hunger)[0];
+  if (!guest) return false;
+  const table = savedMealTable(cook);
   if (!table) return false;
   const note = cook.persona === 'foodie' ? '多盛了一份，回来慢慢吃。' : cook.persona === 'tidy' ? '饭盖好了，碗筷也放在旁边。'
     : isE(cook) ? '辛苦啦！给你留了饭，吃饱再休息。' : '桌上这份是你的。不急，慢慢吃。';
@@ -7284,6 +7301,18 @@ function planSavedMeal(cook) {
   G.care.prepared = G.care.prepared.filter(p => p.pid !== cook.pid && p.month >= G.day - 1);
   G.care.prepared.push({ pid: cook.pid, month: G.day });
   while (G.care.meals.length > 12) G.care.meals.splice(G.care.meals.findIndex(m => ['eaten', 'thanked'].includes(m.phase)), 1);
+  return true;
+}
+function stoveForSavedMeal(cook) {
+  if (!cook || !canAfford(cook, PRICES.cook) || cook.act?.mealRecipient || !savedMealTable(cook)) return;
+  const back = cook.act?.onFurn && cook.act.back;
+  return G.furniture.find(f => f.id === 'stove' && !homeFurnitureReserved(f) && !furnitureOrderBlock(cook, f) &&
+    (back ? furniturePath(cook, f, back.x, back.y) : furniturePath(cook, f)));
+}
+function orderSavedMeal(cook, recipient) {
+  const stove = stoveForSavedMeal(cook);
+  if (!stove || !savedMealGuests(cook).some(d => d.pid === recipient) || !orderUse(cook, stove)) return false;
+  cook.act.mealRecipient = recipient;
   return true;
 }
 function savedMealFor(d, table) {
@@ -9539,6 +9568,36 @@ function renderHomeWishes() {
   }));
 }
 function selectedHomePeople() { return [...document.querySelectorAll('#homePeople input:checked')].map(n => n.value); }
+function renderHomeMeal(reset = false) {
+  const section = $('#homeMeal'), cookSelect = $('#homeMealCook'), guestSelect = $('#homeMealGuest');
+  const late = residents().some(lateWorker);
+  section.hidden = !late;
+  if (!late) return;
+  const cooks = residents().filter(d => d.state !== 'away' && savedMealGuests(d).length && stoveForSavedMeal(d));
+  const option = (value, label) => { const node = el('option', null, label); node.value = value; return node; };
+  const selectedCook = cooks.find(d => d.pid === cookSelect.value)?.pid;
+  cookSelect.replaceChildren(...cooks.map(d => option(d.pid, d.name)));
+  if (selectedCook) cookSelect.value = selectedCook;
+  const cook = cooks.find(d => d.pid === cookSelect.value);
+  const guests = cook ? savedMealGuests(cook).sort((a,b) => a.awayUntil - b.awayUntil) : [];
+  const oldGuest = !reset && guests.find(d => d.pid === guestSelect.value);
+  guestSelect.replaceChildren(option('', '请选择室友'), ...guests.map(d =>
+    option(d.pid, `${d.name} · ${d.awayUntil >= G.day * 1440 ? '次日 ' : ''}${hhmm(d.awayUntil)} 回家 · 饱腹 ${Math.round(d.needs.hunger)}/100`)));
+  guestSelect.value = oldGuest?.pid || '';
+  cookSelect.disabled = !cooks.length;
+  guestSelect.disabled = !guests.length;
+  $('#homeMealStart').disabled = !guestSelect.value;
+  $('#homeMealStatus').textContent = cooks.length ? `每位住户每月可留一份，${TEST_MODE ? '测试模式免费' : '烹饪花 ¥' + PRICES.cook}。`
+    : '现在没有合适的下厨人选或可用的炉灶、餐桌。';
+}
+$('#homeMealCook').onchange = () => renderHomeMeal(true);
+$('#homeMealGuest').onchange = () => { $('#homeMealStart').disabled = !$('#homeMealGuest').value; };
+$('#homeMealStart').onclick = () => {
+  const cook = carePerson($('#homeMealCook').value), recipient = $('#homeMealGuest').value;
+  if (!orderSavedMeal(cook, recipient)) { renderHomeMeal(true); return; }
+  $('#homeDialog').close();
+  HOOK.toast(`${cook.name} 准备给 ${carePerson(recipient).name} 留饭。`, true);
+};
 function updateHomePlan() {
   const pids = selectedHomePeople();
   const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids, $('#homeFocus').value).reason;
@@ -9621,7 +9680,7 @@ function updateHomeNow() {
 }
 HOOK.home = updateHomeNow;
 $('#btnHome').onclick = () => {
-  renderHomeWishes(); renderHomeInvitation(); showHomePage('today'); $('#homeDialog').showModal();
+  renderHomeWishes(); renderHomeMeal(true); renderHomeInvitation(); showHomePage('today'); $('#homeDialog').showModal();
 };
 $('#homeToday').onclick = () => showHomePage('today');
 $('#homeAlbum').onclick = () => showHomePage('album');

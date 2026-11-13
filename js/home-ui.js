@@ -57,6 +57,36 @@ function renderHomeWishes() {
   }));
 }
 function selectedHomePeople() { return [...document.querySelectorAll('#homePeople input:checked')].map(n => n.value); }
+function renderHomeMeal(reset = false) {
+  const section = $('#homeMeal'), cookSelect = $('#homeMealCook'), guestSelect = $('#homeMealGuest');
+  const late = residents().some(lateWorker);
+  section.hidden = !late;
+  if (!late) return;
+  const cooks = residents().filter(d => d.state !== 'away' && savedMealGuests(d).length && stoveForSavedMeal(d));
+  const option = (value, label) => { const node = el('option', null, label); node.value = value; return node; };
+  const selectedCook = cooks.find(d => d.pid === cookSelect.value)?.pid;
+  cookSelect.replaceChildren(...cooks.map(d => option(d.pid, d.name)));
+  if (selectedCook) cookSelect.value = selectedCook;
+  const cook = cooks.find(d => d.pid === cookSelect.value);
+  const guests = cook ? savedMealGuests(cook).sort((a,b) => a.awayUntil - b.awayUntil) : [];
+  const oldGuest = !reset && guests.find(d => d.pid === guestSelect.value);
+  guestSelect.replaceChildren(option('', '请选择室友'), ...guests.map(d =>
+    option(d.pid, `${d.name} · ${d.awayUntil >= G.day * 1440 ? '次日 ' : ''}${hhmm(d.awayUntil)} 回家 · 饱腹 ${Math.round(d.needs.hunger)}/100`)));
+  guestSelect.value = oldGuest?.pid || '';
+  cookSelect.disabled = !cooks.length;
+  guestSelect.disabled = !guests.length;
+  $('#homeMealStart').disabled = !guestSelect.value;
+  $('#homeMealStatus').textContent = cooks.length ? `每位住户每月可留一份，${TEST_MODE ? '测试模式免费' : '烹饪花 ¥' + PRICES.cook}。`
+    : '现在没有合适的下厨人选或可用的炉灶、餐桌。';
+}
+$('#homeMealCook').onchange = () => renderHomeMeal(true);
+$('#homeMealGuest').onchange = () => { $('#homeMealStart').disabled = !$('#homeMealGuest').value; };
+$('#homeMealStart').onclick = () => {
+  const cook = carePerson($('#homeMealCook').value), recipient = $('#homeMealGuest').value;
+  if (!orderSavedMeal(cook, recipient)) { renderHomeMeal(true); return; }
+  $('#homeDialog').close();
+  HOOK.toast(`${cook.name} 准备给 ${carePerson(recipient).name} 留饭。`, true);
+};
 function updateHomePlan() {
   const pids = selectedHomePeople();
   const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids, $('#homeFocus').value).reason;
@@ -139,7 +169,7 @@ function updateHomeNow() {
 }
 HOOK.home = updateHomeNow;
 $('#btnHome').onclick = () => {
-  renderHomeWishes(); renderHomeInvitation(); showHomePage('today'); $('#homeDialog').showModal();
+  renderHomeWishes(); renderHomeMeal(true); renderHomeInvitation(); showHomePage('today'); $('#homeDialog').showModal();
 };
 $('#homeToday').onclick = () => showHomePage('today');
 $('#homeAlbum').onclick = () => showHomePage('album');

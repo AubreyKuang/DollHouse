@@ -643,7 +643,10 @@ function updateDoll(d, dt) {
     if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
-    if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
+    if (a.type === 'cook' && a.t <= 0) {
+      shareCookedMeal(d);
+      if (!planSavedMeal(d, a.mealRecipient) && a.mealRecipient) HOOK.toast('这次没能留饭。室友已回来，或餐桌暂时不可用。', true);
+    }
     if (a.t <= 0 || wake) endAct(d);
     return;
   }

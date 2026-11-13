@@ -23,6 +23,31 @@ function game(code){
  vm.runInContext(code,ctx);
 }
 
+test('the player can choose a different late worker from the automatic choice',()=>game(`
+ const other=residents()[1];
+ other.job='office';other.state='away';other.lastWorkDay=G.day;other.awayUntil=22*60;
+ other.needs.hunger=50;rel(cook,other).f=65;
+ const spot=approachTiles(stove).find(p=>free(p.x,p.y));
+ placeDollAt(cook,spot.x,spot.y);
+ assert.equal(orderSavedMeal(cook,residents()[0].pid),false);
+ assert.equal(orderSavedMeal(cook,other.pid),true);
+ assert.equal(G.care.meals.length,0);
+ assert.equal(orderSavedMeal(cook,guest.pid),false);
+ arrive(cook);
+ cook.act.t=.01;
+ updateDoll(cook,.02);
+ const meal=G.care.meals[0];
+ assert.equal(meal.to,other.pid);
+ assert.equal(meal.phase,'packing');
+ assert.equal(tryHomeCare(cook),true);
+ step(30);
+ assert.equal(meal.phase,'ready');
+ assert.equal(savedMealFor(guest),undefined);
+ assert.equal(savedMealFor(other),meal);
+ save();load();
+ assert.equal(G.care.meals[0].to,other.pid);
+`));
+
 test('a finished paid cooking action creates a portion only after the cook walks it to the table',()=>game(`
  const money=cook.money,sp=approachTiles(stove).find(p=>free(p.x,p.y));placeDollAt(cook,sp.x,sp.y);
  assert.equal(startAct(cook,{type:'cook',furn:stove}),true);arrive(cook);assert.equal(cook.money,money-PRICES.cook);
