@@ -236,9 +236,10 @@ bookMoveButton.onclick = () => {
 };
 bookSeatButton.onclick = () => {
   const chair = selectedReadingSeat();
-  if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
+  if (!chair || G.mode !== 'live') return;
+  if (toggleBookSeat(chair)) bookMoveStatus.textContent = '';
+  else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，留座安排照旧。';
   refreshReadingSeats();
-  save();
 };
 bookDiscussButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -383,7 +384,12 @@ function refreshReadingSeats() {
   const recommendation = bookRecommendation(chair);
   const publicReaders = publicBookReaders(recommendation);
   const reader = reservedBookReader(chair);
-  bookSeatButton.hidden = !recommendation || !!publicReaders;
+  const seatRecipient = bookSeatRecipient(recommendation);
+  const letterWaiting = recommendation?.followupLetter === 'waiting';
+  if (!seatRecipient && document.activeElement === bookSeatButton) readingSeat.focus();
+  bookSeatButton.hidden = !seatRecipient;
+  const seatAction = letterWaiting ? '给回笺收信人留座 1 小时' : '留座 1 小时';
+  if (bookSeatButton.textContent !== seatAction) bookSeatButton.textContent = seatAction;
   bookDiscussButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes || !!publicReaders;
   bookPublicButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
@@ -475,7 +481,7 @@ function refreshReadingSeats() {
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
   if (bookDiscussButton.getAttribute('aria-pressed') !== discussing) bookDiscussButton.setAttribute('aria-pressed', discussing);
-  bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
+  bookSeatButton.disabled = !!seatRecipient && !reader && furnitureInUse(chair, seatRecipient);
   if (bookSeatButton.getAttribute('aria-pressed') !== String(!!reader)) bookSeatButton.setAttribute('aria-pressed', String(!!reader));
   const text = reader ? `已给${reader.name}留座至 ${recommendation.seatUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(recommendation.seatUntil)}，再点一次可取消。`
     : chair.soloReading ? chair.readingNotes
@@ -506,7 +512,7 @@ function refreshReadingSeats() {
   const hint = recommendation?.reply
     ? `${communityDoll(recommendation.from).name}的回信留给${communityDoll(recommendation.to).name}，须在原便条到期前读完。读完得 ${BOOK_PRIVATE_FUN} 点乐趣，友情也会增加。${reader ? ' ' + text : ''}`
     : publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。${readingHistory ? readingHistory + '。' : `推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。`}${publicChoice}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。${readingHistory ? readingHistory + '。' : `推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。`}${publicChoice}${letterWaiting && reader ? ' ' + text : ''}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 

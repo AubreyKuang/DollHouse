@@ -3547,7 +3547,7 @@ function furnitureOrderBlock(d, f) {
   }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
   const reader = reservedBookReader(f);
-  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} 读荐书`;
+  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} ${bookRecommendation(f)?.followupLetter === 'waiting' ? '读回笺' : '读荐书'}`;
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }
@@ -7156,14 +7156,17 @@ function readBookFollowupLetter(reader, chair, note) {
   const fun = reader.needs.fun, log = G.log.slice();
   const room = cornerRoom(chair);
   const line = bookFollowupLetterLine(reader, writer, room);
+  const seatUntil = note.seatUntil;
   note.followupLetter = 'read';
   note.followupLetterRoom = room;
+  delete note.seatUntil;
   if (draft) draft.steps = [...steps.slice(0, -1), line, steps.at(-1)];
   reader.needs.fun = Math.min(100, fun + BOOK_FOLLOWUP_LETTER_FUN);
   addLog(`📖 ${line}`);
   if (!save()) {
     note.followupLetter = 'waiting';
     delete note.followupLetterRoom;
+    if (seatUntil !== undefined) note.seatUntil = seatUntil;
     if (draft) draft.steps = steps;
     reader.needs.fun = fun;
     G.log = log;
@@ -7337,21 +7340,34 @@ function togglePublicBook(chair) {
   return false;
 }
 
+function bookSeatRecipient(note) {
+  if (!note) return null;
+  const readers = publicBookReaders(note);
+  if (!readers) return communityDoll(note.to);
+  return note.followupLetter === 'waiting' ? communityDoll(readers[0]) : null;
+}
+
 function reservedBookReader(chair) {
   if (!chair.readingNotes || !isWindowChair(chair)) return null;
   const note = bookRecommendation(chair);
-  return !publicBookReaders(note) && Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
+  return Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? bookSeatRecipient(note) : null;
 }
 
 function toggleBookSeat(chair) {
   const note = bookRecommendation(chair);
-  if (!note || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
+  const recipient = bookSeatRecipient(note);
+  if (!recipient || !chair.readingNotes || !isWindowChair(chair) || !G.furniture.includes(chair)) return false;
+  const previous = note.seatUntil;
   if (reservedBookReader(chair)) delete note.seatUntil;
   else {
-    if (furnitureInUse(chair, communityDoll(note.to))) return false;
-    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, note.until * 1440);
+    if (furnitureInUse(chair, recipient)) return false;
+    const deadline = Math.min(note.until, bookFollowupDraft(note)?.month ?? note.until) * 1440;
+    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, deadline);
   }
-  return true;
+  if (save()) return true;
+  if (previous === undefined) delete note.seatUntil;
+  else note.seatUntil = previous;
+  return false;
 }
 
 function canMoveBookRecommendation(source, target, note) {
@@ -9594,9 +9610,10 @@ bookMoveButton.onclick = () => {
 };
 bookSeatButton.onclick = () => {
   const chair = selectedReadingSeat();
-  if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
+  if (!chair || G.mode !== 'live') return;
+  if (toggleBookSeat(chair)) bookMoveStatus.textContent = '';
+  else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，留座安排照旧。';
   refreshReadingSeats();
-  save();
 };
 bookDiscussButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -9741,7 +9758,12 @@ function refreshReadingSeats() {
   const recommendation = bookRecommendation(chair);
   const publicReaders = publicBookReaders(recommendation);
   const reader = reservedBookReader(chair);
-  bookSeatButton.hidden = !recommendation || !!publicReaders;
+  const seatRecipient = bookSeatRecipient(recommendation);
+  const letterWaiting = recommendation?.followupLetter === 'waiting';
+  if (!seatRecipient && document.activeElement === bookSeatButton) readingSeat.focus();
+  bookSeatButton.hidden = !seatRecipient;
+  const seatAction = letterWaiting ? '给回笺收信人留座 1 小时' : '留座 1 小时';
+  if (bookSeatButton.textContent !== seatAction) bookSeatButton.textContent = seatAction;
   bookDiscussButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes || !!publicReaders;
   bookPublicButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
@@ -9833,7 +9855,7 @@ function refreshReadingSeats() {
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
   if (bookDiscussButton.getAttribute('aria-pressed') !== discussing) bookDiscussButton.setAttribute('aria-pressed', discussing);
-  bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
+  bookSeatButton.disabled = !!seatRecipient && !reader && furnitureInUse(chair, seatRecipient);
   if (bookSeatButton.getAttribute('aria-pressed') !== String(!!reader)) bookSeatButton.setAttribute('aria-pressed', String(!!reader));
   const text = reader ? `已给${reader.name}留座至 ${recommendation.seatUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(recommendation.seatUntil)}，再点一次可取消。`
     : chair.soloReading ? chair.readingNotes
@@ -9864,7 +9886,7 @@ function refreshReadingSeats() {
   const hint = recommendation?.reply
     ? `${communityDoll(recommendation.from).name}的回信留给${communityDoll(recommendation.to).name}，须在原便条到期前读完。读完得 ${BOOK_PRIVATE_FUN} 点乐趣，友情也会增加。${reader ? ' ' + text : ''}`
     : publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。${readingHistory ? readingHistory + '。' : `推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。`}${publicChoice}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。${readingHistory ? readingHistory + '。' : `推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。`}${publicChoice}${letterWaiting && reader ? ' ' + text : ''}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 

@@ -262,14 +262,17 @@ function readBookFollowupLetter(reader, chair, note) {
   const fun = reader.needs.fun, log = G.log.slice();
   const room = cornerRoom(chair);
   const line = bookFollowupLetterLine(reader, writer, room);
+  const seatUntil = note.seatUntil;
   note.followupLetter = 'read';
   note.followupLetterRoom = room;
+  delete note.seatUntil;
   if (draft) draft.steps = [...steps.slice(0, -1), line, steps.at(-1)];
   reader.needs.fun = Math.min(100, fun + BOOK_FOLLOWUP_LETTER_FUN);
   addLog(`📖 ${line}`);
   if (!save()) {
     note.followupLetter = 'waiting';
     delete note.followupLetterRoom;
+    if (seatUntil !== undefined) note.seatUntil = seatUntil;
     if (draft) draft.steps = steps;
     reader.needs.fun = fun;
     G.log = log;
@@ -443,21 +446,34 @@ function togglePublicBook(chair) {
   return false;
 }
 
+function bookSeatRecipient(note) {
+  if (!note) return null;
+  const readers = publicBookReaders(note);
+  if (!readers) return communityDoll(note.to);
+  return note.followupLetter === 'waiting' ? communityDoll(readers[0]) : null;
+}
+
 function reservedBookReader(chair) {
   if (!chair.readingNotes || !isWindowChair(chair)) return null;
   const note = bookRecommendation(chair);
-  return !publicBookReaders(note) && Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
+  return Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? bookSeatRecipient(note) : null;
 }
 
 function toggleBookSeat(chair) {
   const note = bookRecommendation(chair);
-  if (!note || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
+  const recipient = bookSeatRecipient(note);
+  if (!recipient || !chair.readingNotes || !isWindowChair(chair) || !G.furniture.includes(chair)) return false;
+  const previous = note.seatUntil;
   if (reservedBookReader(chair)) delete note.seatUntil;
   else {
-    if (furnitureInUse(chair, communityDoll(note.to))) return false;
-    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, note.until * 1440);
+    if (furnitureInUse(chair, recipient)) return false;
+    const deadline = Math.min(note.until, bookFollowupDraft(note)?.month ?? note.until) * 1440;
+    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, deadline);
   }
-  return true;
+  if (save()) return true;
+  if (previous === undefined) delete note.seatUntil;
+  else note.seatUntil = previous;
+  return false;
 }
 
 function canMoveBookRecommendation(source, target, note) {

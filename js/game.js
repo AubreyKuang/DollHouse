@@ -705,7 +705,7 @@ function furnitureOrderBlock(d, f) {
   }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
   const reader = reservedBookReader(f);
-  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} 读荐书`;
+  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} ${bookRecommendation(f)?.followupLetter === 'waiting' ? '读回笺' : '读荐书'}`;
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }
