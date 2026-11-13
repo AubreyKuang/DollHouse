@@ -21,7 +21,7 @@ function helpWithMeal(d, table) {
 
 function shareCookedMeal(cook) {
   if (cook.guest) return;
-  const caring = cook.persona === 'foodie' || ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook));
+  const caring = JOBS[cook.job]?.caring || cook.persona === 'foodie' || ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook));
   const hungry = residents().filter(person => person !== cook &&
     person.money < PRICES.snack && person.needs.hunger < 35 &&
     person.state !== 'away' && person.state !== 'lift' && !lying(person) &&
@@ -47,6 +47,9 @@ function shareMeal(host, guest, food, gain) {
 }
 
 const PAPER_EVENTS = [
+  [/陪.+过了生日/, '有人记得的生日', '🎂', 86],
+  [/慢慢练出了|在.+的陪伴下，学会了/, '小小里程碑', '✨', 80],
+  [/陪.+一起学做饭|陪.+一起学音乐|陪.+一起学手作/, '室友教我的', '🧵', 78],
   [/晚归后吃完了.+留的饭|当面谢谢.+留下的饭/, '回家有盏灯', '🕯', 79],
   [/在家一起吃顿饭|在家围坐讲故事|在家开了一场小小音乐会/, '小屋时光', '🏡', 81],
   [/分手|变心/, '关系转折', '💔', 105],

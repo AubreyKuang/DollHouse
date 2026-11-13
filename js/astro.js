@@ -107,13 +107,7 @@ function birthdayCheck() {
   for (const d of residents()) {
     if (birthdayOf(d) !== month) continue;
     HOOK.toast(`🎂 本月是 ${d.name} 的生日！`);
-    d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
-    for (const o of residents()) {
-      if (o === d) continue;
-      const r = rel(o, d);
-      if (o.state !== 'away') setTimeout(() => say(o, pick([`${d.name}生日快乐！`, '🎂 许个愿吧', '又长大一岁啦'])), 800 + Math.random() * 1500);
-      if ((r.f >= 40 || r.lovers) && o.money >= 60) { o.money -= 60; bump(o, d, 5, r.lovers ? 5 : 0); addLog(`🎁 ${o.name} 送了 ${d.name} 一份生日礼物`); }
-    }
+    // A reminder is not a celebration: cake, conversation and memories require meeting in person.
   }
 }
 

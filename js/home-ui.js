@@ -19,6 +19,14 @@ function showHomePage(page) {
 }
 function renderHomeWishes() {
   ensureHomeWishes();
+  $('#homeOccasions').replaceChildren(...residents().filter(d=>birthdayOf(d)===monthOf(G.day)).map(d=>{
+    const card=el('div','home-occasion'), text=el('span');
+    text.textContent=birthdayDone(d) ? `🎂 ${d.name}的生日，这个月已经一起许过愿了。` : `🎂 本月是${d.name}的生日。${!isE(d)?'TA 更喜欢安静的祝福。':'一起热热闹闹地许个愿吧。'}`;
+    card.append(homeCast([d],true),text);
+    if(!birthdayDone(d)) { const button=el('button','btn small ghost','陪 TA 过生日');
+      button.onclick=()=>{homeKind='birthday';renderHomeInvitation(d.pid,true)};card.append(button); }
+    return card;
+  }));
   $('#homeWishes').replaceChildren(...G.home.wishes.slice(-4).map(w => {
     const d = communityDoll(w.pid), card = el('article', 'home-wish' + (w.done ? ' fulfilled' : ''));
     const body = el('div'), title = el('small'), quote = el('p');
@@ -36,30 +44,40 @@ function renderHomeWishes() {
 function selectedHomePeople() { return [...document.querySelectorAll('#homePeople input:checked')].map(n => n.value); }
 function updateHomePlan() {
   const pids = selectedHomePeople();
-  const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids).reason;
-  $('#homePlanStatus').textContent = reason || `约好 ${pids.length} 个人${HOME_TIMES[homeKind].name}。${HOME_TIMES[homeKind].cost && !TEST_MODE ? '开饭时使用家庭基金 ¥30。' : '不用花钱。'}`;
+  const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids, $('#homeFocus').value).reason;
+  $('#homePlanStatus').textContent = reason || `约好 ${pids.length} 个人${HOME_TIMES[homeKind].name}。${HOME_TIMES[homeKind].cost && !TEST_MODE ? `开场时使用家庭基金 ¥${HOME_TIMES[homeKind].cost}。` : '不用花钱。'}`;
   $('#homeStart').disabled = !!reason;
 }
-function renderHomeInvitation(ownerPid) {
+function renderHomeInvitation(ownerPid, reset = false) {
   $('#homeKinds').replaceChildren(...Object.entries(HOME_TIMES).map(([key, theme]) => {
     const button = el('button', 'btn small' + (key === homeKind ? ' on' : ' ghost'));
     button.textContent = `${theme.icon} ${theme.name}`;
     button.setAttribute('aria-pressed', String(key === homeKind));
-    button.onclick = () => { homeKind = key; renderHomeInvitation(); };
+    button.onclick = () => { homeKind = key; renderHomeInvitation(undefined,true); };
     return button;
   }));
   $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint;
+  const special=homeKind==='birthday'||!!LESSON_SKILLS[homeKind], focus=$('#homeFocus');
+  $('#homeFocusLabel').hidden=!special;
+  $('#homeFocusCaption').textContent=homeKind==='birthday'?'为谁过生日？':'这次谁来学？';
+  const candidates=special?lifeFocusCandidates(homeKind):[], oldFocus=focus.value;
+  focus.replaceChildren(...candidates.map(d=>{const o=el('option');o.value=d.pid;o.textContent=d.name;return o}));
+  focus.value=special?(candidates.find(d=>d.pid===ownerPid)?.pid||(!reset&&candidates.find(d=>d.pid===oldFocus)?.pid)||candidates[0]?.pid||''):'';
+  if(special&&!candidates.length){const o=el('option');o.value='';o.textContent='本月暂时没有待庆祝的生日';focus.append(o);}
+  focus.onchange=()=>renderHomeInvitation(focus.value,true);
   const previous = new Set(selectedHomePeople());
-  const owner = communityDoll(ownerPid);
+  const owner = communityDoll(special?focus.value:ownerPid);
   const available = residents().filter(d => !homeAvailability(d, homeKind));
-  const recommended = owner ? [owner, ...available.filter(d => d !== owner && !tensionBetween(owner, d))].slice(0, 2)
+  const skill=LESSON_SKILLS[homeKind];
+  const recommended = owner ? [owner, ...available.filter(d => d !== owner && !tensionBetween(owner, d) &&
+    (!skill || (talentLevel(d,skill)>=1 && talentRecord(d,skill).xp>talentRecord(owner,skill).xp)))].slice(0, 2)
     : available.slice(0, 2);
-  const chosen = ownerPid || !previous.size ? new Set(recommended.map(d => d.pid)) : previous;
+  const chosen = reset || ownerPid || !previous.size ? new Set(recommended.map(d => d.pid)) : previous;
   $('#homePeople').replaceChildren(...residents().map(d => {
     const label = el('label'), check = el('input'), body = el('span'), reason = homeAvailability(d, homeKind);
     check.type = 'checkbox'; check.value = d.pid; check.checked = chosen.has(d.pid) && !reason;
     check.disabled = !!reason; check.onchange = updateHomePlan;
-    body.textContent = d.name + (reason ? ` · ${reason}` : ` · ${PERSONAS[d.persona].name}`);
+    body.textContent = d.name + (reason ? ` · ${reason}` : skill ? ` · ${TALENT_NAMES[talentLevel(d,skill)]}` : ` · ${PERSONAS[d.persona].name}`);
     label.append(check, paperPortrait(d), body); return label;
   }));
   updateHomePlan();
@@ -115,7 +133,7 @@ $('#homeFavorites').onclick = () => {
   $('#homeFavorites').setAttribute('aria-pressed', String(homeOnlyFavorites)); renderHomeAlbum();
 };
 $('#homeStart').onclick = () => {
-  const reason = startHomeTime(homeKind, selectedHomePeople());
+  const reason = startHomeTime(homeKind, selectedHomePeople(), $('#homeFocus').value);
   if (reason) { $('#homePlanStatus').textContent = reason; return; }
   $('#homeDialog').close(); HOOK.toast('约好啦，大家正走过来。', true);
 };

@@ -109,6 +109,7 @@ const homeFurnitureReserved = f => G.home?.active?.anchor === f.key;
 function homeAvailability(d, kind) {
   if (!d || d.guest || d.state === 'away') return '还没回家';
   if (inHomeTime(d)) return '正在一起活动';
+  if (CARE_ACTIONS.includes(d.act?.type) || d.act?.type === 'chat') return '正和别人忙着，晚点再约';
   if (!readyForKeepsake(d) || ['visitGather', 'visitStay', 'tryst'].includes(d.act?.type)) return '正忙着，晚点再约';
   const leave = leaveAbs(d);
   if (leave !== null && leave <= absNow() + 130 && leave + 180 > absNow()) return '快到出门时间了';
@@ -116,32 +117,42 @@ function homeAvailability(d, kind) {
   return '';
 }
 function homeRoutes(group, anchor) {
-  const F = FURNITURE[anchor.id], occupied = new Set();
+  const F = FURNITURE[anchor.id], occupied = new Set(), columns = new Set();
   const spots = [];
-  for (let y = anchor.y - 1; y <= anchor.y + F.h + 1; y++) {
+  for (let y = anchor.y - 1; y <= anchor.y + F.h + 4; y++) {
     for (let x = anchor.x - 2; x <= anchor.x + F.w; x++) {
       if (!free(x, y) || isDoorTile(x, y) || x === stairsColumn() ||
           roomOf({ tx: x, ty: y }) !== cornerRoom(anchor) ||
-          G.dolls.some(d => !group.includes(d) && d.state !== 'away' && d.tx === x && d.ty === y)) continue;
-      spots.push({ x, y });
+          G.dolls.some(d => !group.includes(d) && d.state !== 'away' &&
+            ((d.tx === x && d.ty === y) || (d.path.at(-1)?.x === x && d.path.at(-1)?.y === y)))) continue;
+      const px=HOUSE_X+x*T+8, py=houseY(y*T+14,storeyOf(y));
+      const hidden=G.furniture.some(f=>{
+        if(layerOf(f.id)!=='solid'||storeyOf(f.y)!==storeyOf(y))return false;
+        const box=houseFurnitureRect(f);
+        return box.bottom>py && box.top<py-5 && px+4>box.x && px-4<box.x+box.w;
+      });
+      spots.push({ x, y, hidden });
     }
   }
   const routes = [];
   for (const d of group) {
     const options = spots.filter(t => !occupied.has(`${t.x},${t.y}`))
       .map(t => ({ tile: t, path: findPath(d.tx, d.ty, [t]) }))
-      // Prefer a visible front row, instead of hiding heads behind a sofa or appliance.
-      .filter(r => r.path).sort((a, b) =>
-        Math.abs(a.tile.y - anchor.y - F.h - 1) * 12 + a.path.length * .1 -
-        Math.abs(b.tile.y - anchor.y - F.h - 1) * 12 - b.path.length * .1);
+      // The cutaway compresses depth: adjacent grid rows can hide a whole person.
+      .filter(r => r.path).sort((a, b) => {
+        const score=r=>Number(r.tile.hidden)*10000+Number(columns.has(r.tile.x))*1000+
+          Math.abs(r.tile.y-anchor.y-F.h-1)*12+r.path.length*.1;
+        return score(a)-score(b);
+      });
     if (!options.length) return null;
     const chosen = options[0];
     occupied.add(`${chosen.tile.x},${chosen.tile.y}`);
+    columns.add(chosen.tile.x);
     routes.push(chosen.path);
   }
   return routes;
 }
-function prepareHomeTime(kind, pids) {
+function prepareHomeTime(kind, pids, focusPid) {
   const theme = HOME_TIMES[kind];
   if (!theme) return { reason: '这个活动还没有准备好。' };
   const group = [...new Set(pids)].map(communityDoll);
@@ -153,13 +164,16 @@ function prepareHomeTime(kind, pids) {
   for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
     if (tensionBetween(group[i], other)) return { reason: `${group[i].name}和${other.name}还需要一点空间，这次先分别约吧。` };
   }
-  if (!TEST_MODE && G.fund < theme.cost) return { reason: `这顿饭需要家庭基金 ¥${theme.cost}，也可以先约免费的故事会。` };
+  const detail = lifeTimePlan(kind, group, focusPid);
+  if (detail.reason) return detail;
+  if (!TEST_MODE && G.fund < theme.cost) return { reason: `${theme.name}需要家庭基金 ¥${theme.cost}，也可以先约免费的故事会。` };
   const anchors = G.furniture.filter(f => theme.furniture.includes(f.id));
   if (!anchors.length) return { reason: `先摆好${theme.furniture.map(id => FURNITURE[id]?.name).filter(Boolean).join('或')}。` };
   for (const anchor of anchors) {
+    if (G.keepsakes.project?.bench === anchor.key || G.care.meals.some(m => m.table === anchor.key && ['packing', 'ready'].includes(m.phase))) continue;
     if (anchor.users.some(d => !group.includes(d))) continue;
     const routes = homeRoutes(group, anchor);
-    if (routes) return { group, anchor, routes };
+    if (routes) return { group, anchor, routes, detail };
   }
   return { reason: '家具旁要给每个人留一个能走到的位置；也可以等正在使用的人结束。' };
 }
@@ -172,13 +186,14 @@ function sendHomeGroup(active, group, routes) {
     say(d, ['我来啦。', '给我留个位置～', '好，等我一下。'][i % 3]);
   });
 }
-function startHomeTime(kind, pids) {
+function startHomeTime(kind, pids, focusPid) {
   if (G.home.active) return '家里的活动已经开始啦，等这次结束再约。';
-  const plan = prepareHomeTime(kind, pids);
+  const plan = prepareHomeTime(kind, pids, focusPid);
   if (plan.reason) return plan.reason;
   const active = G.home.active = { id: G.home.next++, kind, people: plan.group.map(d => d.pid),
     anchor: plan.anchor.key, started: absNow(), deadline: absNow() + 180,
-    phase: 'gather', elapsed: 0, line: 0, paid: false };
+    phase: 'gather', elapsed: 0, line: 0, paid: false, detail: plan.detail,
+    anchorAt: { x: plan.anchor.x, y: plan.anchor.y } };
   sendHomeGroup(active, plan.group, plan.routes);
   HOOK.home?.(); save();
   return null;
@@ -193,14 +208,19 @@ function arriveHomeTime(d) {
 function cancelHomeTime(message = '这次先忙各自的，有空再聚。') {
   const active = G.home.active;
   if (!active) return;
+  if(active.kind==='birthday'&&active.detail?.honoree&&!G.life.birthdayInvites.some(b=>b.pid===active.detail.honoree&&b.month===G.day)) {
+    G.life.birthdayInvites.push({pid:active.detail.honoree,month:G.day});
+    G.life.birthdayInvites=G.life.birthdayInvites.slice(-16);
+  }
   for (const d of G.dolls) if (inHomeTime(d) && d.act.homeId === active.id) { endAct(d); d.path = []; }
   G.home.active = null;
   HOOK.toast(message, true); HOOK.home?.(); save();
 }
 function finishHomeTime(active, group) {
   const theme = HOME_TIMES[active.kind];
-  const text = `${group.map(d => d.name).join('、')}在家${active.kind === 'music' ? '开了一场小小音乐会' : theme.name}。${active.kind === 'supper' ? '饭慢慢吃，话慢慢讲。' : active.kind === 'stories' ? '每人接了一句，编出了只属于小屋的结尾。' : '有人跑调，有人打拍子，谁也没有提前离场。'}`;
-  addHomeMemory(active.kind, theme.title, text, group, `gather:${active.id}`);
+  const special = finishLifeTime(active, group);
+  const text = special?.text || `${group.map(d => d.name).join('、')}在家${active.kind === 'music' ? '开了一场小小音乐会' : theme.name}。${active.kind === 'supper' ? '饭慢慢吃，话慢慢讲。' : active.kind === 'stories' ? '每人接了一句，编出了只属于小屋的结尾。' : '有人跑调，有人打拍子，谁也没有提前离场。'}`;
+  addHomeMemory(active.kind, special?.title || theme.title, text, group, `gather:${active.id}`);
   const perceptions = [];
   for (const d of group) {
     for (const [key, gain] of Object.entries(theme.need)) d.needs[key] = Math.min(100, d.needs[key] + gain);
@@ -227,20 +247,29 @@ function tickHomeStories(dt) {
   const anchor = G.furniture.find(f => f.key === a.anchor);
   if (!anchor) { cancelHomeTime('家具挪走了，这次先暂停；重新摆好以后再约。'); return; }
   let group = a.people.map(communityDoll).filter(Boolean);
+  if (!lifeTimeValid(a, group)) { cancelHomeTime('主角暂时来不了，这次先歇一会儿。'); return; }
+  if (!a.resume && a.anchorAt && (a.anchorAt.x !== anchor.x || a.anchorAt.y !== anchor.y)) {
+    const routes = homeRoutes(group, anchor);
+    if (!routes) { cancelHomeTime('新位置暂时走不到，有空再聚。'); return; }
+    a.anchorAt = { x: anchor.x, y: anchor.y }; a.phase = 'gather'; a.elapsed = 0; a.line = 0;
+    a.deadline = absNow() + 180; sendHomeGroup(a, group, routes);
+  }
   if (a.resume) {
     // Rebuild paths from saved positions; never award time that happened off-screen without simulation.
     const available = group.filter(d => !homeAvailability(d, a.kind));
     const routes = available.length >= 2 && homeRoutes(available, anchor);
-    if (!routes || absNow() > a.deadline) { cancelHomeTime(); return; }
+    if (!routes || absNow() > a.deadline || !lifeTimeValid(a, available)) { cancelHomeTime(); return; }
     a.people = available.map(d => d.pid); a.resume = false; group = available;
+    a.anchorAt = { x: anchor.x, y: anchor.y };
     sendHomeGroup(a, group, routes);
   }
   const assigned = group.filter(d => inHomeTime(d) && d.act.homeId === a.id);
   const together = assigned.filter(d => d.state === 'act');
+  if (!lifeTimeValid(a, assigned)) { cancelHomeTime('有人先去忙了，等有空再继续。'); return; }
   if (assigned.length < 2 || group.some((d, i) => group.slice(i + 1).some(o => tensionBetween(d, o)))) { cancelHomeTime(); return; }
   if (a.phase === 'gather') {
     if (together.length !== assigned.length && absNow() < a.deadline) return;
-    if (together.length < 2) { cancelHomeTime('这次没能凑齐，大家有空时再约。'); return; }
+    if (together.length < 2 || !lifeTimeValid(a, together)) { cancelHomeTime('这次没能凑齐，大家有空时再约。'); return; }
     for (const d of assigned.filter(d => d.state !== 'act')) { endAct(d); d.path = []; }
     a.people = together.map(d => d.pid);
     if (!a.paid && !TEST_MODE) {
@@ -262,13 +291,14 @@ function tickHomeStories(dt) {
     const listener = together[(a.line + 1) % together.length];
     face(d, listener.x, listener.y); face(listener, d.x, d.y);
     const round = Math.floor(a.line / together.length) % 2;
-    say(d, (HOME_LINES[a.kind][d.persona] || HOME_LINES[a.kind].genki)[round], 3.2);
-    if (a.kind === 'music') SFX.play('piano');
+    say(d, lifeTimeLine(a,d,round) || (HOME_LINES[a.kind][d.persona] || HOME_LINES[a.kind].genki)[round], 3.2);
+    if (a.kind === 'music' || a.kind === 'learnMusic') SFX.play('piano');
     a.line++;
   }
   if (a.elapsed >= Math.max(14, together.length * 6.6)) finishHomeTime(a, together);
 }
 function drawHomeTable(c, f, x, y) {
+  drawLifeTime(c, f, x, y);
   const a = G.home?.active;
   if (!a || a.anchor !== f.key || a.phase !== 'sharing') return;
   if (a.kind === 'music') {

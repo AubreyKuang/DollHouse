@@ -33,7 +33,7 @@ function dollPose(d) {
 function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
   const care = d.act && CARE_ACTIONS.includes(d.act.type);
-  const speaking = d.state === 'act' && d.act?.type === 'chat' && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
+  const speaking = d.state === 'act' && ['chat','homeTime'].includes(d.act?.type) && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
   const eating = care && d.act.type === 'savedMeal' && d.state === 'act';
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: eating ? Math.floor(d.act.careElapsed * 2) % 4 : speaking ? Math.floor(G.t * 2) % 4 : d.frame, pose: dollPose(d), hop: d.hop,

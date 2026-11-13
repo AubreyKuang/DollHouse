@@ -55,6 +55,25 @@ function validatePortableHome(data) {
   }
   if (data.community && (!object(data.community) || !list(data.community.friends, 1000) || !list(data.community.applications, 1000))) throw Error('访客资料不完整。');
   if (data.keepsakes && (!object(data.keepsakes) || !list(data.keepsakes.pieces, 1000) || !object(data.keepsakes.corners) || !object(data.keepsakes.traditions))) throw Error('手作与小角落资料不完整。');
+  if (data.life) {
+    const life=data.life;
+    if (!object(life.people) || Object.keys(life.people).length>64 || !list(life.birthdays,32) || !list(life.inquiries,8) || !list(life.birthdayInvites,16) ||
+      !Number.isFinite(life.nextInvite) || !Number.isInteger(life.lastLessonMonth)) throw Error('生活里程碑资料不完整。');
+    for(const skills of Object.values(life.people)) {
+      if(!object(skills)) throw Error('本领记录不完整。');
+      for(const [key,s] of Object.entries(skills)) if(!Object.hasOwn(TALENTS,key) || !object(s) || !Number.isFinite(s.xp) || s.xp<0 || s.xp>108 ||
+        !Number.isInteger(s.month) || !Number.isFinite(s.earned) || s.earned<0 || s.earned>18) throw Error('本领记录不完整。');
+    }
+    if(life.birthdays.some(b=>!object(b)||typeof b.pid!=='string'||!Number.isInteger(b.year)||b.year<1)||
+      life.birthdayInvites.some(b=>!object(b)||typeof b.pid!=='string'||!Number.isInteger(b.month))||
+      life.inquiries.some(q=>!object(q)||typeof q.pid!=='string'||!Object.hasOwn(TALENTS,q.skill)||!Number.isInteger(q.month)||!Number.isFinite(q.after))) throw Error('生日或请教记录不完整。');
+  }
+  if(data.home?.active && (data.home.active.kind==='birthday'||LESSON_SKILLS[data.home.active.kind])) {
+    const a=data.home.active,detail=a.detail;
+    if(!object(detail) || (a.kind==='birthday' ? typeof detail.honoree!=='string'||!a.people.includes(detail.honoree)||!Number.isInteger(detail.year)
+      : detail.skill!==LESSON_SKILLS[a.kind]||typeof detail.learner!=='string'||typeof detail.teacher!=='string'||detail.learner===detail.teacher||
+        !a.people.includes(detail.learner)||!a.people.includes(detail.teacher))) throw Error('活动主角资料不完整。');
+  }
   if (data.npcMemory) {
     if (!object(data.npcMemory.people) || !object(data.npcMemory.events)) throw Error('住户的记忆资料不完整。');
     for (const memory of Object.values(data.npcMemory.people)) if (!list(memory.short, 1000) || !list(memory.long, 1000)) throw Error('住户的记忆资料不完整。');

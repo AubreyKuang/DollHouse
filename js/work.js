@@ -16,6 +16,30 @@ const JOBS = {
     go: ['去咖啡店啦', '今天也要好好拉花', '出门咯～'], back: ['今天拉花很成功！', '一身咖啡香地回来了', '我回来啦～'], tired: '客人好多……' },
   night: { name: '夜班店员', icon: '🌙', start: 1320, end: 360, off: [6], verb: '值夜班', wage: 280,
     go: ['值夜班去了', '晚上见……不对，早上见', '出门啦'], back: ['困死了……', '天亮了，我回来了', '要去补觉了'], tired: '今晚好多客人' },
+  librarian: { name: '图书管理员', icon: '📚', start: 540, end: 1020, off: [10], verb: '整理图书', wage: 230,
+    interests: ['read','catalogue','study'], reply: '那本书听起来不错，下次讲给我听。',
+    go: ['去给新书贴标签啦。','今天有小读者来听故事。','把借书卡带上。'], back: ['有位读者终于找到了小时候那本书。','今天的故事会，大家听得好认真。','又借到一本想读的书！'], tired: '整理了一整架书，肩膀有点酸。' },
+  florist: { name: '花艺师', icon: '💐', start: 420, end: 900, off: [11], verb: '照料花店', wage: 240,
+    interests: ['water','careHerbs','craft'], reply: '明天挑个花瓶，把你喜欢的颜色摆起来。',
+    go: ['趁清早去接新鲜的花。','今天想配一束奶油色花束。','带上小剪刀，去花店咯。'], back: ['今天有人买花，只为让自己高兴。','客人把最后一朵小雏菊也选走了。','手上还有一点花叶的香气。'], tired: '搬了好多花桶，想坐下歇一歇。' },
+  nurse: { name: '护理师', icon: '🩺', start: 420, end: 1140, off: [4], verb: '值护理班', wage: 360,
+    interests: ['checkIn','tidy','careHerbs'], caring: true, reply: '今天换我们照顾你，先喝口水。',
+    go: ['去交接班啦，晚上见。','希望今天大家都好好的。','水杯带好了，出门。'], back: ['有人恢复得很好，还和我道了谢。','今天跑来跑去，现在终于能坐下了。','忙完交接，看到家里的灯就安心了。'], tired: '今天的班有点长，想安静坐一会儿。' },
+  chef: { name: '餐厅厨师', icon: '👩‍🍳', start: 660, end: 1260, off: [5], verb: '去餐厅掌勺', wage: 330,
+    interests: ['cook','recipeBook','recipeSwap'], talent: 'cooking', reply: '辛苦了，回家这顿让你坐着吃。',
+    go: ['去备菜，今晚有预约。','围裙收好了，出门啦。','今天想试一点新的调味。'], back: ['今天的汤被客人夸了。','最后一桌也吃得干干净净。','终于放下锅铲了，家里好安静。'], tired: '晚餐高峰忙到现在，胳膊都酸了。' },
+  musicTeacher: { name: '音乐老师', icon: '🎼', start: 780, end: 1200, off: [8], verb: '教音乐', wage: 300,
+    interests: ['piano','strum','music'], talent: 'music', reply: '你也教教我那一小段吧，等你休息好。',
+    go: ['谱子带好了，去上课。','今天陪学生练一首小曲。','慢慢来，总会弹好的。'], back: ['学生今天终于跟上了节拍！','有个音总弹错，我们一起笑了。','听了一下午琴，想听听你们说话。'], tired: '示范了一下午，手指想休息了。' },
+  carpenter: { name: '木工', icon: '🪚', start: 480, end: 1020, off: [10], verb: '做木工', wage: 310,
+    interests: ['craft','repair','knit'], talent: 'craft', reply: '慢慢讲，你做的小物总有自己的样子。',
+    go: ['量尺和铅笔带齐了。','今天要磨一个圆圆的桌角。','去工坊啦，回来给你们讲。'], back: ['今天做的小凳子，终于不晃了。','木头磨光以后，摸起来真舒服。','围裙上都是木屑，先让我拍一拍。'], tired: '打磨了一整天，手有点累。' },
+  programmer: { name: '程序员', icon: '💻', start: 600, end: 1140, off: [9], verb: '去写程序', wage: 380,
+    interests: ['pc','planChess','repair'], reply: '先把电脑放下吧，来聊点家里的事。',
+    go: ['希望今天没有奇怪的报错。','电脑充好电了，出门！','今天要把那个小功能做完。'], back: ['困住我的问题，终于找到原因了。','同事帮我看了一眼，突然就想通了。','今天屏幕看够了，想看看你们。'], tired: '改了好久的问题，脑袋有点转不动了。' },
+  courier: { name: '快递员', icon: '📦', start: 480, end: 1080, off: [1], verb: '送包裹', wage: 280,
+    interests: ['stretch','snack','couchNap'], reply: '跑了一路，快坐下来歇歇脚。',
+    go: ['今天的包裹装好啦。','鞋带系紧，去送件。','希望每一份都准时送到。'], back: ['有人等到包裹，开心得跳了起来。','今天路边的小猫又跟了我一段。','最后一件送到，我也回家啦。'], tired: '跑了好多楼梯，腿有点酸。' },
   artist: { name: '自由画家', icon: '🎨', start: null, verb: '在家画画' },
   none: { name: '宅在家', icon: '🏠', start: null, verb: '宅家' },
 };
@@ -89,6 +113,7 @@ function comeHome(d) {
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
   if (!noticeSavedMeal(d)) greetAfterWork(d, line, soaked);
+  if (d.nextJob) changeResidentJob(d,d.nextJob);
   if (G.sel === d.uid) HOOK.select();
 }
 
@@ -103,7 +128,7 @@ function greetAfterWork(d, line, soaked) {
     const reply = soaked ? '门边有干毛巾，我给你拿一条。'
       : tired ? pick(isF(roommate) ? ['辛苦了，坐会儿吧，我陪你。', '回来就好，先喘口气。']
         : ['先坐会儿，水壶还有热水。', '鞋脱了歇会儿，慢慢说。'])
-      : ({ baker: '闻着好香，我去拿两个盘子。', barista: '下次也给我看看你的拉花。', student: '先歇一会儿，作业等会儿再写。' }[d.job] || '坐下说吧，我听着呢。');
+      : (JOBS[d.job]?.reply || { baker: '闻着好香，我去拿两个盘子。', barista: '下次也给我看看你的拉花。', student: '先歇一会儿，作业等会儿再写。' }[d.job] || '坐下说吧，我听着呢。');
     if (startAct(roommate, { type: 'chat', partner: d, kind: close ? 'hug' : 'chat', exchange: {
       lines: ['回来啦，辛苦了。', line, reply], log: `🏠 ${roommate.name} 迎了迎刚回家的 ${d.name}，两人聊起了${soaked ? '路上的大雨' : '今天的事'}`
     } })) return;
@@ -140,7 +165,20 @@ function jobLine(d) {
   const J = JOBS[d.job] || JOBS.none;
   if (J.start == null) return `${J.icon} ${J.name}`;
   const off = J.off.map(month => `${month} 月`).join('、');
-  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}`;
+  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}${d.nextJob ? ` · 回家后转为${JOBS[d.nextJob].name}` : ''}`;
+}
+function changeResidentJob(d, job) {
+  if (!Object.hasOwn(JOBS,job)) return false;
+  if (job === d.job) { delete d.nextJob; return true; }
+  if ((d.state === 'away' && G.community?.outing?.pid !== d.pid) || d.act?.type === 'leave') {
+    d.nextJob = job;
+    return true;
+  }
+  d.job = job; delete d.nextJob;
+  // A career change starts next month and cannot claim a second salary in this one.
+  d.lastWorkDay = G.day;
+  if (job === 'student') clearRomance(d);
+  return true;
 }
 function returnTime(d) {
   const cycle = Math.floor(d.awayUntil / 1440) + 1;
@@ -159,7 +197,8 @@ function awayText(d) {
 const PRICES = { snack: 12, cook: 25 };
 const PRICE_NAME = { snack: '零食钱', cook: '买菜钱' };
 const RENT = 50;
-const START_MONEY = { office: 4000, baker: 2500, barista: 2000, night: 2500, student: 300, artist: 1500, none: 600 };
+const START_MONEY = { office: 4000, baker: 2500, barista: 2000, night: 2500, student: 300, artist: 1500, none: 600,
+  librarian: 2200, florist: 2100, nurse: 3400, chef: 3000, musicTeacher: 2600, carpenter: 2800, programmer: 4000, courier: 2300 };
 const yuan = n => (n < 0 ? '-¥' : '¥') + Math.abs(Math.round(n)).toLocaleString('en-US');
 
 function helperFor(d, amount) {

@@ -35,12 +35,12 @@ function houseSaveData() {
   return {
     cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    keepsakes: G.keepsakes, home: G.home, care: G.care,
+    keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
       .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
-      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
+      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
     npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
@@ -139,6 +139,7 @@ function applySave(s) {
   G.keepsakes = restoreKeepsakes(s.keepsakes);
   G.home = restoreHomeStories(s.home);
   G.care = restoreHomeCare(s.care);
+  G.life = restoreLifeMoments(s.life);
   G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
@@ -300,6 +301,7 @@ function addDoll(src) {
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
     vain: typeof src.vain === 'boolean' ? src.vain : undefined,
+    nextJob: Object.hasOwn(JOBS,src.nextJob) ? src.nextJob : undefined,
   };
   isVain(d);
   if (TEST_MODE) d.money = Math.max(d.money, 1000000);
@@ -339,6 +341,7 @@ function endAct(d) {
 
 function decide(d) {
   if (tryHomeCare(d)) return;
+  if (tryLifeLesson(d)) return;
   if (joinGetTogether(d)) return;
   const P = PERSONAS[d.persona], N = d.needs, opts = [];
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
@@ -352,6 +355,7 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (JOBS[d.job]?.interests?.includes(F.use)) s += 10;
     if (cornerRegular(f, d)) s += 17;
     if (F.outdoor) {
       if (G.weather === 'rain' || G.night) continue;
@@ -582,6 +586,7 @@ function updateDoll(d, dt) {
   if (d.state === 'act') {
     const a = d.act;
     if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
+    if (a.furn && a.t > 0) a.practiceTime = (a.practiceTime || 0) + Math.min(dt, a.t);
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
     if (a.type === 'visitStay' || (a.type === 'homeTime' && a.homeKind === 'music')) {
@@ -612,6 +617,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
+    if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
     if (a.t <= 0 || wake) endAct(d);
     return;
@@ -704,6 +710,7 @@ function update(realDt) {
     if (!carrying) tickKeepsakes(dt);
     if (!carrying) tickHomeStories(dt);
     if (!carrying) tickHomeCare();
+    if (!carrying) tickLifeMoments();
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
