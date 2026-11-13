@@ -163,6 +163,23 @@ function firstPublicBookReader(chair) {
     ? communityDoll(readers[0]) : null;
 }
 
+function keepSharedBookForPaper(chair) {
+  if (!G.furniture.includes(chair) || !firstPublicBookReader(chair)) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  notes[chair.key] = { ...note, keepForPaper: !note.keepForPaper };
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
+}
+
+function bookPaperReaders(chair) {
+  if (!chair.readingNotes || !isWindowChair(chair) || chair.users.length) return [];
+  const note = bookRecommendation(chair), readers = publicBookReaders(note);
+  if (!readers?.length || readers.length > BOOK_PUBLIC_READERS ||
+      (readers.length === BOOK_PUBLIC_READERS && !note.keepForPaper)) return [];
+  return readers.map(communityDoll).filter(d => d && !d.guest);
+}
+
 function replyToBookRecommendation(chair) {
   const reader = firstPublicBookReader(chair);
   if (!reader || !G.furniture.includes(chair)) return false;
@@ -173,16 +190,21 @@ function replyToBookRecommendation(chair) {
   return false;
 }
 
+function bookPaperText(author, readers) {
+  return `${readers.map(d => d.name).join('和')}读完了${author.name}推荐的书摘`;
+}
+
 function submitBookToPaper(chair, replacing) {
-  const reader = firstPublicBookReader(chair);
-  if (!reader || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
+  const readers = bookPaperReaders(chair);
+  if (!readers.length || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   const author = communityDoll(note.from);
+  const people = [author, ...readers];
   const moment = {
-    ids: [author.pid, reader.pid], month: G.day,
-    people: [author, reader].map(d => ({ name: d.name, look: { ...d.look } })),
-    steps: [`${author.name}把读过的书留在窗边。`, `${reader.name}读完了这段书摘。`, '你收起了便条，把书摘留给了月报。'],
-    result: [BOOK_PAPER_LABEL, '📖', `${reader.name}读完了${author.name}推荐的书摘，这段阅读被收进了月报。`, 77],
+    ids: people.map(d => d.pid), month: G.day,
+    people: people.map(d => ({ name: d.name, look: { ...d.look } })),
+    steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => `${d.name}读完了这段书摘。`), '你收起了便条，把书摘留给了月报。'],
+    result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers)}，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;
   G.paperMoments = replacing ? previous.map(draft => draft === replacing ? moment : draft) : [...previous, moment];
@@ -265,7 +287,7 @@ function finishBookRecommendation(reader, chair) {
     const picked = pickedBookReader(note);
     if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
     readers.push(reader.pid);
-    if (readers.length === BOOK_PUBLIC_READERS) delete G.keepsakes.bookRecommendations[chair.key];
+    if (readers.length === BOOK_PUBLIC_READERS && !note.keepForPaper) delete G.keepsakes.bookRecommendations[chair.key];
     reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN));
     say(reader, '这一段也值得推荐。');
     addLog(`📖 ${reader.name}读完了窗边传阅的书摘。`);
@@ -310,7 +332,7 @@ function readingNeighbor(d, f) {
 function readingCornerBonus(d, f) {
   const note = f.readingNotes && isWindowChair(f) && bookRecommendation(f);
   const readers = publicBookReaders(note);
-  if (readers && canReadSharedBook(note, readers, d)) {
+  if (readers && readers.length < BOOK_PUBLIC_READERS && canReadSharedBook(note, readers, d)) {
     const picked = pickedBookReader(note);
     if (!picked || picked === d) return 12;
   }

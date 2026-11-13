@@ -177,6 +177,7 @@ const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
+const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -241,17 +242,22 @@ bookPublicButton.onclick = () => {
 bookPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
-  const reader = firstPublicBookReader(chair);
-  if (!reader) return;
+  const readers = bookPaperReaders(chair);
+  if (!readers.length) return;
   const draft = bookPaperDraft();
   if (draft) {
     const author = communityDoll(bookRecommendation(chair).from);
-    if (!confirm(`原稿：${draft.result[2]}\n新稿：${reader.name}读完了${author.name}推荐的书摘。\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
+    if (!confirm(`原稿：${draft.result[2]}\n新稿：${bookPaperText(author, readers)}。\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
   }
   if (!submitBookToPaper(chair, draft)) return;
   bookMoveStatus.textContent = draft ? '本期月报已换稿，新便条已收起。' : '书摘已交给本期月报，窗边的便条已收起。';
   refreshReadingSeats();
   readingSeat.focus();
+};
+bookKeepForPaperButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !keepSharedBookForPaper(chair)) return;
+  refreshReadingSeats();
 };
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -319,6 +325,11 @@ function refreshReadingSeats() {
   const paperAction = draft ? '替换本期书摘' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
   const firstReader = firstPublicBookReader(chair);
+  const completed = publicReaders?.length === BOOK_PUBLIC_READERS;
+  bookKeepForPaperButton.hidden = publicReaders?.length !== 1;
+  bookKeepForPaperButton.disabled = !firstReader;
+  const keeping = String(recommendation?.keepForPaper === true);
+  if (bookKeepForPaperButton.getAttribute('aria-pressed') !== keeping) bookKeepForPaperButton.setAttribute('aria-pressed', keeping);
   const pickedReader = pickedBookReader(recommendation);
   const candidates = publicReaders?.length === 1
     ? residents().filter(d => canReadSharedBook(recommendation, publicReaders, d)) : [];
@@ -339,8 +350,8 @@ function refreshReadingSeats() {
   }
   bookNextReader.disabled = !firstReader;
   bookPickReaderButton.disabled = !firstReader || bookNextReader.value === (pickedReader?.pid || '');
-  bookPaperButton.disabled = !firstReader;
-  bookReplyButton.hidden = !publicReaders?.length;
+  bookPaperButton.disabled = !bookPaperReaders(chair).length;
+  bookReplyButton.hidden = publicReaders?.length !== 1;
   bookReplyButton.disabled = !firstReader;
   const sharing = String(!!publicReaders);
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
@@ -359,9 +370,12 @@ function refreshReadingSeats() {
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
   const waiting = pickedReader ? `正在等${pickedReader.name}${pickedReader.state === 'away' ? '回家' : '来读'}。 ` : '';
-  const pickHint = candidates.length ? `${waiting}指定后只等这位住户，便条在 ${monthLabel(recommendation.until)}月底到期。 ` : '';
-  const publicChoice = publicReaders?.length
-    ? `${pickHint}空座时也可${draft ? '替换月报原稿' : '交给月报'}，或结束传阅，给${communityDoll(recommendation.from).name}留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
+  const pickHint = candidates.length ? `${waiting}指定后只等这位住户。 ` : '';
+  const deadline = publicReaders?.length ? `便条在 ${monthLabel(recommendation.until)}月底到期。` : '';
+  const publicChoice = completed
+    ? `两位读者的记录已留在便条上，可在空座时${draft ? '替换月报原稿' : '交给月报'}。${deadline}`
+    : publicReaders?.length
+    ? `${pickHint}${keeping === 'true' ? '第二位读完后会留下便条供交稿。' : '可等两位读完再交稿。'}等待期间月报版位仍可被占用。${deadline}空座时也可立即交稿，或给推荐人留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
     : '座位空闲时可改回私下荐书。';
   const hint = recommendation?.reply
     ? `${communityDoll(recommendation.from).name}的回信留给${communityDoll(recommendation.to).name}，须在原便条到期前读完。读完得 ${BOOK_PRIVATE_FUN} 点乐趣，友情也会增加。${reader ? ' ' + text : ''}`

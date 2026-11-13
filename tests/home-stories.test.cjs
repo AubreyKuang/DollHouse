@@ -548,6 +548,43 @@ test('a partially shared book can reserve a monthly paper slot instead of a seco
   assert.deepEqual(story.people.map(d=>d.name),[author.name,other.name]);
 `));
 
+test('a kept book records both readers and can replace a draft after reload', () => game(`
+  const [author,first,second,other]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  const note={from:author.pid,to:first.pid,until:G.day+1,readBy:[first.pid]};
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  const write=save;
+  save=()=>false;assert.equal(keepSharedBookForPaper(seat),false);
+  assert.equal(bookRecommendation(seat),note);
+  save=write;
+  assert.ok(keepSharedBookForPaper(seat));
+  assert.ok(keepSharedBookForPaper(seat));
+  assert.equal(bookRecommendation(seat).keepForPaper,false);
+  assert.ok(keepSharedBookForPaper(seat));
+  assert.equal(bookPaperDraft(),undefined);
+  assert.ok(pickNextBookReader(seat,second.pid));
+  assert.ok(finishBookRecommendation(second,seat));
+  assert.equal(second.needs.fun,56);
+  assert.equal(finishBookRecommendation(other,seat),false);
+  assert.equal(keepSharedBookForPaper(seat),false);
+  assert.equal(replyToBookRecommendation(seat),false);
+  const existing={month:G.day,result:[BOOK_PAPER_LABEL,'📖','已有书摘',77]};
+  G.paperMoments=[existing];
+  assert.ok(save());load();
+  const chair=G.furniture.find(f=>f.key===seat.key);
+  assert.equal(bookPaperReaders(chair).length,2);
+  assert.equal(submitBookToPaper(chair),false);
+  const draft=bookPaperDraft();
+  assert.ok(submitBookToPaper(chair,draft));
+  assert.equal(bookRecommendation(chair),null);
+  finishHouseMonth();
+  const excerpts=G.paper.at(-1).stories.filter(story=>story.label===BOOK_PAPER_LABEL);
+  assert.equal(excerpts.length,1);
+  assert.deepEqual(excerpts[0].people.map(d=>d.name),[author.name,first.name,second.name]);
+  assert.equal(excerpts[0].steps.length,4);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;
