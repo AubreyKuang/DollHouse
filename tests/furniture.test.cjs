@@ -756,3 +756,21 @@ test('a rainy tradition invites the same former guest back after a save', () => 
     assert.equal(G.keepsakes.traditions[relKey(host, friend)].last, G.day - 2);
   `);
 });
+
+test('starter wardrobe updates once and preserves custom outfits', () => {
+  runGame(`
+    const old = defaultHouseSave();
+    const tao = old.dolls.find(d => d.pid === 'p-tao');
+    const jing = old.dolls.find(d => d.pid === 'p-jing');
+    tao.look = { ...ORIGINAL_STARTER_LOOKS[tao.pid] };
+    jing.look = { ...ORIGINAL_STARTER_LOOKS[jing.pid], shoes: 1 };
+    applySave(old);
+    assert.equal(communityDoll(tao.pid).look.top, 'dress');
+    assert.equal(communityDoll(jing.pid).look.top, 'suit');
+    assert.equal(communityDoll(jing.pid).look.shoes, 1);
+    const saved = JSON.parse(JSON.stringify(houseSaveData()));
+    saved.dolls.find(d => d.pid === tao.pid).look = { ...ORIGINAL_STARTER_LOOKS[tao.pid] };
+    applySave(saved);
+    assert.equal(communityDoll(tao.pid).look.top, 'tee');
+  `);
+});
