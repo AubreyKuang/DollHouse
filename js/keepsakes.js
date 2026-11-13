@@ -45,7 +45,9 @@ function greetPassingReader(walker, from) {
   const reader = G.dolls.find(d => {
     const chair = d.act?.furn;
     return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
-      chair?.id === 'chair' && !quietReading(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
+      chair?.id === 'chair' && (!quietReading(chair) ||
+        (chair.readingNotes && !quietStudy(chair) && !d.act.readingNote)) &&
+      d.act.t > 1 && !greeted.includes(d.pid) &&
       roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
       cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
       !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
@@ -54,6 +56,11 @@ function greetPassingReader(walker, from) {
   // A passerby asks once per month. A reader who declines can be approached by someone else.
   const people = [...greeted, walker.pid];
   G.keepsakes.readingGreetings = { month: G.day, people };
+  if (quietReading(reader.act.furn)) {
+    reader.act.readingNote = walker.pid;
+    say(walker, '读完再聊？我就在附近。');
+    return;
+  }
   say(walker, '在看什么书？');
   if (isE(reader) || reader.needs.social < 85) {
     people.push(reader.pid);
@@ -78,6 +85,25 @@ function greetPassingReader(walker, from) {
     if (other === chair || !isWindowChair(other) || cornerRoom(other) === cornerRoom(chair)) continue;
     if (startAct(reader, { furn: other, type: 'read' })) break;
   }
+}
+
+function finishReadingNote(reader, activity) {
+  const chair = activity.furn;
+  if (!activity.readingNote || !chair.readingNotes || !quietReading(chair) || quietStudy(chair)) return;
+  const writer = communityDoll(activity.readingNote);
+  if (!writer || writer.state !== 'idle' || roomOf(writer) !== cornerRoom(chair) ||
+      cornerDistance({ x: writer.tx, y: writer.ty }, chair) > 3 ||
+      !canSee(reader, writer) || tensionBetween(reader, writer)) return;
+  const now = absNow();
+  for (const d of [reader, writer]) {
+    const departure = leaveAbs(d);
+    if (departure != null && now >= departure - 10 && now < departure + 180) return;
+    if (d.needs.bladder < 20 || d.needs.hunger < 25 || d.needs.energy < 20) return;
+  }
+  for (const d of [reader, writer]) d.needs.social = Math.min(100, d.needs.social + 6);
+  say(reader, '读完啦。刚好想跟你说说这一段。');
+  say(writer, '我还在呢，慢慢说。');
+  addLog(`📖 ${reader.name}读完了书，和留下便条的${writer.name}聊了几句。`);
 }
 
 function readingNeighbor(d, f) {

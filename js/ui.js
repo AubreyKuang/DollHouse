@@ -172,13 +172,23 @@ const studyQuietButton = $('#studyQuiet');
 const studyQuietTimer = $('#studyQuietTimer');
 const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
+const readingNotesButton = $('#readingNotes');
 let readingSeatOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 readingSeat.onchange = refreshReadingSeats;
+const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
 soloReadingButton.onclick = () => {
-  const chair = G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+  const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
   chair.soloReading = !chair.soloReading;
+  if (!chair.soloReading) delete chair.readingNotes;
+  refreshReadingSeats();
+  save();
+};
+readingNotesButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair?.soloReading || G.mode !== 'live') return;
+  chair.readingNotes = !chair.readingNotes;
   refreshReadingSeats();
   save();
 };
@@ -202,8 +212,13 @@ function refreshReadingSeats() {
   const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
   const pressed = String(chair.soloReading === true);
   if (soloReadingButton.getAttribute('aria-pressed') !== pressed) soloReadingButton.setAttribute('aria-pressed', pressed);
+  readingNotesButton.hidden = !chair.soloReading;
+  const notes = String(chair.readingNotes === true);
+  if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
-  const text = chair.soloReading ? '此席适合独处，路过的住户会让读者继续看书。'
+  const text = chair.soloReading ? chair.readingNotes
+    ? (quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '熟人可留便条。读完时还在附近，才会聊几句。')
+    : '此席适合独处，路过的住户会让读者继续看书。'
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';
   if (note.textContent !== text) note.textContent = text;

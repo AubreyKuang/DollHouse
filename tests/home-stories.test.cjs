@@ -241,6 +241,39 @@ test('an individual window seat protects its reader while the next seat can stil
   assert.equal(quietReading(G.furniture.find(f=>f.key===open.key)),false);
 `));
 
+test('a note never interrupts reading and only pays off on completion with an available writer', () => {
+  for (const outcome of ['nearby', 'away', 'interrupted', 'whole-room quiet']) game(`
+    const [reader,writer,...others]=residents();
+    for(const d of others)d.state='away';
+    const window=addFurniture('window',9,UPPER_WALL);
+    const chair=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+    G.furniture=[window,chair];rebuild();
+    save();load();
+    const seat=G.furniture.find(f=>f.key===chair.key);
+    const a=communityDoll(reader.pid),b=communityDoll(writer.pid);
+    assert.equal(seat.readingNotes,true);
+    for(const d of [a,b]) {
+      d.job='none';d.needs={energy:90,hunger:90,fun:40,social:25,bladder:90};
+    }
+    rel(a,b).f=55;
+    placeDollAt(a,10,17);assert.ok(orderUse(a,seat));arrive(a);
+    const time=a.act.t;
+    G.studyQuiet='${outcome}'==='whole-room quiet';
+    placeDollAt(b,10,17);b.act={type:'wander'};
+    greetPassingReader(b,{x:9,y:17});
+    assert.equal(a.act.readingNote,G.studyQuiet?undefined:b.pid);
+    assert.equal(a.act.readingPause,undefined);
+    assert.equal(a.act.t,time);
+    assert.equal(a.needs.social,25);
+    b.state='${outcome}'==='away'?'away':'idle';b.act=null;
+    if('${outcome}'==='interrupted')endAct(a);
+    else { a.act.t=.01;updateDoll(a,.05); }
+    assert.equal(Math.round(a.needs.social),'${outcome}'==='nearby'?31:25);
+    assert.equal(b.needs.social,'${outcome}'==='nearby'?31:25);
+    assert.equal(G.log.filter(entry=>entry.text.includes('留下便条')).length,'${outcome}'==='nearby'?1:0);
+  `);
+});
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

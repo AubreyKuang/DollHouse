@@ -161,9 +161,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 #readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
-#readingSeatControls select,#soloReading{min-height:48px}
+#readingSeatControls select,#soloReading,#readingNotes{min-height:48px}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
-#soloReading[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+:is(#soloReading,#readingNotes)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}
@@ -604,6 +604,8 @@ body{
         <select id="readingSeat"></select>
         <button type="button" class="btn small" id="soloReading" aria-pressed="false"
           aria-describedby="readingSeatHint">安静席</button>
+        <button type="button" class="btn small" id="readingNotes" aria-pressed="false"
+          aria-describedby="readingSeatHint" hidden>读完再聊</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
       </div>
     </div>
@@ -2827,7 +2829,9 @@ function houseSaveData() {
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
-      .map(({ id, x, y, key, piece, soloReading }) => ({ id, x, y, key, piece, ...(soloReading ? { soloReading } : {}) })),
+      .map(({ id, x, y, key, piece, soloReading, readingNotes }) => ({
+        id, x, y, key, piece, ...(soloReading ? { soloReading, ...(readingNotes ? { readingNotes } : {}) } : {}),
+      })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
@@ -2987,6 +2991,7 @@ function addFurniture(id, x, y, saved = {}) {
   const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
   const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
   if (id === 'chair' && saved.soloReading === true) f.soloReading = true;
+  if (f.soloReading && saved.readingNotes === true) f.readingNotes = true;
   G.furniture.push(f);
   return f;
 }
@@ -3435,7 +3440,10 @@ function updateDoll(d, dt) {
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
-    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
+    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') {
+      say(d, '这一段读完了。');
+      finishReadingNote(d, a);
+    }
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) {
@@ -6874,7 +6882,9 @@ function greetPassingReader(walker, from) {
   const reader = G.dolls.find(d => {
     const chair = d.act?.furn;
     return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
-      chair?.id === 'chair' && !quietReading(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
+      chair?.id === 'chair' && (!quietReading(chair) ||
+        (chair.readingNotes && !quietStudy(chair) && !d.act.readingNote)) &&
+      d.act.t > 1 && !greeted.includes(d.pid) &&
       roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
       cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
       !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
@@ -6883,6 +6893,11 @@ function greetPassingReader(walker, from) {
   // A passerby asks once per month. A reader who declines can be approached by someone else.
   const people = [...greeted, walker.pid];
   G.keepsakes.readingGreetings = { month: G.day, people };
+  if (quietReading(reader.act.furn)) {
+    reader.act.readingNote = walker.pid;
+    say(walker, '读完再聊？我就在附近。');
+    return;
+  }
   say(walker, '在看什么书？');
   if (isE(reader) || reader.needs.social < 85) {
     people.push(reader.pid);
@@ -6907,6 +6922,25 @@ function greetPassingReader(walker, from) {
     if (other === chair || !isWindowChair(other) || cornerRoom(other) === cornerRoom(chair)) continue;
     if (startAct(reader, { furn: other, type: 'read' })) break;
   }
+}
+
+function finishReadingNote(reader, activity) {
+  const chair = activity.furn;
+  if (!activity.readingNote || !chair.readingNotes || !quietReading(chair) || quietStudy(chair)) return;
+  const writer = communityDoll(activity.readingNote);
+  if (!writer || writer.state !== 'idle' || roomOf(writer) !== cornerRoom(chair) ||
+      cornerDistance({ x: writer.tx, y: writer.ty }, chair) > 3 ||
+      !canSee(reader, writer) || tensionBetween(reader, writer)) return;
+  const now = absNow();
+  for (const d of [reader, writer]) {
+    const departure = leaveAbs(d);
+    if (departure != null && now >= departure - 10 && now < departure + 180) return;
+    if (d.needs.bladder < 20 || d.needs.hunger < 25 || d.needs.energy < 20) return;
+  }
+  for (const d of [reader, writer]) d.needs.social = Math.min(100, d.needs.social + 6);
+  say(reader, '读完啦。刚好想跟你说说这一段。');
+  say(writer, '我还在呢，慢慢说。');
+  addLog(`📖 ${reader.name}读完了书，和留下便条的${writer.name}聊了几句。`);
 }
 
 function readingNeighbor(d, f) {
@@ -8545,7 +8579,7 @@ cv.addEventListener('pointerdown', e => {
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, soloReading: f.soloReading, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, soloReading: f.soloReading, readingNotes: f.readingNotes, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
   if (press && press.pointerId !== e.pointerId) return;
@@ -8996,13 +9030,23 @@ const studyQuietButton = $('#studyQuiet');
 const studyQuietTimer = $('#studyQuietTimer');
 const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
+const readingNotesButton = $('#readingNotes');
 let readingSeatOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 readingSeat.onchange = refreshReadingSeats;
+const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
 soloReadingButton.onclick = () => {
-  const chair = G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+  const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
   chair.soloReading = !chair.soloReading;
+  if (!chair.soloReading) delete chair.readingNotes;
+  refreshReadingSeats();
+  save();
+};
+readingNotesButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair?.soloReading || G.mode !== 'live') return;
+  chair.readingNotes = !chair.readingNotes;
   refreshReadingSeats();
   save();
 };
@@ -9026,8 +9070,13 @@ function refreshReadingSeats() {
   const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
   const pressed = String(chair.soloReading === true);
   if (soloReadingButton.getAttribute('aria-pressed') !== pressed) soloReadingButton.setAttribute('aria-pressed', pressed);
+  readingNotesButton.hidden = !chair.soloReading;
+  const notes = String(chair.readingNotes === true);
+  if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
-  const text = chair.soloReading ? '此席适合独处，路过的住户会让读者继续看书。'
+  const text = chair.soloReading ? chair.readingNotes
+    ? (quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '熟人可留便条。读完时还在附近，才会聊几句。')
+    : '此席适合独处，路过的住户会让读者继续看书。'
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';
   if (note.textContent !== text) note.textContent = text;

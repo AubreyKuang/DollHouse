@@ -37,7 +37,9 @@ function houseSaveData() {
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
-      .map(({ id, x, y, key, piece, soloReading }) => ({ id, x, y, key, piece, ...(soloReading ? { soloReading } : {}) })),
+      .map(({ id, x, y, key, piece, soloReading, readingNotes }) => ({
+        id, x, y, key, piece, ...(soloReading ? { soloReading, ...(readingNotes ? { readingNotes } : {}) } : {}),
+      })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
@@ -197,6 +199,7 @@ function addFurniture(id, x, y, saved = {}) {
   const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
   const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
   if (id === 'chair' && saved.soloReading === true) f.soloReading = true;
+  if (f.soloReading && saved.readingNotes === true) f.readingNotes = true;
   G.furniture.push(f);
   return f;
 }
@@ -645,7 +648,10 @@ function updateDoll(d, dt) {
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
-    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
+    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') {
+      say(d, '这一段读完了。');
+      finishReadingNote(d, a);
+    }
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) {
