@@ -283,6 +283,7 @@ $('#btnExpand').onclick = () => expand();
 
 /* ---------- 衣橱 ---------- */
 let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0, wdPage = 'look', wdPose = 'stand';
+let wdPresetGender = 'f';
 const wdOriginalLooks = new Map();
 const wdDoll = () => G.dolls.find(d => d.uid === wdUid);
 
@@ -290,6 +291,7 @@ function openWardrobe(uid) {
   const resident = residents().find(d => d.uid === uid) || residents()[0];
   if (!resident) return;
   wdUid = resident.uid;
+  wdPresetGender = resident.gender;
   wdPage = 'look';
   wdOriginalLooks.clear();
   for (const d of residents()) wdOriginalLooks.set(d.uid, { ...d.look });
@@ -310,7 +312,7 @@ $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.val
 $('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
+  d.look = { ...randomLook(d.gender, knownResidentLooks(), G.dolls.map(o => o.look)), skin: d.look.skin }; SFX.play('love'); renderWardrobe(); wdSaved();
 };
 $('#wdShuffle').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -335,7 +337,7 @@ function renderWdTabs() {
   const box = $('#wdTabs'); box.innerHTML = '';
   for (const d of residents()) {
     const b = el('button', d.uid === wdUid ? 'on' : '', esc(d.name));
-    b.onclick = () => { wdUid = d.uid; SFX.play('click'); renderWardrobe(); };
+    b.onclick = () => { wdUid = d.uid; wdPresetGender = d.gender; SFX.play('click'); renderWardrobe(); };
     box.append(b);
   }
 }
@@ -377,7 +379,28 @@ function renderWardrobe() {
     });
     return w;
   };
-  if (wdPage === 'look') {
+  if (wdPage === 'presets') {
+    const filter = el('div', 'chips');
+    for (const [gender, label] of [['f','女生形象 · 12 套'],['m','男生形象 · 12 套']]) {
+      const b = el('button', 'chip' + (wdPresetGender === gender ? ' on' : ''), label);
+      b.setAttribute('aria-pressed', String(wdPresetGender === gender));
+      b.onclick = () => { wdPresetGender = gender; renderWardrobe(); }; filter.append(b);
+    }
+    section('选一套喜欢的模样', filter);
+    box.append(el('p', 'hint', '更换发型、发色、衣服和配饰，保留肤色与人物设定。两组都可以试穿，也能随时还原。'));
+    const sets = el('div', 'wd-sets');
+    for (const set of RESIDENT_LOOK_SETS.filter(s => s.gender === wdPresetGender)) {
+      const look = wearResidentLook(d.look, set.id);
+      const selected = Object.entries(look).every(([key,value]) => (d.look[key] ?? (key==='features'?'plain':key==='extra'?'none':key==='shoeStyle'?'classic':undefined)) === value);
+      const b = el('button', 'wd-set' + (selected ? ' on' : ''));
+      b.setAttribute('aria-pressed', String(selected)); b.setAttribute('aria-label', '试穿形象：' + set.name);
+      const cv = document.createElement('canvas'); cv.width=20; cv.height=24; cv.setAttribute('aria-hidden','true');
+      b.append(cv,el('span',null,set.name)); dollPortrait(cv,look);
+      b.onclick = () => { d.look=wearResidentLook(d.look,set.id); SFX.play('pop'); renderWardrobe(); wdSaved(); };
+      sets.append(b);
+    }
+    section('整套形象 · 点小人试穿',sets);
+  } else if (wdPage === 'look') {
     const sets = el('div', 'wd-sets');
     for (const set of OUTFIT_SETS) {
       const selected = Object.entries(set.look).every(([key, value]) => d.look[key] === value);
@@ -426,7 +449,7 @@ function renderWardrobe() {
   const gen = el('div', 'chips');
   for (const [k, n] of Object.entries(GENDERS)) {
     const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
-    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
+    b.onclick = () => { d.gender = k; wdPresetGender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     gen.append(b);
   }
   section('性别', gen);

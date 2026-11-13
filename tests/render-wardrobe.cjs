@@ -23,7 +23,7 @@ OUTFIT_SETS.forEach((set,i)=>{
  doll(look,x+65,y+145,4);doll(look,x+142,y+139,3,'right','walk',1);doll(look,x+199,y+139,3,'up');
 });
 label('9 款新发型 · 小小轮廓，也有自己的个性',32,684,20,'#493743');
-const newHair=Object.keys(OUTFIT.hair).slice(6);
+const newHair=Object.keys(OUTFIT.hair).slice(6,15);
 newHair.forEach((hair,i)=>{
  const x=66+i*111;
  const look={...OUTFIT_SETS[0].look,skin:1,hair,hairColor:1,acc:'none',extra:'none'};

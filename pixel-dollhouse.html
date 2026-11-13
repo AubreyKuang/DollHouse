@@ -691,6 +691,7 @@ body{
       </div>
       <div class="wd-editor">
         <div class="wd-pages" role="group" aria-label="衣橱内容">
+          <button data-wd-page="presets" aria-pressed="false">形象预设</button>
           <button data-wd-page="look" aria-pressed="true">穿搭与发型</button>
           <button data-wd-page="profile" aria-pressed="false">人物设定</button>
         </div>
@@ -874,7 +875,8 @@ const OUTFIT = {
   skin:  ['#ffe0c7', '#f6c9a4', '#e0a77e', '#b97a52', '#8a5638'],
   hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头',
     pixie: '短碎发', sidepart: '偏分短发', curl: '自然卷', pony: '高马尾', lowpony: '低马尾',
-    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发' },
+    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发',
+    curtain: '中分短发', crop: '清爽寸发', fluffy: '蓬松短发', sidebraid: '侧编发' },
   hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a', '#61534b', '#a77763', '#c5a68b', '#505d76'],
   top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫',
     sweater: '软软毛衣', vest: '衬衫马甲', sailor: '海军领', apron: '小围裙', jacket: '短外套', raincoat: '雨衣', pinafore: '背带裙', pajamas: '睡衣' },
@@ -908,6 +910,39 @@ const OUTFIT_SETS = [
 function wearOutfit(look, id) {
   const outfit = OUTFIT_SETS.find(set => set.id === id);
   return outfit ? { ...look, ...outfit.look } : { ...look };
+}
+
+// 完整人物造型：自动生成按性别选池；手动试穿不限制，也不改人物身份。
+const RESIDENT_LOOK_SETS = [
+  { id:'f-meadow', gender:'f', name:'雏菊花园', hairTones:[1,11,2], look:{skin:0,hair:'sidebraid',hairColor:1,top:'pinafore',topColor:12,bottom:'skirt',bottomColor:12,shoes:4,shoeStyle:'maryjanes',acc:'flower',extra:'none',features:'freckles'} },
+  { id:'f-berry', gender:'f', name:'莓果书页', hairTones:[0,10,1], look:{skin:1,hair:'bob',hairColor:0,top:'vest',topColor:15,bottom:'pleated',bottomColor:8,shoes:0,shoeStyle:'maryjanes',acc:'roundglasses',extra:'none',features:'plain'} },
+  { id:'f-seabreeze', gender:'f', name:'海盐汽水', hairTones:[13,0,10], look:{skin:2,hair:'pony',hairColor:13,top:'sailor',topColor:14,bottom:'shorts',bottomColor:13,shoes:1,shoeStyle:'sneakers',acc:'ribbon',extra:'none',features:'plain'} },
+  { id:'f-peach', gender:'f', name:'蜜桃团团', hairTones:[5,11,1], look:{skin:0,hair:'doublebun',hairColor:5,top:'dress',topColor:15,bottom:'skirt',bottomColor:15,shoes:2,shoeStyle:'maryjanes',acc:'starclip',extra:'none',features:'rosy'} },
+  { id:'f-chestnut', gender:'f', name:'栗子烘焙', hairTones:[1,2,11], look:{skin:3,hair:'braids',hairColor:1,top:'apron',topColor:17,bottom:'cropped',bottomColor:13,shoes:4,shoeStyle:'classic',acc:'ribbon',extra:'none',features:'freckles'} },
+  { id:'f-lilac', gender:'f', name:'丁香琴声', hairTones:[0,10,13], look:{skin:1,hair:'halfup',hairColor:0,top:'cardigan',topColor:16,bottom:'pleated',bottomColor:7,shoes:0,shoeStyle:'maryjanes',acc:'bow',extra:'none',features:'mole'} },
+  { id:'f-sunshine', gender:'f', name:'柠檬踏青', hairTones:[2,1,12], look:{skin:2,hair:'pixie',hairColor:2,top:'jacket',topColor:2,bottom:'shorts',bottomColor:12,shoes:1,shoeStyle:'sneakers',acc:'headband',extra:'backpack',features:'freckles'} },
+  { id:'f-moon', gender:'f', name:'月光来信', hairTones:[4,12,13], look:{skin:4,hair:'wavy',hairColor:4,top:'sweater',topColor:14,bottom:'skirt',bottomColor:16,shoes:1,shoeStyle:'boots',acc:'starclip',extra:'none',features:'plain'} },
+  { id:'f-clover', gender:'f', name:'四叶草午后', hairTones:[10,0,1], look:{skin:1,hair:'lowpony',hairColor:10,top:'overall',topColor:13,bottom:'pants',bottomColor:12,shoes:4,shoeStyle:'classic',acc:'ribbon',extra:'none',features:'rosy'} },
+  { id:'f-cocoa', gender:'f', name:'可可画室', hairTones:[1,11,0], look:{skin:3,hair:'curl',hairColor:1,top:'stripe',topColor:17,bottom:'pleated',bottomColor:8,shoes:0,shoeStyle:'boots',acc:'beret',extra:'satchel',features:'plain'} },
+  { id:'f-apricot', gender:'f', name:'杏子茶会', hairTones:[11,2,1], look:{skin:0,hair:'bun',hairColor:11,top:'dress',topColor:13,bottom:'skirt',bottomColor:13,shoes:4,shoeStyle:'maryjanes',acc:'flower',extra:'none',features:'rosy'} },
+  { id:'f-starry', gender:'f', name:'星星放映室', hairTones:[13,8,0], look:{skin:2,hair:'twin',hairColor:13,top:'hoodie',topColor:16,bottom:'denim',bottomColor:14,shoes:1,shoeStyle:'sneakers',acc:'phones',extra:'none',features:'plain'} },
+  { id:'m-forest', gender:'m', name:'松林来信', hairTones:[0,10,13], look:{skin:0,hair:'curtain',hairColor:0,top:'cardigan',topColor:12,bottom:'pants',bottomColor:13,shoes:4,shoeStyle:'classic',acc:'none',extra:'satchel',features:'plain'} },
+  { id:'m-toast', gender:'m', name:'焦糖吐司', hairTones:[2,11,1], look:{skin:2,hair:'fluffy',hairColor:2,top:'sweater',topColor:17,bottom:'cropped',bottomColor:13,shoes:1,shoeStyle:'sneakers',acc:'none',extra:'scarf',features:'freckles'} },
+  { id:'m-athlete', gender:'m', name:'橘子球场', hairTones:[0,10,1], look:{skin:3,hair:'crop',hairColor:0,top:'jacket',topColor:1,bottom:'shorts',bottomColor:8,shoes:1,shoeStyle:'sneakers',acc:'none',extra:'backpack',features:'plain'} },
+  { id:'m-indigo', gender:'m', name:'靛蓝耳机', hairTones:[13,0,10], look:{skin:1,hair:'spiky',hairColor:13,top:'hoodie',topColor:14,bottom:'denim',bottomColor:8,shoes:1,shoeStyle:'sneakers',acc:'phones',extra:'none',features:'plain'} },
+  { id:'m-roast', gender:'m', name:'咖啡手冲', hairTones:[1,0,10], look:{skin:2,hair:'sidepart',hairColor:1,top:'apron',topColor:11,bottom:'pants',bottomColor:7,shoes:4,shoeStyle:'classic',acc:'none',extra:'none',features:'mole'} },
+  { id:'m-ink', gender:'m', name:'墨色书房', hairTones:[10,0,13], look:{skin:0,hair:'short',hairColor:10,top:'vest',topColor:8,bottom:'pants',bottomColor:14,shoes:0,shoeStyle:'classic',acc:'roundglasses',extra:'none',features:'plain'} },
+  { id:'m-painter', gender:'m', name:'暖阳画家', hairTones:[11,1,2], look:{skin:4,hair:'curl',hairColor:11,top:'stripe',topColor:2,bottom:'cropped',bottomColor:11,shoes:4,shoeStyle:'boots',acc:'beret',extra:'satchel',features:'freckles'} },
+  { id:'m-mint', gender:'m', name:'薄荷骑行', hairTones:[12,2,11], look:{skin:1,hair:'pixie',hairColor:12,top:'tee',topColor:4,bottom:'shorts',bottomColor:7,shoes:1,shoeStyle:'sneakers',acc:'cap',extra:'none',features:'plain'} },
+  { id:'m-melody', gender:'m', name:'落日琴弦', hairTones:[1,10,0], look:{skin:3,hair:'lowpony',hairColor:1,top:'jacket',topColor:15,bottom:'denim',bottomColor:8,shoes:0,shoeStyle:'boots',acc:'none',extra:'none',features:'plain'} },
+  { id:'m-workshop', gender:'m', name:'橡木工坊', hairTones:[0,10,1], look:{skin:2,hair:'crop',hairColor:10,top:'overall',topColor:13,bottom:'pants',bottomColor:11,shoes:4,shoeStyle:'boots',acc:'none',extra:'none',features:'freckles'} },
+  { id:'m-sea', gender:'m', name:'海边白帆', hairTones:[4,12,2], look:{skin:4,hair:'curtain',hairColor:4,top:'sailor',topColor:5,bottom:'shorts',bottomColor:9,shoes:3,shoeStyle:'sneakers',acc:'none',extra:'none',features:'plain'} },
+  { id:'m-cloud', gender:'m', name:'云朵邮差', hairTones:[1,11,10], look:{skin:1,hair:'fluffy',hairColor:1,top:'raincoat',topColor:12,bottom:'pants',bottomColor:14,shoes:4,shoeStyle:'boots',acc:'none',extra:'satchel',features:'rosy'} },
+];
+
+function wearResidentLook(look, id) {
+  const preset = RESIDENT_LOOK_SETS.find(set => set.id === id);
+  return preset ? { ...preset.look, skin: look.skin ?? preset.look.skin } : { ...look };
 }
 
 const WALLS = [
@@ -1461,6 +1496,10 @@ const HAIR = {
     halfup: [[0, 3, 2, 8], [10, 3, 2, 8], [2, 3, 3, 1], [7, 3, 2, 1], [5, -2, 3, 2]],
     doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1], [2, 3, 2, 1], [8, 3, 2, 1]],
     wavy: [[0, 2, 2, 5], [-1, 7, 3, 3], [0, 10, 3, 3], [10, 2, 2, 5], [10, 7, 3, 3], [9, 10, 3, 3], [2, 3, 3, 1]],
+    curtain: [[1, -1, 4, 2], [7, -1, 4, 2], [2, 2, 2, 3], [8, 2, 2, 3]],
+    crop: [[2, 3, 8, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [1, 3, 3, 2], [6, 3, 3, 1]],
+    sidebraid: [[2, 3, 6, 1], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
   },
   up: {
     base: [[1, 0, 10, 9]],
@@ -1474,6 +1513,10 @@ const HAIR = {
     halfup: [[0, 2, 12, 10], [5, -2, 3, 2], [4, 3, 4, 5]],
     doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1]],
     wavy: [[0, 2, 12, 6], [-1, 7, 14, 3], [0, 10, 12, 3]],
+    curtain: [[1, -1, 4, 2], [7, -1, 4, 2], [2, 8, 3, 2], [7, 8, 3, 2]],
+    crop: [[2, 7, 8, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [1, 7, 2, 3], [8, 7, 3, 2]],
+    sidebraid: [[2, 7, 8, 3], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
   },
   right: {
     base: [[1, 0, 10, 3], [1, 2, 4, 6], [8, 3, 2, 1]],
@@ -1485,6 +1528,10 @@ const HAIR = {
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2]],
     halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -1, 3, 2], [1, -2, 1, 1]],
     wavy: [[0, 2, 4, 5], [-1, 7, 4, 3], [0, 10, 4, 3]],
+    curtain: [[2, -1, 4, 2], [8, 2, 2, 3], [1, 7, 3, 3]],
+    crop: [[2, 3, 4, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [0, 6, 3, 3]],
+    sidebraid: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [6, 3, 3, 1]],
   },
 };
 
@@ -1785,17 +1832,39 @@ function dollPortrait(cv, L, dir = 'down', frame = 0, pose = 'stand') {
   c.restore();
 }
 
-function randomLook() {
-  const keys = o => Object.keys(o), r = n => (Math.random() * n) | 0;
-  const look = {
-    skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
-    ...pick(OUTFIT_SETS).look,
-    features: Math.random() < .65 ? 'plain' : pick(keys(OUTFIT.features)),
+function lookDistance(a, b) {
+  // 忽略肤色、脸上一点和鞋底：不能靠不可辨的小差异冒充另一张脸。
+  const hairShape = h => ['short','pixie','crop','sidepart'].includes(h) ? 'short' : ['long','wavy','halfup'].includes(h) ? 'long' : h;
+  const topShape = l => ['dress','pinafore'].includes(l.top) ? 'dress' : l.top === 'overall' ? 'overall' : l.top === 'raincoat' ? 'coat' : 'shirt';
+  const lowerShape = l => topShape(l)==='dress' ? 'skirt' : ['skirt','pleated'].includes(l.bottom) ? 'skirt' : l.bottom==='shorts' ? 'shorts' : 'pants';
+  const colorDistance = (palette, x, y) => {
+    const rgb = i => (palette[i] || palette[0]).slice(1).match(/../g).map(v => parseInt(v,16));
+    const ca=rgb(x),cb=rgb(y);
+    return Math.min(1,Math.hypot(...ca.map((v,i)=>v-cb[i]))/130);
   };
-  // 小概率换成自由款式，保留整套配色，让全部款式都有机会自然出现。
-  if (Math.random() < .25) { look.top = pick(keys(OUTFIT.top)); look.bottom = pick(keys(OUTFIT.bottom)); }
-  if (Math.random() < .25) look.acc = pick(keys(OUTFIT.acc));
-  return look;
+  // 头饰或一条围巾不同也仍可能撞脸；主轮廓和大色块优先。
+  return (hairShape(a.hair)!==hairShape(b.hair)?3:0)
+    + colorDistance(OUTFIT.hairColor,a.hairColor,b.hairColor)
+    + (topShape(a)!==topShape(b)?2:0) + (lowerShape(a)!==lowerShape(b)?1:0)
+    + 2*colorDistance(OUTFIT.clothColor,a.topColor,b.topColor)
+    + colorDistance(OUTFIT.clothColor,a.bottomColor,b.bottomColor);
+}
+
+function randomLook(gender, avoid = [], nearby = avoid) {
+  const pool = RESIDENT_LOOK_SETS.filter(set => !gender || set.gender === gender);
+  const known = avoid.filter(Boolean), room = nearby.filter(Boolean);
+  const candidates = (pool.length ? pool : RESIDENT_LOOK_SETS).flatMap(set => set.hairTones.map(hairColor => {
+    const look = { ...set.look, hairColor };
+    const distance = known.length ? Math.min(...known.map(other => lookDistance(look,other))) : Infinity;
+    const roomDistance = room.length ? Math.min(...room.map(other => lookDistance(look,other))) : Infinity;
+    return { look, distance, roomDistance };
+  }));
+  // 熟人再多也优先避开眼前的住户，不能因所有模板都曾见过而又与室友撞脸。
+  const roomDistinct = candidates.filter(c => c.roomDistance >= 4);
+  const available = roomDistinct.length ? roomDistinct : candidates.filter(c => c.roomDistance >= Math.max(...candidates.map(c => c.roomDistance)) - .001);
+  const distinct = available.filter(c => c.distance >= 4);
+  const best = distinct.length ? distinct : available.filter(c => c.distance >= Math.max(...available.map(c => c.distance)) - .001);
+  return { ...pick(best).look, skin: (Math.random()*OUTFIT.skin.length)|0 };
 }
 </script>
 <script>
@@ -5367,12 +5436,16 @@ function restoreCommunity(saved) {
   };
 }
 
+function knownResidentLooks() {
+  return [...G.dolls, ...G.community.friends, neighborProfile()].map(d => d.look);
+}
+
 function newcomerProfile() {
   const used = new Set([...G.dolls, ...G.community.friends].map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || `新朋友${G.uid}`;
-  return { name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(),
-    mbti: randomMbti(), heart: pick(['loyal', 'normal', 'normal', 'fickle']), look: randomLook(),
-    gender: Math.random() < .5 ? 'f' : 'm' };
+  const gender = Math.random() < .5 ? 'f' : 'm';
+  return { name, gender, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(),
+    mbti: randomMbti(), heart: pick(['loyal', 'normal', 'normal', 'fickle']), look: randomLook(gender, knownResidentLooks(), G.dolls.map(d => d.look)) };
 }
 
 function availableHosts() {
@@ -8465,6 +8538,7 @@ $('#btnExpand').onclick = () => expand();
 
 /* ---------- 衣橱 ---------- */
 let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0, wdPage = 'look', wdPose = 'stand';
+let wdPresetGender = 'f';
 const wdOriginalLooks = new Map();
 const wdDoll = () => G.dolls.find(d => d.uid === wdUid);
 
@@ -8472,6 +8546,7 @@ function openWardrobe(uid) {
   const resident = residents().find(d => d.uid === uid) || residents()[0];
   if (!resident) return;
   wdUid = resident.uid;
+  wdPresetGender = resident.gender;
   wdPage = 'look';
   wdOriginalLooks.clear();
   for (const d of residents()) wdOriginalLooks.set(d.uid, { ...d.look });
@@ -8492,7 +8567,7 @@ $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.val
 $('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
-  d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
+  d.look = { ...randomLook(d.gender, knownResidentLooks(), G.dolls.map(o => o.look)), skin: d.look.skin }; SFX.play('love'); renderWardrobe(); wdSaved();
 };
 $('#wdShuffle').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -8517,7 +8592,7 @@ function renderWdTabs() {
   const box = $('#wdTabs'); box.innerHTML = '';
   for (const d of residents()) {
     const b = el('button', d.uid === wdUid ? 'on' : '', esc(d.name));
-    b.onclick = () => { wdUid = d.uid; SFX.play('click'); renderWardrobe(); };
+    b.onclick = () => { wdUid = d.uid; wdPresetGender = d.gender; SFX.play('click'); renderWardrobe(); };
     box.append(b);
   }
 }
@@ -8559,7 +8634,28 @@ function renderWardrobe() {
     });
     return w;
   };
-  if (wdPage === 'look') {
+  if (wdPage === 'presets') {
+    const filter = el('div', 'chips');
+    for (const [gender, label] of [['f','女生形象 · 12 套'],['m','男生形象 · 12 套']]) {
+      const b = el('button', 'chip' + (wdPresetGender === gender ? ' on' : ''), label);
+      b.setAttribute('aria-pressed', String(wdPresetGender === gender));
+      b.onclick = () => { wdPresetGender = gender; renderWardrobe(); }; filter.append(b);
+    }
+    section('选一套喜欢的模样', filter);
+    box.append(el('p', 'hint', '更换发型、发色、衣服和配饰，保留肤色与人物设定。两组都可以试穿，也能随时还原。'));
+    const sets = el('div', 'wd-sets');
+    for (const set of RESIDENT_LOOK_SETS.filter(s => s.gender === wdPresetGender)) {
+      const look = wearResidentLook(d.look, set.id);
+      const selected = Object.entries(look).every(([key,value]) => (d.look[key] ?? (key==='features'?'plain':key==='extra'?'none':key==='shoeStyle'?'classic':undefined)) === value);
+      const b = el('button', 'wd-set' + (selected ? ' on' : ''));
+      b.setAttribute('aria-pressed', String(selected)); b.setAttribute('aria-label', '试穿形象：' + set.name);
+      const cv = document.createElement('canvas'); cv.width=20; cv.height=24; cv.setAttribute('aria-hidden','true');
+      b.append(cv,el('span',null,set.name)); dollPortrait(cv,look);
+      b.onclick = () => { d.look=wearResidentLook(d.look,set.id); SFX.play('pop'); renderWardrobe(); wdSaved(); };
+      sets.append(b);
+    }
+    section('整套形象 · 点小人试穿',sets);
+  } else if (wdPage === 'look') {
     const sets = el('div', 'wd-sets');
     for (const set of OUTFIT_SETS) {
       const selected = Object.entries(set.look).every(([key, value]) => d.look[key] === value);
@@ -8608,7 +8704,7 @@ function renderWardrobe() {
   const gen = el('div', 'chips');
   for (const [k, n] of Object.entries(GENDERS)) {
     const b = el('button', 'chip' + (d.gender === k ? ' on' : ''), n);
-    b.onclick = () => { d.gender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
+    b.onclick = () => { d.gender = k; wdPresetGender = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
     gen.append(b);
   }
   section('性别', gen);

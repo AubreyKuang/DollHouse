@@ -28,12 +28,16 @@ function restoreCommunity(saved) {
   };
 }
 
+function knownResidentLooks() {
+  return [...G.dolls, ...G.community.friends, neighborProfile()].map(d => d.look);
+}
+
 function newcomerProfile() {
   const used = new Set([...G.dolls, ...G.community.friends].map(d => d.name));
   const name = NAMES.find(n => !used.has(n)) || `新朋友${G.uid}`;
-  return { name, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(),
-    mbti: randomMbti(), heart: pick(['loyal', 'normal', 'normal', 'fickle']), look: randomLook(),
-    gender: Math.random() < .5 ? 'f' : 'm' };
+  const gender = Math.random() < .5 ? 'f' : 'm';
+  return { name, gender, persona: pick(Object.keys(PERSONAS)), job: pick(Object.keys(JOBS)), zodiac: randomZodiac(),
+    mbti: randomMbti(), heart: pick(['loyal', 'normal', 'normal', 'fickle']), look: randomLook(gender, knownResidentLooks(), G.dolls.map(d => d.look)) };
 }
 
 function availableHosts() {
