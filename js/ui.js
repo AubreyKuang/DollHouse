@@ -126,10 +126,19 @@ function tickInfo() {
   }
 }
 
-HOOK.select = (reveal = false) => {
-  if (reveal) $('#side').open = true;
+HOOK.select = () => {
+  refreshSceneHint();
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
+
+function refreshSceneHint() {
+  const hint = $('#hint');
+  const resident = G.dolls.find(d => d.uid === G.sel);
+  const text = G.mode === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。'
+    : resident ? furnitureOrderHint(resident, hoverFurniture)
+    : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
+  if (hint.textContent !== text) hint.textContent = text;
+}
 
 /* ---------- 生活日志 ---------- */
 function renderLog() {
@@ -155,7 +164,8 @@ function setMode(m) {
     b.setAttribute('aria-pressed', String(active));
   });
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
+  hoverFurniture = null;
+  refreshSceneHint();
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
@@ -743,7 +753,7 @@ function loop(now) {
   // 月报曾因玩家正忙（拖小人、衣橱、别的弹窗）而挂起：等空闲了再弹出来
   if (G.paperPending && typeof playerBusy === 'function' && !playerBusy()) { G.paperPending = false; updateHousePaperButton(); showHousePaper(); }
   uiT += dt;
-  if (uiT > 0.25) { uiT = 0; updateClock(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
+  if (uiT > 0.25) { uiT = 0; updateClock(); refreshSceneHint(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }
   requestAnimationFrame(loop);
 }

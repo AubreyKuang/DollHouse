@@ -458,9 +458,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
-  if (G.keepsakes.project?.bench === f.key || homeFurnitureReserved(f)) return false;
-  const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
-  if(f.users.length>=capacity)return false;
+  if (furnitureInUse(f)) return false;
   const distinct = F.cap > 1;
   const tiles = approachTiles(f).filter(tile=>!distinct || !f.users.some(user=>{
     const destination=user.path.at(-1)||user;
@@ -665,15 +663,31 @@ function petDoll(d) {
   addLog(`🤚 你摸了摸 ${d.name} 的头`);
 }
 
+function furnitureInUse(f, resident) {
+  if (G.keepsakes.project?.bench === f.key || homeFurnitureReserved(f)) return true;
+  const capacity = FURNITURE[f.id].cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
+  return f.users.length - Number(f.users.includes(resident)) >= capacity;
+}
+
+function furnitureOrderBlock(d, f) {
+  const spec = FURNITURE[f.id];
+  if (!spec.use) return `「${spec.name}」是摆设，不能安排活动`;
+  if (d.state === 'away') return `${d.name} 还没回家`;
+  if (d.state === 'lift') return `先放下 ${d.name}`;
+  if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
+  if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
+  return '';
+}
+
 // 选中的小人被点到的家具上去
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
-  if (!F.use) { say(d, '这个不能用哦'); return false; }
-  if (d.state === 'lift' || d.state === 'away' || (d.guest && F.use === 'sleep')) return false;
+  const blocked = furnitureOrderBlock(d, f);
+  if (blocked) { HOOK.toast(blocked, true); SFX.play('deny'); return false; }
   if (d.act) endAct(d);
   const meal = savedMealFor(d, f);
   if (meal && beginCareAction(d, meal, 'savedMeal')) return true;
-  if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); SFX.play('deny'); return false; }
+  if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); HOOK.toast(`从这里走不到「${F.name}」旁边`, true); SFX.play('deny'); return false; }
   say(d, '好的～', 1.2);
   return true;
 }

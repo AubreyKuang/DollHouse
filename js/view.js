@@ -224,6 +224,7 @@ function render() {
   // 选中的小人头上跳动的小箭头
   const sel = G.dolls.find(d => d.uid === G.sel);
   if (sel && sel.state !== 'lift' && sel.state !== 'away' && G.mode === 'live') {
+    drawFurnitureTargets(c, sel);
     const point = houseHeadPoint(sel);
     const ax = point.x, ay = point.y - 7 + Math.round(Math.sin(t * 6));
     R(c, ax - 3, ay, 7, 1, INK); R(c, ax - 2, ay + 1, 5, 1, INK); R(c, ax - 1, ay + 2, 3, 1, INK); R(c, ax, ay + 3, 1, 1, INK);
@@ -291,6 +292,39 @@ function drawBuildOverlay(c, t) {
   }
 }
 
+// The marker is inside the same hit area used by furniture clicks.
+function drawFurnitureTargets(c, resident) {
+  for (const furniture of G.furniture) {
+    if (furniture.piece || furnitureOrderBlock(resident, furniture)) continue;
+    const { x, w, top, bottom } = houseFurnitureRect(furniture);
+    const hovered = furniture === hoverFurniture;
+    if (hovered) {
+      c.strokeStyle = '#fff0b9';
+      c.lineWidth = 1;
+      c.strokeRect(x + .5, top + .5, w - 1, bottom - top - 1);
+    }
+    const markerX = x + w - 8, markerY = Math.min(top + 2, bottom - 6);
+    R(c, markerX, markerY, 6, 6, '#38263a');
+    R(c, markerX + 1, markerY + 1, 4, 4, hovered ? '#fff4c2' : '#f6cf86');
+  }
+}
+
+function furnitureOrderHint(resident, furniture) {
+  if (resident.state === 'away') return `${resident.name} 还没回家`;
+  if (resident.state === 'lift' || !furniture) return `已选 ${resident.name} · 点带金色标记的家具安排活动`;
+  if (furniture.piece) return `查看「${FURNITURE[furniture.id].name}」的来历`;
+  const blocked = furnitureOrderBlock(resident, furniture);
+  if (blocked) return blocked;
+  return `让 ${resident.name} 去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`;
+}
+
+function furnitureAction(resident, furniture) {
+  const eatingSavedMeal = resident.act?.type === 'savedMeal' && resident.act.furn === furniture;
+  if (eatingSavedMeal || savedMealFor(resident, furniture)) return '吃留好的饭';
+  const spec = FURNITURE[furniture.id];
+  return (ACT_NAMES[spec.use] || spec.name).replace(/^在/, '');
+}
+
 /* ---------- DOM 浮层：对话气泡、名字、爱心 ---------- */
 const domBubbles = new Map();
 function positionOverlay(el, x, y) {
@@ -332,7 +366,7 @@ function updateOverlay() {
 }
 
 /* ---------- 指针交互 ---------- */
-let hoverDoll = null, press = null;
+let hoverDoll = null, hoverFurniture = null, press = null;
 function toScene(e) {
   const r = cv.getBoundingClientRect();
   return { x: (e.clientX - r.left) / r.width * (W + HOUSE_MARGIN), y: (e.clientY - r.top) / r.height * HOUSE_HEIGHT };
@@ -473,7 +507,10 @@ cv.addEventListener('pointermove', e => {
     return;
   }
   const hd = dollAt(p); hoverDoll = hd ? hd.uid : null;
-  cv.style.cursor = press && press.d ? 'grabbing' : hd ? 'grab' : (G.sel && furnAt(p) && FURNITURE[furnAt(p).id].use ? 'pointer' : 'default');
+  hoverFurniture = hd || press?.d || hitBedDoor(p) ? null : furnAt(p);
+  const resident = G.dolls.find(d => d.uid === G.sel);
+  cv.style.cursor = press?.d ? 'grabbing' : hd ? 'grab'
+    : resident && hoverFurniture && (hoverFurniture.piece || !furnitureOrderBlock(resident, hoverFurniture)) ? 'pointer' : 'default';
   if (!press || !press.d) return;
   const d = press.d;
   if (!press.moved && Math.hypot(p.x - press.p.x, p.y - press.p.y) > 3) {
@@ -533,15 +570,16 @@ cv.addEventListener('pointerup', e => {
       else { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast('这里放不下，TA 回到了原处', true); }
     }
   } else if (d) {
-    G.sel = d.uid; SFX.play('click'); HOOK.select(true);
+    G.sel = G.sel === d.uid ? null : d.uid; SFX.play('click'); HOOK.select();
   } else if (press.furn?.piece) {
     const piece = keepsakePiece(press.furn.piece);
     if (piece) HOOK.toast(keepsakeLabel(piece), true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
-    if (sd) orderUse(sd, press.furn);
-    const note = savedMealNote(press.furn);
-    if (note) HOOK.toast(note, true);
+    if (sd && orderUse(sd, press.furn)) {
+      const note = savedMealNote(press.furn);
+      HOOK.toast(note || `✓ ${sd.name}要去${furnitureAction(sd, press.furn)}`, true);
+    }
   } else if (press.furn) {
     const note = savedMealNote(press.furn);
     HOOK.toast(note || '先点一位居民，再点家具安排活动', true);
@@ -561,7 +599,7 @@ function cancelDollDrag(e) {
 }
 cv.addEventListener('pointercancel', cancelDollDrag);
 cv.addEventListener('lostpointercapture', cancelDollDrag);
-cv.addEventListener('pointerleave', () => { hoverDoll = null; if (G.mode === 'build') G.build.hover = null; });
+cv.addEventListener('pointerleave', () => { hoverDoll = null; hoverFurniture = null; if (G.mode === 'build') G.build.hover = null; });
 
 const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {

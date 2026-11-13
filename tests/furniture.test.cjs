@@ -208,6 +208,34 @@ test('interaction drops respect walls, busy residents, and canceled drags', () =
   `, { withView: true });
 });
 
+test('clicking occupied furniture leaves the selected resident’s activity intact', () => {
+  runGame(`
+    load();
+    const [resident, other] = G.dolls;
+    G.dolls = [resident];
+    placeDollAt(resident, 10, 7);
+    const table = G.furniture.find(f => f.id === 'table');
+    const piano = G.furniture.find(f => f.id === 'piano');
+    assert.ok(orderUse(resident, table));
+    piano.users.push(other);
+    G.sel = resident.uid;
+
+    const {x, w, top} = houseFurnitureRect(piano);
+    const event = {clientX: x + w / 2, clientY: top + 4, pointerId: 1, button: 0};
+    const point = toScene(event);
+    assert.equal(furnAt(point), piano);
+    assert.equal(hitBedDoor(point), false);
+    let message;
+    HOOK.toast = text => { message = text; };
+    pointer.pointerdown(event);
+    pointer.pointerup(event);
+
+    assert.match(message, /钢琴.*正在使用/);
+    assert.equal(resident.act.furn, table);
+    assert.ok(table.users.includes(resident));
+  `, { withView: true });
+});
+
 test('an urgent resident uses the toilet and the new need survives save and reload', () => {
   runGame(`
     load();
