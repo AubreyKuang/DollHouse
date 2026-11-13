@@ -57,7 +57,7 @@ function fitHouseFurniture() {
       addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}移到了同层的空位`);
     } else {
       G.furniture = G.furniture.filter(other => other !== f);
-      stash(f.id);
+      if (!f.piece) stash(f.id);
       addLog(`🧳 为隔墙或楼梯腾出空间，${F.name}收进了仓库`);
     }
   }

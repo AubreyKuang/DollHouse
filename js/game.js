@@ -34,7 +34,9 @@ function houseSaveData() {
   return {
     floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    furniture: G.furniture.map(f => ({ id: f.id, x: f.x, y: f.y })),
+    keepsakes: G.keepsakes,
+    furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
+      .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
@@ -117,12 +119,14 @@ function applySave(s) {
       event.joined = [];
     }
   }
+  G.keepsakes = restoreKeepsakes(s.keepsakes);
+  G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
-  for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y);
+  for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y, f);
   if (!s.yardV) for (const [id, x, y] of YARD_DEFAULT) {
     if (canPlace(id, x, y)) addFurniture(id, x, y);
   }
@@ -141,8 +145,9 @@ function applySave(s) {
 }
 
 /* ---------------- 家具与格子 ---------------- */
-function addFurniture(id, x, y) {
-  const f = { uid: G.uid++, id, x, y, active: false, users: [] };
+function addFurniture(id, x, y, saved = {}) {
+  const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
+  const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
   G.furniture.push(f);
   return f;
 }
@@ -312,7 +317,7 @@ function decide(d) {
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use || (d.guest && F.use === 'sleep')) continue;
+    if (!F.use || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
     const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
     if (f.users.length >= cap) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
@@ -320,6 +325,7 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (cornerRegular(f, d)) s += 17;
     if (F.outdoor) {
       if (G.weather === 'rain' || G.night) continue;
       s += F.use === 'swing' && ['active', 'genki'].includes(d.persona) ? 24 : 13;
@@ -404,6 +410,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
+  if (G.keepsakes.project?.bench === f.key) return false;
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
   const distinct = F.cap > 1;
@@ -422,6 +429,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
   if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
   if (a?.type === 'visitGather') { arriveAtGathering(d); return; }
@@ -470,6 +478,7 @@ function arrive(d) {
   d.recentFurniture = { use: a.type, at: absNow() };
   countHouseActivity(a.type,d.name);
   completePaperFollowup(d, f);
+  noteCornerUse(d, f);
   if ((F.outdoor || a.type === 'puzzle') && F.cap > 1) {
     const companion = f.users.find(o => o !== d && o.state === 'act');
     if (companion) {
@@ -651,6 +660,7 @@ function update(realDt) {
     communityTick();
     // 有小人被拎在手里时，其他人先定住不动：落点目标不会自己跑开
     const carrying = G.dolls.some(d => d.state === 'lift');
+    if (!carrying) tickKeepsakes(dt);
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);

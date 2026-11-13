@@ -199,7 +199,7 @@ function endGetTogether() {
     }
   }
   event.leavingAt = absNow() + 50;
-  for (const d of G.dolls) if (d.act && ['visitGather', 'visitStay'].includes(d.act.type)) {
+  for (const d of G.dolls) if (d.act && (['visitGather', 'visitStay'].includes(d.act.type) || (d.guest && d.act.type === 'rainTea'))) {
     endAct(d); d.path = [];
   }
   if (!guest) { finishGuestDeparture(); return; }
