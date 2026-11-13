@@ -31,11 +31,11 @@ Object.assign(PERSONAS.social.like, { strum: 17, chess: 12 });
 JOIN.strum = { verb: '听{n}弹尤克里里', like: 'strum', dance: .3,
   lines: ['这段真好听', '🎵'], back: ['再来一小段～', '一起唱吧'] };
 
-const FURNITURE_OUTLINE = '#715d67';
+const FURNITURE_OUTLINE = FURNITURE_STYLE.edge;
 Object.assign(DRAW, {
   toilet(c, x, y, f, t) {
-    const ceramic = '#fff2df', edge = '#927b80';
-    contactShadow(c, x + 3, y + 14, 10);
+    const ceramic = FURNITURE_STYLE.cream, edge = FURNITURE_STYLE.ceramicEdge;
+
     bevel(c, x + 3, y - 10, 10, 14, ceramic, edge);
     R(c, x + 4, y - 9, 8, 2, '#fffcf2');
     detail(c, x + 10.5, y - 7, 1.5, 8, '#e7cfc7');
@@ -48,15 +48,15 @@ Object.assign(DRAW, {
     if (f?.active && Math.floor(t * 4) % 2) detail(c, x + 6, y + 4, 4, .5, '#e1f3e7');
   },
   washstand(c, x, y, f, t) {
-    const edge = '#607f77', brass = '#b8875e';
-    contactShadow(c, x + 2, y + 14, 12);
+    const edge = FURNITURE_STYLE.mintDark, brass = '#b8875e';
+
     bevel(c, x + 3, y - 14, 10, 11, '#b4d5d2', '#a68b79');
     R(c, x + 5, y - 12, 6, 1, '#eaf6e9');
     detail(c, x + 5, y - 11, .5, 4, '#eaf6e9');
-    bevel(c, x + 2, y + 2, 12, 13, '#87af9d', edge);
-    bevel(c, x + 4, y + 5, 8, 8, '#a5c5ad', '#6e9386');
+    bevel(c, x + 2, y + 2, 12, 13, FURNITURE_STYLE.mint, edge);
+    bevel(c, x + 4, y + 5, 8, 8, FURNITURE_STYLE.mintLight, FURNITURE_STYLE.mintDark);
     detail(c, x + 6.5, y + 8.5, 3, 1, '#f0cc8a');
-    bevel(c, x, y - 1, 16, 6, '#fff1df', FURNITURE_OUTLINE);
+    bevel(c, x, y - 1, 16, 6, FURNITURE_STYLE.cream, FURNITURE_OUTLINE);
     R(c, x + 2, y, 12, 1, '#fffaf0');
     bevel(c, x + 4, y + 1, 8, 3, '#c4dcd2', '#a4c4b9');
     detail(c, x + 7, y - 4.5, 1.5, 4, brass);
@@ -101,7 +101,7 @@ Object.assign(DRAW, {
     R(c, x + 12, y + 3, 1, 3, '#fff3ce');
   },
   bunnyPicture(c, x, y) {
-    box(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
+    furnitureBox(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
     R(c, x + 3, y + 3, 10, 10, '#d5e2cd');
     R(c, x + 5, y + 4, 2, 5, '#fff6e4');
     R(c, x + 9, y + 4, 2, 5, '#fff6e4');
@@ -127,7 +127,7 @@ Object.assign(DRAW, {
     R(c, x + 3, y - 6, 4, 3, '#e697a2');
     R(c, x + 7, y - 10, 4, 4, '#f3c1ab');
     R(c, x + 10, y - 5, 4, 3, '#e8adbf');
-    box(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
+    furnitureBox(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
     R(c, x + 6, y + 6, 1, 6, '#d5efdf');
   },
   pawRug(c, x, y) {
@@ -139,7 +139,7 @@ Object.assign(DRAW, {
     }
   },
   recordPlayer(c, x, y, f, t) {
-    box(c, x + 2, y - 10, 28, 12, '#d59a93', FURNITURE_OUTLINE);
+    furnitureBox(c, x + 2, y - 10, 28, 12, FURNITURE_STYLE.rose, FURNITURE_OUTLINE);
     R(c, x + 4, y - 8, 24, 7, '#f0c7b7');
     R(c, x + 8, y - 7, 13, 5, '#77667a');
     R(c, x + 11, y - 8, 7, 7, '#77667a');
@@ -147,14 +147,14 @@ Object.assign(DRAW, {
     if (f?.active) R(c, x + 11 + Math.floor(t * 8) % 8, y - 5, 1, 1, '#c3a6be');
     R(c, x + 23, y - 7, 1, 4, '#96757d');
     R(c, x + 20, y - 4, 4, 1, '#96757d');
-    box(c, x + 2, y + 1, 28, 8, '#efb3a7', FURNITURE_OUTLINE);
-    R(c, x + 5, y + 9, 2, 6, '#826667');
-    R(c, x + 25, y + 9, 2, 6, '#826667');
+    furnitureBox(c, x + 2, y + 1, 28, 8, FURNITURE_STYLE.roseLight, FURNITURE_OUTLINE);
+    R(c, x + 5, y + 9, 2, 6, WOOD_D);
+    R(c, x + 25, y + 9, 2, 6, WOOD_D);
   },
   chessTable(c, x, y, f, t) {
-    R(c, x + 4, y + 5, 2, 10, '#846b65');
-    R(c, x + 26, y + 5, 2, 10, '#846b65');
-    box(c, x + 1, y - 5, 30, 12, '#f0d9b8', '#9a7e70');
+    R(c, x + 4, y + 5, 2, 10, WOOD_D);
+    R(c, x + 26, y + 5, 2, 10, WOOD_D);
+    furnitureBox(c, x + 1, y - 5, 30, 12, '#f0d9b8', WOOD_D);
     for (let row = 0; row < 3; row++) for (let col = 0; col < 6; col++) {
       if ((row + col) % 2) R(c, x + 7 + col * 3, y - 3 + row * 2, 3, 2, '#a18ca8');
     }
@@ -163,9 +163,9 @@ Object.assign(DRAW, {
     R(c, x + 19, y - 2, 2, 3, '#fff7e3');
   },
   knitting(c, x, y, f, t) {
-    box(c, x + 1, y + 5, 14, 10, '#d3a475', '#967364');
-    R(c, x + 2, y + 8, 12, 2, '#e7bd8b');
-    R(c, x + 2, y + 12, 12, 1, '#ad806d');
+    furnitureBox(c, x + 1, y + 5, 14, 10, WOOD, WOOD_D);
+    R(c, x + 2, y + 8, 12, 2, WOOD_L);
+    R(c, x + 2, y + 12, 12, 1, WOOD_D);
     R(c, x + 3, y + 3, 5, 4, '#da879f');
     R(c, x + 8, y + 2, 5, 5, '#b0cdbb');
     const dy = f?.active ? Math.floor(t * 5) % 2 : 0;
@@ -175,7 +175,7 @@ Object.assign(DRAW, {
   ukulele(c, x, y, f, t) {
     R(c, x + 3, y + 6, 1, 8, '#7c686a');
     R(c, x + 11, y + 6, 1, 8, '#7c686a');
-    box(c, x + 4, y - 6, 8, 15, '#e6b175', '#946c5d');
+    furnitureBox(c, x + 4, y - 6, 8, 15, '#e6b175', '#946c5d');
     R(c, x + 5, y + 3, 6, 4, '#f1ca8b');
     R(c, x + 7, y - 14, 2, 17, '#9c735e');
     R(c, x + 6, y - 16, 4, 4, '#bb9072');

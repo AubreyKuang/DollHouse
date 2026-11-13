@@ -63,6 +63,21 @@ function fitHouseFurniture() {
   }
 }
 
+// Retrofit unoccupied upstairs walls once. These are ordinary movable windows;
+// a later save remembers the upgrade even if the player removes a window.
+function addMissingUpperWindows() {
+  const rooms = G.bathroom ? [[0, BATH_X], [BATH_X, BX], [BX, COLS]] : [[0, BX], [BX, COLS]];
+  for (const [left, right] of rooms) {
+    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && f.x >= left && f.x < right)) continue;
+    const center = (left + right - FURNITURE.window.w) / 2;
+    const positions = [];
+    for (let x = left; x + FURNITURE.window.w <= right; x++) positions.push(x);
+    positions.sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+    const x = positions.find(x => canPlace('window', x, UPPER_WALL));
+    if (x !== undefined) addFurniture('window', x, UPPER_WALL);
+  }
+}
+
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }
 
 // The dividing wall is shown as a full-height cut edge. Its door and

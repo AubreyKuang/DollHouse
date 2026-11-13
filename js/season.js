@@ -46,23 +46,23 @@ Object.assign(PERSONAS.genki.like, { party: 25 });
 Object.assign(DRAW, {
   xmastree(c, x, y, f, t) {
     R(c, x + 6, y + 8, 4, 5, '#8a5530');
-    const g = '#3f8f4a', gl = '#5fae5a';
-    const tier = (w, yy) => { R(c, x + 8 - w / 2 - 1, yy - 1, w + 2, 7, INK); R(c, x + 8 - w / 2, yy, w, 5, g); R(c, x + 8 - w / 2, yy, w, 1, gl); };
+    const g = FURNITURE_STYLE.mintDark, gl = FURNITURE_STYLE.mintDark;
+    const tier = (w, yy) => { R(c, x + 8 - w / 2 - 1, yy - 1, w + 2, 7, FURNITURE_STYLE.edge); R(c, x + 8 - w / 2, yy, w, 5, g); R(c, x + 8 - w / 2, yy, w, 1, gl); };
     tier(14, y + 4); tier(10, y - 3); tier(6, y - 10);
     R(c, x + 7, y - 15, 2, 4, '#f2c33a'); R(c, x + 6, y - 14, 4, 2, '#f2c33a');                 // 星星
-    const cols = ['#e26d7d', '#f2d16b', '#6aa9ec', '#ffffff'];
+    const cols = [FURNITURE_STYLE.rose, WOOD_L, FURNITURE_STYLE.blue, '#ffffff'];
     [[4, 6], [11, 7], [6, -1], [10, 0], [8, -7], [5, 2]].forEach(([dx, dy], i) =>
       R(c, x + dx, y + dy, 1, 1, cols[(i + Math.floor(t * 2)) % 4]));                           // 一闪一闪的彩灯
-    box(c, x + 1, y + 10, 5, 5, '#e26d7d'); R(c, x + 3, y + 10, 1, 5, '#f2d16b');               // 礼物盒
-    box(c, x + 10, y + 11, 5, 4, '#6aa9ec'); R(c, x + 12, y + 11, 1, 4, '#ffffff');
+    furnitureBox(c, x + 1, y + 10, 5, 5, FURNITURE_STYLE.rose); R(c, x + 3, y + 10, 1, 5, WOOD_L);               // 礼物盒
+    furnitureBox(c, x + 10, y + 11, 5, 4, FURNITURE_STYLE.blue); R(c, x + 12, y + 11, 1, 4, '#ffffff');
   },
   lantern(c, x, y, f, t) {
     const sway = Math.round(Math.sin(t * 1.5 + x) * 1);
-    R(c, x + 8, y, 1, 3, INK);
-    R(c, x + 4 + sway, y + 3, 9, 2, '#d9a640');
-    R(c, x + 3 + sway, y + 5, 11, 7, INK); R(c, x + 4 + sway, y + 5, 9, 7, '#e05a4a');
+    R(c, x + 8, y, 1, 3, FURNITURE_STYLE.edge);
+    R(c, x + 4 + sway, y + 3, 9, 2, FURNITURE_STYLE.brass);
+    R(c, x + 3 + sway, y + 5, 11, 7, FURNITURE_STYLE.edge); R(c, x + 4 + sway, y + 5, 9, 7, '#e05a4a');
     R(c, x + 5 + sway, y + 6, 2, 5, '#f07a6a'); R(c, x + 8 + sway, y + 5, 1, 7, '#c0443a');
-    R(c, x + 4 + sway, y + 12, 9, 2, '#d9a640');
+    R(c, x + 4 + sway, y + 12, 9, 2, FURNITURE_STYLE.brass);
     R(c, x + 8 + sway, y + 14, 1, 2, '#f2c33a');
   },
 });

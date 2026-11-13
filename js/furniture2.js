@@ -45,74 +45,74 @@ Object.assign(PERSONAS.social.like, { music: 25, pc: 15, paint: 10 });
 Object.assign(DRAW, {
   beanbag(c, x, y) {
     const col = '#e1ad71';
-    R(c, x + 2, y + 3, 12, 12, INK); R(c, x + 1, y + 6, 14, 9, INK); R(c, x + 4, y + 1, 8, 3, INK);
+    R(c, x + 2, y + 3, 12, 12, FURNITURE_STYLE.edge); R(c, x + 1, y + 6, 14, 9, FURNITURE_STYLE.edge); R(c, x + 4, y + 1, 8, 3, FURNITURE_STYLE.edge);
     R(c, x + 3, y + 4, 10, 10, col); R(c, x + 2, y + 7, 12, 7, col); R(c, x + 5, y + 2, 6, 3, col);
     R(c, x + 4, y + 5, 8, 2, shade(col, 0.15)); R(c, x + 3, y + 12, 10, 2, shade(col, -0.18));
   },
   coffee(c, x, y, f, t) {
-    box(c, x + 1, y - 2, 14, 17, WOOD); R(c, x + 2, y + 4, 12, 1, WOOD_D); R(c, x + 7, y + 6, 2, 2, WOOD_L);
-    box(c, x + 3, y - 12, 10, 11, '#4e4557'); R(c, x + 4, y - 11, 8, 2, '#675a6e'); R(c, x + 5, y - 7, 6, 2, '#a9b6c0');
-    box(c, x + 6, y - 4, 4, 3, '#fffaf0');
-    R(c, x + 11, y - 10, 1, 1, f && f.active ? '#ca8290' : '#88ab83');
+    furnitureBox(c, x + 1, y - 2, 14, 17, WOOD); R(c, x + 2, y + 4, 12, 1, WOOD_D); R(c, x + 7, y + 6, 2, 2, WOOD_L);
+    furnitureBox(c, x + 3, y - 12, 10, 11, '#4e4557'); R(c, x + 4, y - 11, 8, 2, '#675a6e'); R(c, x + 5, y - 7, 6, 2, '#a9b6c0');
+    furnitureBox(c, x + 6, y - 4, 4, 3, '#fffaf0');
+    R(c, x + 11, y - 10, 1, 1, f && f.active ? FURNITURE_STYLE.rose : FURNITURE_STYLE.mint);
     if (f && f.active) { const k = Math.floor(t * 4) % 2; R(c, x + 7 + k, y - 7, 1, 2, '#ffffffaa'); R(c, x + 8 - k, y - 10, 1, 2, '#ffffff77'); }
   },
   aquarium(c, x, y, f, t) {
-    box(c, x + 1, y + 2, 30, 13, WOOD_D); R(c, x + 3, y + 5, 26, 2, WOOD);
-    box(c, x + 2, y - 14, 28, 17, '#9fd8f0', '#4e4557'); R(c, x + 3, y - 13, 26, 3, '#c8ecf8');
+    furnitureBox(c, x + 1, y + 2, 30, 13, WOOD_D); R(c, x + 3, y + 5, 26, 2, WOOD);
+    furnitureBox(c, x + 2, y - 14, 28, 17, '#9fd8f0', '#4e4557'); R(c, x + 3, y - 13, 26, 3, '#c8ecf8');
     R(c, x + 3, y - 1, 26, 3, '#e8d8a8');
-    R(c, x + 6, y - 6, 1, 5, '#5fae5a'); R(c, x + 7, y - 8, 1, 7, '#5fae5a'); R(c, x + 24, y - 7, 1, 6, '#3f7d3c'); R(c, x + 25, y - 5, 1, 4, '#5fae5a');
+    R(c, x + 6, y - 6, 1, 5, FURNITURE_STYLE.mintDark); R(c, x + 7, y - 8, 1, 7, FURNITURE_STYLE.mintDark); R(c, x + 24, y - 7, 1, 6, '#3f7d3c'); R(c, x + 25, y - 5, 1, 4, FURNITURE_STYLE.mintDark);
     const fx = x + 5 + Math.round((Math.sin(t * 0.8) + 1) * 9), fy = y - 9 + Math.round(Math.sin(t * 1.7));
-    R(c, fx, fy, 3, 2, '#e1ad71'); R(c, fx - 1, fy, 1, 2, '#ca8290'); R(c, fx + 2, fy, 1, 1, INK);
+    R(c, fx, fy, 3, 2, '#e1ad71'); R(c, fx - 1, fy, 1, 2, FURNITURE_STYLE.rose); R(c, fx + 2, fy, 1, 1, FURNITURE_STYLE.edge);
     const gx = x + 22 - Math.round((Math.sin(t * 0.6 + 1) + 1) * 7);
-    R(c, gx, y - 5, 2, 1, '#ca8290'); R(c, gx + 2, y - 5, 1, 1, '#c24d60');
+    R(c, gx, y - 5, 2, 1, FURNITURE_STYLE.rose); R(c, gx + 2, y - 5, 1, 1, '#c24d60');
     const b = Math.floor(t * 3) % 6; R(c, x + 20, y - 3 - b * 2, 1, 1, '#ffffff');
   },
   desk(c, x, y) {
-    R(c, x + 2, y + 4, 2, 11, WOOD_D); box(c, x + 20, y + 3, 10, 12, WOOD);
+    R(c, x + 2, y + 4, 2, 11, WOOD_D); furnitureBox(c, x + 20, y + 3, 10, 12, WOOD);
     R(c, x + 22, y + 7, 6, 1, WOOD_D); R(c, x + 22, y + 11, 6, 1, WOOD_D);
-    box(c, x, y - 3, 32, 7, WOOD_L);
+    furnitureBox(c, x, y - 3, 32, 7, WOOD_L);
     R(c, x + 4, y - 10, 1, 7, '#6b5a52'); R(c, x + 3, y - 12, 5, 3, '#efd189');
-    R(c, x + 10, y - 6, 3, 4, '#7e9fbd'); R(c, x + 13, y - 7, 2, 5, '#ca8290'); R(c, x + 15, y - 5, 2, 3, '#88ab83');
-    box(c, x + 19, y - 5, 8, 4, '#fffaf0', '#cbbfae'); R(c, x + 20, y - 4, 5, 1, '#a9b6c0');
+    R(c, x + 10, y - 6, 3, 4, FURNITURE_STYLE.blue); R(c, x + 13, y - 7, 2, 5, FURNITURE_STYLE.rose); R(c, x + 15, y - 5, 2, 3, FURNITURE_STYLE.mint);
+    furnitureBox(c, x + 19, y - 5, 8, 4, '#fffaf0', '#cbbfae'); R(c, x + 20, y - 4, 5, 1, '#a9b6c0');
   },
   pc(c, x, y, f, t) {
     R(c, x + 2, y + 4, 2, 11, '#675a6e'); R(c, x + 28, y + 4, 2, 11, '#675a6e');
-    box(c, x, y - 2, 32, 7, '#d8d0c4', '#675a6e');
-    box(c, x + 8, y - 16, 16, 12, '#4e4557', INK); R(c, x + 15, y - 4, 2, 2, '#675a6e');
+    furnitureBox(c, x, y - 2, 32, 7, FURNITURE_STYLE.cream, '#675a6e');
+    furnitureBox(c, x + 8, y - 16, 16, 12, '#4e4557', FURNITURE_STYLE.edge); R(c, x + 15, y - 4, 2, 2, '#675a6e');
     const on = f && f.active;
-    R(c, x + 9, y - 15, 14, 9, on ? ['#7e9fbd', '#9582b1', '#88ab83'][Math.floor(t * 2) % 3] : '#2a3a4a');
+    R(c, x + 9, y - 15, 14, 9, on ? [FURNITURE_STYLE.blue, FURNITURE_STYLE.lavender, FURNITURE_STYLE.mint][Math.floor(t * 2) % 3] : '#2a3a4a');
     if (on) { R(c, x + 11, y - 13, 6, 1, '#ffffffaa'); R(c, x + 11, y - 11, 8, 1, '#ffffff77'); R(c, x + 11, y - 9, 4, 1, '#ffffff77'); }
     R(c, x + 9, y, 12, 2, '#675a6e'); R(c, x + 24, y, 3, 2, '#675a6e');
-    box(c, x + 2, y - 12, 5, 10, '#4e4557'); R(c, x + 3, y - 10, 1, 1, '#88ab83');
+    furnitureBox(c, x + 2, y - 12, 5, 10, '#4e4557'); R(c, x + 3, y - 10, 1, 1, FURNITURE_STYLE.mint);
   },
   speaker(c, x, y, f, t) {
-    box(c, x + 2, y - 14, 12, 29, '#4e4557', INK);
+    furnitureBox(c, x + 2, y - 14, 12, 29, '#4e4557', FURNITURE_STYLE.edge);
     const on = f && f.active, p = on ? Math.floor(t * 6) % 2 : 0;
     R(c, x + 5 - p, y - 10 - p, 6 + 2 * p, 6 + 2 * p, '#675a6e'); R(c, x + 7, y - 8, 2, 2, '#2a2230');
     R(c, x + 4 - p, y - 1 - p, 8 + 2 * p, 8 + 2 * p, '#675a6e'); R(c, x + 7, y + 2, 2, 2, '#2a2230');
-    R(c, x + 11, y - 12, 1, 1, on ? '#88ab83' : '#ca8290');
+    R(c, x + 11, y - 12, 1, 1, on ? FURNITURE_STYLE.mint : FURNITURE_STYLE.rose);
     if (on) {
       const ny = y - 16 - Math.round(((t * 1.5) % 1) * 10);
-      R(c, x + 13, ny, 2, 2, '#ca8290'); R(c, x + 14, ny - 3, 1, 3, '#ca8290');
-      R(c, x + 1, ny + 4, 2, 2, '#7e9fbd'); R(c, x + 2, ny + 1, 1, 3, '#7e9fbd');
+      R(c, x + 13, ny, 2, 2, FURNITURE_STYLE.rose); R(c, x + 14, ny - 3, 1, 3, FURNITURE_STYLE.rose);
+      R(c, x + 1, ny + 4, 2, 2, FURNITURE_STYLE.blue); R(c, x + 2, ny + 1, 1, 3, FURNITURE_STYLE.blue);
     }
   },
   easel(c, x, y, f, t) {
     R(c, x + 3, y - 12, 1, 27, WOOD_D); R(c, x + 12, y - 12, 1, 27, WOOD_D); R(c, x + 8, y - 14, 1, 22, WOOD); R(c, x + 2, y + 2, 12, 1, WOOD_D);
-    box(c, x + 2, y - 12, 12, 13, '#fffaf0', '#8a7366');
-    R(c, x + 3, y - 11, 10, 5, '#a5ccdc'); R(c, x + 3, y - 6, 10, 4, '#8ccf7a'); R(c, x + 9, y - 10, 2, 2, '#efd189');
-    if (f && f.active) { const k = Math.floor(t * 3) % 3; R(c, x + 4 + k * 2, y - 5, 1, 1, ['#ca8290', '#e1ad71', '#9582b1'][k]); }
+    furnitureBox(c, x + 2, y - 12, 12, 13, '#fffaf0', '#8a7366');
+    R(c, x + 3, y - 11, 10, 5, '#a5ccdc'); R(c, x + 3, y - 6, 10, 4, FURNITURE_STYLE.mint); R(c, x + 9, y - 10, 2, 2, '#efd189');
+    if (f && f.active) { const k = Math.floor(t * 3) % 3; R(c, x + 4 + k * 2, y - 5, 1, 1, [FURNITURE_STYLE.rose, '#e1ad71', FURNITURE_STYLE.lavender][k]); }
   },
   treadmill(c, x, y, f, t) {
-    R(c, x + 1, y + 6, 30, 8, INK); R(c, x + 2, y + 7, 28, 6, '#675a6e');
+    R(c, x + 1, y + 6, 30, 8, FURNITURE_STYLE.edge); R(c, x + 2, y + 7, 28, 6, '#675a6e');
     const off = f && f.active ? Math.floor(t * 12) % 4 : 0;
     for (let i = 0; i < 7; i++) R(c, x + 3 + ((i * 4 + off) % 26), y + 9, 1, 2, '#4e4557');
-    R(c, x + 2, y - 10, 2, 17, '#a9b6c0'); box(c, x, y - 14, 8, 5, '#4e4557');
-    R(c, x + 2, y - 13, 3, 1, f && f.active ? '#88ab83' : '#ca8290');
+    R(c, x + 2, y - 10, 2, 17, '#a9b6c0'); furnitureBox(c, x, y - 14, 8, 5, '#4e4557');
+    R(c, x + 2, y - 13, 3, 1, f && f.active ? FURNITURE_STYLE.mint : FURNITURE_STYLE.rose);
     R(c, x + 2, y - 8, 10, 1, '#a9b6c0');
   },
   garland(c, x, y) {
-    const cols = ['#ca8290', '#efd189', '#88ab83', '#7e9fbd', '#9582b1'], lit = G.dark > 0.1;
+    const cols = [FURNITURE_STYLE.rose, '#efd189', FURNITURE_STYLE.mint, FURNITURE_STYLE.blue, FURNITURE_STYLE.lavender], lit = G.dark > 0.1;
     for (let i = 0; i < 48; i += 2) R(c, x + i, y + 4 + Math.round(Math.sin(i / 48 * Math.PI) * 6), 2, 1, '#4e4557');
     for (let i = 0; i < 8; i++) {
       const xx = x + 3 + i * 6, yy = y + 5 + Math.round(Math.sin((xx - x) / 48 * Math.PI) * 6);
@@ -121,14 +121,20 @@ Object.assign(DRAW, {
   },
   shelfwall(c, x, y) {
     R(c, x + 1, y + 10, 30, 2, WOOD_D); R(c, x + 1, y + 12, 30, 1, 'rgba(0,0,0,.15)');
-    box(c, x + 3, y + 4, 6, 6, '#be816e'); R(c, x + 4, y + 1, 4, 3, '#5fae5a'); R(c, x + 5, y - 1, 2, 2, '#8ccf7a');
-    R(c, x + 12, y + 5, 2, 5, '#7e9fbd'); R(c, x + 14, y + 4, 2, 6, '#efd189'); R(c, x + 16, y + 6, 2, 4, '#ca8290');
-    box(c, x + 21, y + 4, 7, 6, '#fffaf0', '#d9a640'); R(c, x + 23, y + 6, 3, 2, '#e27fa6');
+    furnitureBox(c, x + 3, y + 4, 6, 6, '#be816e'); R(c, x + 4, y + 1, 4, 3, FURNITURE_STYLE.mintDark); R(c, x + 5, y - 1, 2, 2, FURNITURE_STYLE.mint);
+    R(c, x + 12, y + 5, 2, 5, FURNITURE_STYLE.blue); R(c, x + 14, y + 4, 2, 6, '#efd189'); R(c, x + 16, y + 6, 2, 4, FURNITURE_STYLE.rose);
+    furnitureBox(c, x + 21, y + 4, 7, 6, '#fffaf0', FURNITURE_STYLE.brass); R(c, x + 23, y + 6, 3, 2, FURNITURE_STYLE.rose);
   },
 });
 
 FURNITURE.mirror={name:"穿衣镜",w:1,h:1,use:"groom",mode:"front",need:{fun:9}};
-DRAW.mirror=(c,x,y)=>{ R(c,x+3,y-8,10,22,INK); R(c,x+5,y-6,6,17,"#add8dc"); R(c,x+6,y-4,1,8,"#f5ffff"); };
+DRAW.mirror = (c, x, y) => {
+  furnitureBox(c, x + 3, y - 8, 10, 22, WOOD_L, WOOD_D);
+  R(c, x + 5, y - 6, 6, 17, '#b6d8d8');
+  R(c, x + 6, y - 5, 1, 8, '#f5f6e5');
+  R(c, x + 9, y + 5, 1, 4, '#d5e9df');
+  R(c, x + 2, y + 13, 12, 2, WOOD_D);
+};
 TALL.mirror=9;
 
 Object.assign(ACT_NAMES,{meal:'用餐',groom:'整理仪容'});

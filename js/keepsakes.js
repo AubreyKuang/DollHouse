@@ -239,7 +239,7 @@ FURNITURE.handmadePlanter = { name: '手作花架', w: 1, h: 1, fixed: true };
 TALL.handmadePlanter = 10;
 DRAW.handmadePlanter = (c, x, y, f) => {
   const finish = KEEPSAKE_FINISHES[keepsakePiece(f?.piece)?.finish] || KEEPSAKE_FINISHES.honey;
-  contactShadow(c, x + 1, y + 13, 14);
+
   for (const px of [x + 2, x + 12]) R(c, px, y - 1, 2, 15, '#785247');
   for (const [i, row] of [-3, 6].entries()) {
     bevel(c, x + 1, y + row + 4, 14, 4, finish[1], '#795b5c');
