@@ -374,6 +374,7 @@ function decide(d) {
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
     if (JOBS[d.job]?.interests?.includes(F.use)) s += 10;
     if (cornerRegular(f, d)) s += 17;
+    if (F.use === 'sit' || F.use === 'read') s += readingCornerBonus(d, f);
     if (F.outdoor) {
       if (G.weather === 'rain' || G.night) continue;
       s += F.use === 'swing' && ['active', 'genki'].includes(d.persona) ? 24 : 13;

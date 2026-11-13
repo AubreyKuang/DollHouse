@@ -55,6 +55,34 @@ function game(code, mode, withUI = false) {
   vm.runInContext(code, ctx);
 }
 
+test('adjacent reading corners affect the autonomous choice and restore social needs only once', () => game(`
+  const [a,b,...others] = residents();
+  for (const other of others) other.state = 'away';
+  const first = addFurniture('shelf', 10, 16), second = addFurniture('shelf', 13, 16);
+  G.furniture = [first,second];
+  for (const [person, furniture] of [[a,first],[b,second]]) {
+    G.keepsakes.corners[furniture.key] = {kind:'read', owner:person.pid, regulars:[person.pid], visits:{}};
+    placeDollAt(person, furniture.x, 17);
+    person.needs.social = 24;
+  }
+  rebuild();
+  rel(a,b).f = 60;
+  b.state = 'act'; b.act = {type:'read',furn:second}; second.users = [b];
+  assert.ok(readingCornerBonus(a,first) > 0);
+  second.x += 2;
+  assert.equal(readingCornerBonus(a,first),0);
+  second.x -= 2;
+  a.needs.fun = 0;
+  decide(a);
+  assert.equal(a.act?.furn,first);
+  for(let i=0;i<50 && a.state!=='act';i++) updateDoll(a,.1);
+  assert.equal(a.state,'act');
+  const social = b.needs.social;
+  assert.equal(social,32);
+  noteCornerUse(a,first);
+  assert.equal(b.needs.social,social);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

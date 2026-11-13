@@ -27,18 +27,36 @@ const CORNER_NAMES = { tea: '茶角', music: '练琴角', read: '阅读角' };
 const cornerOwner = f => G.keepsakes.corners[f.key]?.owner;
 const cornerRegular = (f, d) => G.keepsakes.corners[f.key]?.regulars?.includes(d.pid);
 
+function readingNeighbor(d, f) {
+  if (d.guest || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
+  return G.dolls.find(o => {
+    const other = o.act?.furn;
+    return o !== d && !o.guest && o.state === 'act' && other && other !== f &&
+      cornerRegular(other, o) && cornerKind(other) === 'read' &&
+      cornerRoom(other) === cornerRoom(f) && cornerDistance(other, f) <= 3 &&
+      canSee(d, o) && canDisturb(d, o) && !tensionBetween(d, o) && (G.rel[relKey(d, o)]?.f || 0) >= 25;
+  });
+}
+
+function readingCornerBonus(d, f) {
+  return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
+}
+
 function noteCornerUse(d, f) {
   const kind = cornerKind(f);
   if (!kind || d.guest) return;
   const record = G.keepsakes.corners[f.key] ||= { kind, visits: {}, regulars: [] };
   const last = record.visits[d.pid];
   const companion = kind === 'tea' ? f.users.find(other => other !== d && other.state === 'act' && cornerRegular(f, other)) :
-    kind === 'read' && record.owner && G.dolls.find(other => other !== d && other.state === 'act' && other.act?.furn &&
-      cornerOwner(other.act.furn) === other.pid && cornerKind(other.act.furn) === 'read' &&
-      cornerRoom(other.act.furn) === cornerRoom(f) && cornerDistance(other.act.furn, f) <= 3);
-  if (companion && cornerRegular(f, d) && record.sharedMonth !== G.day) {
+    kind === 'read' && readingNeighbor(d, f);
+  const otherCorner = kind === 'read' && companion ? G.keepsakes.corners[companion.act.furn.key] : null;
+  if (companion && cornerRegular(f, d) && record.sharedMonth !== G.day && otherCorner?.sharedMonth !== G.day) {
     record.sharedMonth = G.day;
-    if (kind === 'read') G.keepsakes.corners[companion.act.furn.key].sharedMonth = G.day;
+    if (otherCorner) {
+      otherCorner.sharedMonth = G.day;
+      d.needs.social = Math.min(100, d.needs.social + 8);
+      companion.needs.social = Math.min(100, companion.needs.social + 8);
+    }
     bump(d, companion, 3);
     addLog(`🫖 ${d.name}和${companion.name}又在老地方一起${kind === 'tea' ? '喝茶' : '看书'}。`);
   }

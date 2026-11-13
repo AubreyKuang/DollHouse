@@ -736,7 +736,9 @@ function updateKeepsakeDialog(reset = false) {
     });
     $(selector).replaceChildren(...nodes);
   };
-  list('#keepsakeNotes', notes, '常来坐坐，过几个月就会有属于自己的小角落。');
+  if (!notes.length) notes.push('常来坐坐，过几个月就会有属于自己的小角落。');
+  notes.push('把两处熟悉的阅读角摆在同一房间、相隔三格以内。要好的室友看到对方在用时，有机会自己过去作伴。');
+  list('#keepsakeNotes', notes, '');
   list('#keepsakePieces', G.keepsakes.pieces.map(keepsakeLabel), '还没有一起做过的纪念物。');
 }
 
