@@ -551,9 +551,11 @@ test('a partially shared book can reserve a monthly paper slot instead of a seco
 test('a kept book records both readers and can replace a draft after reload', () => game(`
   const [author,first,second,other]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
-  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
-  const note={from:author.pid,to:first.pid,until:G.day+1,readBy:[first.pid]};
+  const destination=addFurniture('chair',11,4,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat,addFurniture('window',10,0),destination];rebuild();
+  const note={from:author.pid,to:first.pid,until:G.day+1,readBy:[]};
   G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.ok(finishBookRecommendation(first,seat));
   const write=save;
   save=()=>false;assert.equal(keepSharedBookForPaper(seat),false);
   assert.equal(bookRecommendation(seat),note);
@@ -564,15 +566,16 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.ok(keepSharedBookForPaper(seat));
   assert.equal(bookPaperDraft(),undefined);
   assert.ok(pickNextBookReader(seat,second.pid));
-  assert.ok(finishBookRecommendation(second,seat));
+  assert.ok(moveBookRecommendation(seat,destination));
+  assert.ok(finishBookRecommendation(second,destination));
   assert.equal(second.needs.fun,56);
-  assert.equal(finishBookRecommendation(other,seat),false);
-  assert.equal(keepSharedBookForPaper(seat),false);
-  assert.equal(replyToBookRecommendation(seat),false);
+  assert.equal(finishBookRecommendation(other,destination),false);
+  assert.equal(keepSharedBookForPaper(destination),false);
+  assert.equal(replyToBookRecommendation(destination),false);
   const existing={month:G.day,result:[BOOK_PAPER_LABEL,'📖','已有书摘',77]};
   G.paperMoments=[existing];
   assert.ok(save());load();
-  const chair=G.furniture.find(f=>f.key===seat.key);
+  const chair=G.furniture.find(f=>f.key===destination.key);
   assert.equal(bookPaperReaders(chair).length,2);
   assert.equal(submitBookToPaper(chair),false);
   const draft=bookPaperDraft();
@@ -583,6 +586,9 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.equal(excerpts.length,1);
   assert.deepEqual(excerpts[0].people.map(d=>d.name),[author.name,first.name,second.name]);
   assert.equal(excerpts[0].steps.length,4);
+  assert.match(excerpts[0].text,/从书房传到/);
+  assert.equal(excerpts[0].steps[1],first.name+'在书房读完了这段书摘。');
+  assert.equal(excerpts[0].steps[2],second.name+'在'+readingRoomNames[cornerRoom(chair)]+'读完了这段书摘。');
 `));
 
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`

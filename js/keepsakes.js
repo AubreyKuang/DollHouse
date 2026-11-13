@@ -14,6 +14,7 @@ function restoreKeepsakes(saved) {
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
+const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
@@ -190,7 +191,16 @@ function replyToBookRecommendation(chair) {
   return false;
 }
 
-function bookPaperText(author, readers) {
+function bookReadingRoom(note, reader) {
+  const room = note.readRooms?.[reader.pid];
+  return Object.hasOwn(readingRoomNames, room) ? readingRoomNames[room] : '';
+}
+
+function bookPaperText(author, readers, note) {
+  const rooms = readers.map(d => bookReadingRoom(note, d));
+  if (rooms.length === 2 && rooms.every(Boolean) && rooms[0] !== rooms[1]) {
+    return `${author.name}推荐的书摘从${rooms[0]}传到${rooms[1]}，${readers.map(d => d.name).join('和')}先后读完`;
+  }
   return `${readers.map(d => d.name).join('和')}读完了${author.name}推荐的书摘`;
 }
 
@@ -203,8 +213,11 @@ function submitBookToPaper(chair, replacing) {
   const moment = {
     ids: people.map(d => d.pid), month: G.day,
     people: people.map(d => ({ name: d.name, look: { ...d.look } })),
-    steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => `${d.name}读完了这段书摘。`), '你收起了便条，把书摘留给了月报。'],
-    result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers)}，这段阅读被收进了月报。`, 77],
+    steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => {
+      const room = bookReadingRoom(note, d);
+      return `${d.name}${room ? '在' + room : ''}读完了这段书摘。`;
+    }), '你收起了便条，把书摘留给了月报。'],
+    result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;
   G.paperMoments = replacing ? previous.map(draft => draft === replacing ? moment : draft) : [...previous, moment];
@@ -287,6 +300,7 @@ function finishBookRecommendation(reader, chair) {
     const picked = pickedBookReader(note);
     if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
     readers.push(reader.pid);
+    note.readRooms = { ...note.readRooms, [reader.pid]: cornerRoom(chair) };
     if (readers.length === BOOK_PUBLIC_READERS && !note.keepForPaper) delete G.keepsakes.bookRecommendations[chair.key];
     reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN));
     say(reader, '这一段也值得推荐。');
