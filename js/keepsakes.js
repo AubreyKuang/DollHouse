@@ -134,6 +134,7 @@ const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
 const BOOK_FOLLOWUP_SOCIAL = 4;
+const BOOK_FOLLOWUP_LETTER_FUN = 4;
 const BOOK_MEET_MINUTES = 120;
 const BOOK_QUESTION = '这一段让你想起了什么？';
 const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
@@ -197,7 +198,7 @@ function bookPaperReaders(chair) {
 
 function bookFollowupReaders(chair) {
   const note = bookRecommendation(chair);
-  if (!note?.question || note.followup || publicBookReaders(note)?.length !== BOOK_PUBLIC_READERS) return [];
+  if (!note?.question || note.followup || note.followupLetter || publicBookReaders(note)?.length !== BOOK_PUBLIC_READERS) return [];
   return bookPaperReaders(chair);
 }
 
@@ -214,7 +215,7 @@ function bookFollowupDraft(note) {
 }
 
 function canDeferBookFollowup(note, draft) {
-  return !!draft && draft.month === G.day && !draft.deferred && !note.followup;
+  return !!draft && draft.month === G.day && !draft.deferred && !note.followup && note.followupLetter !== 'read';
 }
 
 function deferBookFollowup(chair, replacing) {
@@ -234,6 +235,49 @@ function deferBookFollowup(chair, replacing) {
 function bookFollowupLine(first, second, room) {
   const place = Object.hasOwn(readingRoomNames, room) ? readingRoomNames[room] + '的' : '';
   return `${first.name}和${second.name}在${place}窗边聊起了这句答复。`;
+}
+
+function leaveBookFollowupLetter(chair) {
+  const note = bookRecommendation(chair);
+  const [first, second] = bookFollowupReaders(chair);
+  if (!G.furniture.includes(chair) || !bookFollowupDraft(note) || !second || tensionBetween(first, second)) return false;
+  const notes = G.keepsakes.bookRecommendations;
+  const { meetUntil, ...letter } = note;
+  notes[chair.key] = { ...letter, followupLetter: 'waiting' };
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
+}
+
+function bookFollowupLetterLine(reader, writer, room) {
+  const place = Object.hasOwn(readingRoomNames, room) ? readingRoomNames[room] + '的' : '';
+  return `${reader.name}在${place}窗边读到了${writer.name}留下的回笺：「下次下雨，我们再一起坐一会儿吧。」`;
+}
+
+function readBookFollowupLetter(reader, chair, note) {
+  const [recipient, sender] = publicBookReaders(note);
+  const writer = communityDoll(sender);
+  if (reader.pid !== recipient || !writer || writer.guest || tensionBetween(reader, writer)) return false;
+  const draft = bookFollowupDraft(note), steps = draft?.steps;
+  const fun = reader.needs.fun, log = G.log.slice();
+  const room = cornerRoom(chair);
+  const line = bookFollowupLetterLine(reader, writer, room);
+  note.followupLetter = 'read';
+  note.followupLetterRoom = room;
+  if (draft) draft.steps = [...steps.slice(0, -1), line, steps.at(-1)];
+  reader.needs.fun = Math.min(100, fun + BOOK_FOLLOWUP_LETTER_FUN);
+  addLog(`📖 ${line}`);
+  if (!save()) {
+    note.followupLetter = 'waiting';
+    delete note.followupLetterRoom;
+    if (draft) draft.steps = steps;
+    reader.needs.fun = fun;
+    G.log = log;
+    HOOK.logged();
+    return false;
+  }
+  say(reader, '下次下雨，我也想再来窗边坐坐。');
+  return true;
 }
 
 function bookMeetingUntil(note) {
@@ -354,7 +398,7 @@ function submitBookToPaper(chair, replacing, includeConversation = true, nextIss
       !G.furniture.includes(chair) || bookPaperDraft(month) !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   if (bookFollowupDraft(note) || (keepForFollowup &&
-      (!includeConversation || !note.question || note.followup || readers.length !== BOOK_PUBLIC_READERS))) return false;
+      (!includeConversation || !note.question || note.followup || note.followupLetter || readers.length !== BOOK_PUBLIC_READERS))) return false;
   const author = communityDoll(note.from);
   const people = [author, ...readers];
   const previousKey = G.keepsakes.nextFurniture;
@@ -370,6 +414,8 @@ function submitBookToPaper(chair, replacing, includeConversation = true, nextIss
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
     ...(includeConversation && note.followup && readers.length === BOOK_PUBLIC_READERS
       ? [bookFollowupLine(readers[0], readers[1], note.followupRoom)] : []),
+    ...(includeConversation && note.followupLetter === 'read' && readers.length === BOOK_PUBLIC_READERS
+      ? [bookFollowupLetterLine(readers[0], readers[1], note.followupLetterRoom)] : []),
     paperKey ? '你先交了稿，把便条留在窗边。'
       : nextIssue ? '你收起了便条，把书摘留给了下一期月报。' : '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
@@ -453,6 +499,7 @@ function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (!note || reader.guest || !chair.readingNotes || !isWindowChair(chair)) return false;
   const readers = publicBookReaders(note);
+  if (readers && note.followupLetter === 'waiting') return readBookFollowupLetter(reader, chair, note);
   if (readers) {
     const picked = pickedBookReader(note);
     if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
@@ -507,6 +554,7 @@ function readingNeighbor(d, f) {
 function readingCornerBonus(d, f) {
   const note = f.readingNotes && isWindowChair(f) && bookRecommendation(f);
   const readers = publicBookReaders(note);
+  if (note?.followupLetter === 'waiting' && readers?.[0] === d.pid) return 24;
   if (readers && readers.length < BOOK_PUBLIC_READERS && canReadSharedBook(note, readers, d)) {
     const picked = pickedBookReader(note);
     if (!picked || picked === d) return 12;

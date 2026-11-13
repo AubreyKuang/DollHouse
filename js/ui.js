@@ -186,6 +186,7 @@ const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
 const bookFollowupButton = $('#bookFollowup');
 const bookMeetingButton = $('#bookMeeting');
+const bookFollowupLetterButton = $('#bookFollowupLetter');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -316,6 +317,15 @@ bookMeetingButton.onclick = () => {
   if (!chair || G.mode !== 'live' || !toggleBookMeeting(chair)) return;
   refreshReadingSeats();
 };
+bookFollowupLetterButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (leaveBookFollowupLetter(chair)) {
+    bookMoveStatus.textContent = '回笺已留在窗边。对方读完后会自动补稿。';
+    readingSeat.focus();
+  } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条照旧。';
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -398,7 +408,7 @@ function refreshReadingSeats() {
     : draft ? `替换${issue}书摘` : nextIssue ? '收起便条，交给下期月报' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
   bookPaperReadingOnlyButton.hidden = !hasConversation || !!followupDraft;
-  bookPaperFollowupButton.hidden = !hasConversation || recommendation.followup === true || !!followupDraft;
+  bookPaperFollowupButton.hidden = !hasConversation || recommendation.followup === true || !!recommendation.followupLetter || !!followupDraft;
   const followupAction = `${draft ? '换稿' : '投'}到${issue}，聊完自动补稿`;
   if (bookPaperFollowupButton.textContent !== followupAction) bookPaperFollowupButton.textContent = followupAction;
   const readingOnlyAction = nextIssue ? draft ? '只刊阅读经过并替换下期书摘' : '只刊阅读经过，投到下期'
@@ -411,7 +421,9 @@ function refreshReadingSeats() {
   bookQuestionButton.disabled = !firstReader;
   const questioning = recommendation?.question === true;
   const followupReaders = bookFollowupReaders(chair);
-  bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true;
+  bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true || !!recommendation.followupLetter;
+  bookFollowupLetterButton.hidden = !followupDraft || bookFollowupButton.hidden;
+  bookFollowupLetterButton.disabled = followupReaders.length !== BOOK_PUBLIC_READERS || tensionBetween(...followupReaders);
   bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
   const meetingUntil = bookMeetingUntil(recommendation);
   bookMeetingButton.hidden = bookFollowupButton.hidden;
@@ -424,7 +436,9 @@ function refreshReadingSeats() {
   const followupRoom = Object.hasOwn(readingRoomNames, recommendation?.followupRoom)
     ? readingRoomNames[recommendation.followupRoom] : '';
   const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
-      (recommendation.followup ? `两位读者已经${followupRoom ? '在' + followupRoom : ''}当面聊过。`
+      (recommendation.followupLetter === 'waiting' ? `等${communityDoll(publicReaders[0])?.name ?? '第一位读者'}在这里读完回笺。`
+        : recommendation.followupLetter === 'read' ? '第一位读者已经读完回笺。'
+        : recommendation.followup ? `两位读者已经${followupRoom ? '在' + followupRoom : ''}当面聊过。`
         : meetingUntil ? `约聊等到 ${meetingUntil >= G.day * 1440 ? '月底' : hhmm(meetingUntil)}。两人有空时会来这把椅子旁。`
         : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。也可约他们在 ${BOOK_MEET_MINUTES} 分钟内有空时来聊。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
@@ -481,7 +495,9 @@ function refreshReadingSeats() {
     return `${d.name}${room ? '在' + room : ''}读完`;
   }).join('，');
   const publicChoice = followupDraft
-    ? `已交给${monthLabel(followupDraft.month)}月报。${recommendation.followup ? '聊天经过已补进书摘。' : '若在出刊前聊完，会自动补进书摘。'}${deadline}${canDefer ? '可改投一次，腾出本期版位，并把便条留到下月底。' : ''}`
+    ? `已交给${monthLabel(followupDraft.month)}月报。${recommendation.followupLetter === 'read' ? '读回笺的经过已补进书摘。'
+      : recommendation.followupLetter === 'waiting' ? '出刊前读完回笺，会自动补进书摘。'
+      : recommendation.followup ? '聊天经过已补进书摘。' : `若在出刊前聊完，会自动补进书摘。也可改留回笺，取消约聊，收信人读完得 ${BOOK_FOLLOWUP_LETTER_FUN} 点乐趣。`}${deadline}${canDefer ? '可改投一次，腾出本期版位，并把便条留到下月底。' : ''}`
     : completed
     ? `两位读者的记录已留在便条上。本期${currentDraft ? '已有书摘' : '版位空着'}，下期${nextDraft ? '已有书摘' : '版位空着'}。空座时可${draft ? `替换${issue}原稿` : `交给${issue}月报`}。${hasConversation ? '只刊阅读经过会省略问答和当面聊天。' : ''}${deadline}`
     : publicReaders?.length

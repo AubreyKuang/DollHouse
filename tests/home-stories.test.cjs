@@ -732,6 +732,39 @@ test('an excerpt waiting for a conversation can defer once without losing its li
   assert.equal(bookRecommendation(chair),null);
 `));
 
+test('a follow-up letter waits for its reader and supplements the reserved issue once', () => game(`
+  const [author,first,second]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  const target=addFurniture('chair',11,4,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat,addFurniture('window',10,0),target];rebuild();
+  const note={from:author.pid,to:first.pid,until:G.day+1,readBy:[first.pid,second.pid],keepForPaper:true,question:true};
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.equal(leaveBookFollowupLetter(seat),false);
+  assert.ok(submitBookToPaper(seat,undefined,true,true,true));
+  assert.ok(toggleBookMeeting(seat));
+  const write=save;save=()=>false;
+  assert.equal(leaveBookFollowupLetter(seat),false);
+  assert.ok(bookMeetingUntil(bookRecommendation(seat)));
+  save=write;assert.ok(leaveBookFollowupLetter(seat));
+  assert.equal(bookMeetingUntil(bookRecommendation(seat)),null);
+  assert.equal(toggleBookMeeting(seat),false);
+  assert.ok(moveBookRecommendation(seat,target));load();
+  const chair=G.furniture.find(f=>f.key===target.key), reader=communityDoll(first.pid), writer=communityDoll(second.pid);
+  writer.state='away';reader.needs.fun=40;
+  assert.equal(finishBookRecommendation(communityDoll(author.pid),chair),false);
+  const draft=bookPaperDraft(G.day+1);
+  save=()=>false;assert.equal(finishBookRecommendation(reader,chair),false);
+  assert.deepEqual([draft.steps.length,reader.needs.fun,bookRecommendation(chair).followupLetter],[6,40,'waiting']);
+  save=write;assert.ok(finishBookRecommendation(reader,chair));
+  assert.equal(finishBookRecommendation(reader,chair),false);
+  assert.equal(talkAboutBook(chair),false);
+  assert.equal(reader.needs.fun,44);
+  assert.match(draft.steps[5],/读到了.*回笺/);
+  finishHouseMonth();G.day++;finishHouseMonth();
+  assert.deepEqual(G.paper.at(-1).stories.find(story=>story.label===BOOK_PAPER_LABEL).steps,draft.steps);
+  assert.equal(bookRecommendation(chair),null);
+`));
+
 test('a completed book can reserve next month without replacing this issue', () => game(`
   const [author,first,second]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
