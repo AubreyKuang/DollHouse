@@ -4,6 +4,10 @@ const PICNIC_PLANS = {
   postpone: '改天再野餐',
   umbrella: '撑伞继续',
 };
+const PICNIC_WINDOWS = {
+  morning: { label: '上午开场', start: 10 * 60, end: 14 * 60 },
+  afternoon: { label: '下午开场', start: 15 * 60, end: 19 * 60 },
+};
 
 function preparePicnic(event, rescheduled) {
   if (!rescheduled && G.weather !== 'rain' && seasonOf(G.day).id !== 'winter' && Math.random() < .28) {
@@ -26,7 +30,7 @@ function tickPicnicWeather(event) {
     const host = communityDoll(event.hostPid);
     const plan = ['genki', 'active'].includes(host?.persona) ? 'umbrella' :
       ['tidy', 'lazy'].includes(host?.persona) ? 'postpone' : 'inside';
-    if (!choosePicnicPlan(plan)) choosePicnicPlan('postpone');
+    if (!choosePicnicPlan(plan) && !choosePicnicPlan('postpone')) choosePicnicPlan('umbrella');
   }
   return true;
 }
@@ -48,9 +52,10 @@ function picnicQuietPair(event, host, guest) {
   event.quietTiles = [corner, { x: corner.x + 1, y: corner.y }];
 }
 
-function choosePicnicPlan(plan) {
+function choosePicnicPlan(plan, window) {
   const event = G.community.active;
   if (!event?.rainDeadline || !Object.hasOwn(PICNIC_PLANS, plan)) return false;
+  if (plan === 'postpone' && G.community.deferredPicnic) return false;
   const host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
   if (!host || !guest) return false;
   if (plan === 'inside') {
@@ -69,7 +74,8 @@ function choosePicnicPlan(plan) {
   HOOK.toast(`🧺 ${host.name}${result[plan]}`);
   if (plan === 'postpone') {
     event.postponed = true;
-    G.community.deferredPicnic = { hostPid: host.pid, guestPid: guest.pid, at: absNow() + 95 };
+    G.community.deferredPicnic = { hostPid: host.pid, guestPid: guest.pid, at: absNow() + 95,
+      ...(Object.hasOwn(PICNIC_WINDOWS, window) ? { window } : {}) };
     endGetTogether();
     return true;
   }
@@ -92,6 +98,12 @@ function resumePicnic() {
   if (!host || !friend || communityDoll(friend.pid)) { G.community.deferredPicnic = null; return false; }
   if (absNow() < pending.at || absNow() < G.community.nextEventAt || G.time < 10 * 60 || G.time >= 19 * 60 ||
       G.weather === 'rain' || G.weather === 'snow') return false;
+  const window = Object.hasOwn(PICNIC_WINDOWS, pending.window) && PICNIC_WINDOWS[pending.window];
+  if (window) {
+    const duration = GET_TOGETHERS.picnic.minutes, departure = leaveAbs(host);
+    if (G.time < window.start || G.time + duration > window.end ||
+        (departure != null && departure < absNow() + duration)) return false;
+  }
   if (!startGetTogether(host, 'picnic', { friend, rescheduled: true })) return false;
   G.community.deferredPicnic = null;
   addLog(`🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`);

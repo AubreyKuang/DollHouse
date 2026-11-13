@@ -601,6 +601,7 @@ body{
     </section>
     <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
       <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
+      <p class="hint">改期会保留同一位访客。天气放晴、主人有空，且能在所选时段内办完整场时才开场。</p>
       <div id="picnicPlans"></div>
     </section>
   </div>
@@ -615,6 +616,7 @@ body{
       <button id="btnNeighbor" class="btn ghost" aria-haspopup="dialog">🏡 隔壁麦麦家</button>
       <button id="btnKeepsakes" class="btn ghost" aria-haspopup="dialog">🧵 小屋手记</button>
       <p id="communityStatus" class="community-status" aria-live="polite" hidden></p>
+      <button id="cancelPicnic" class="btn small ghost" type="button" hidden>取消改期的野餐</button>
     </div>
     <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
     <div class="card log-card">
@@ -6047,6 +6049,10 @@ const PICNIC_PLANS = {
   postpone: '改天再野餐',
   umbrella: '撑伞继续',
 };
+const PICNIC_WINDOWS = {
+  morning: { label: '上午开场', start: 10 * 60, end: 14 * 60 },
+  afternoon: { label: '下午开场', start: 15 * 60, end: 19 * 60 },
+};
 
 function preparePicnic(event, rescheduled) {
   if (!rescheduled && G.weather !== 'rain' && seasonOf(G.day).id !== 'winter' && Math.random() < .28) {
@@ -6069,7 +6075,7 @@ function tickPicnicWeather(event) {
     const host = communityDoll(event.hostPid);
     const plan = ['genki', 'active'].includes(host?.persona) ? 'umbrella' :
       ['tidy', 'lazy'].includes(host?.persona) ? 'postpone' : 'inside';
-    if (!choosePicnicPlan(plan)) choosePicnicPlan('postpone');
+    if (!choosePicnicPlan(plan) && !choosePicnicPlan('postpone')) choosePicnicPlan('umbrella');
   }
   return true;
 }
@@ -6091,9 +6097,10 @@ function picnicQuietPair(event, host, guest) {
   event.quietTiles = [corner, { x: corner.x + 1, y: corner.y }];
 }
 
-function choosePicnicPlan(plan) {
+function choosePicnicPlan(plan, window) {
   const event = G.community.active;
   if (!event?.rainDeadline || !Object.hasOwn(PICNIC_PLANS, plan)) return false;
+  if (plan === 'postpone' && G.community.deferredPicnic) return false;
   const host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
   if (!host || !guest) return false;
   if (plan === 'inside') {
@@ -6112,7 +6119,8 @@ function choosePicnicPlan(plan) {
   HOOK.toast(`🧺 ${host.name}${result[plan]}`);
   if (plan === 'postpone') {
     event.postponed = true;
-    G.community.deferredPicnic = { hostPid: host.pid, guestPid: guest.pid, at: absNow() + 95 };
+    G.community.deferredPicnic = { hostPid: host.pid, guestPid: guest.pid, at: absNow() + 95,
+      ...(Object.hasOwn(PICNIC_WINDOWS, window) ? { window } : {}) };
     endGetTogether();
     return true;
   }
@@ -6135,6 +6143,12 @@ function resumePicnic() {
   if (!host || !friend || communityDoll(friend.pid)) { G.community.deferredPicnic = null; return false; }
   if (absNow() < pending.at || absNow() < G.community.nextEventAt || G.time < 10 * 60 || G.time >= 19 * 60 ||
       G.weather === 'rain' || G.weather === 'snow') return false;
+  const window = Object.hasOwn(PICNIC_WINDOWS, pending.window) && PICNIC_WINDOWS[pending.window];
+  if (window) {
+    const duration = GET_TOGETHERS.picnic.minutes, departure = leaveAbs(host);
+    if (G.time < window.start || G.time + duration > window.end ||
+        (departure != null && departure < absNow() + duration)) return false;
+  }
   if (!startGetTogether(host, 'picnic', { friend, rescheduled: true })) return false;
   G.community.deferredPicnic = null;
   addLog(`🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`);
@@ -9198,12 +9212,17 @@ function updateCommunityStatus() {
   const event = G.community.active;
   const status = $('#communityStatus');
   const pending = G.community.deferredPicnic;
+  $('#cancelPicnic').hidden = !pending;
   const outing = G.community.outing;
   status.hidden = !event && !pending && !outing;
   $('#picnicNotice').hidden = !event?.rainDeadline;
+  for (const button of $('#picnicPlans').querySelectorAll('[data-picnic-window]')) button.disabled = !!pending;
   if ($('#neighborDialog').open) updateNeighborDialog();
   if (!event) {
-    status.textContent = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}` : pending ? '🧺 野餐已改期，等天晴再开场' : '';
+    const window = Object.hasOwn(PICNIC_WINDOWS, pending?.window) && PICNIC_WINDOWS[pending.window];
+    const message = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}`
+      : pending ? `🧺 野餐已改期 · ${window ? window.label + ' · ' + hhmm(window.start) + '–' + hhmm(window.end) + ' · ' : ''}等天晴且主人有空` : '';
+    if (status.textContent !== message) status.textContent = message;
     return;
   }
   const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
@@ -9212,12 +9231,25 @@ function updateCommunityStatus() {
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
+$('#cancelPicnic').onclick = () => {
+  if (!G.community.deferredPicnic) return;
+  G.community.deferredPicnic = null;
+  updateCommunityStatus();
+  $('#btnNeighbor').focus();
+  save();
+  HOOK.toast('已取消改期的野餐。', true);
+};
 
-for (const [plan, label] of Object.entries(PICNIC_PLANS)) {
+for (const [plan, label, window] of [
+  ['inside', PICNIC_PLANS.inside], ['umbrella', PICNIC_PLANS.umbrella],
+  ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
+    ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
+]) {
   const button = el('button', 'btn small', label);
   button.type = 'button';
+  if (window) button.dataset.picnicWindow = window;
   button.onclick = () => {
-    if (!choosePicnicPlan(plan)) HOOK.toast('现在客厅没有足够的可达空位，可以换一个安排。', true);
+    if (!choosePicnicPlan(plan, window)) HOOK.toast('现在无法按这个办法继续，可以换一个安排。', true);
   };
   $('#picnicPlans').append(button);
 }

@@ -617,12 +617,17 @@ function updateCommunityStatus() {
   const event = G.community.active;
   const status = $('#communityStatus');
   const pending = G.community.deferredPicnic;
+  $('#cancelPicnic').hidden = !pending;
   const outing = G.community.outing;
   status.hidden = !event && !pending && !outing;
   $('#picnicNotice').hidden = !event?.rainDeadline;
+  for (const button of $('#picnicPlans').querySelectorAll('[data-picnic-window]')) button.disabled = !!pending;
   if ($('#neighborDialog').open) updateNeighborDialog();
   if (!event) {
-    status.textContent = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}` : pending ? '🧺 野餐已改期，等天晴再开场' : '';
+    const window = Object.hasOwn(PICNIC_WINDOWS, pending?.window) && PICNIC_WINDOWS[pending.window];
+    const message = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}`
+      : pending ? `🧺 野餐已改期 · ${window ? window.label + ' · ' + hhmm(window.start) + '–' + hhmm(window.end) + ' · ' : ''}等天晴且主人有空` : '';
+    if (status.textContent !== message) status.textContent = message;
     return;
   }
   const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
@@ -631,12 +636,25 @@ function updateCommunityStatus() {
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
+$('#cancelPicnic').onclick = () => {
+  if (!G.community.deferredPicnic) return;
+  G.community.deferredPicnic = null;
+  updateCommunityStatus();
+  $('#btnNeighbor').focus();
+  save();
+  HOOK.toast('已取消改期的野餐。', true);
+};
 
-for (const [plan, label] of Object.entries(PICNIC_PLANS)) {
+for (const [plan, label, window] of [
+  ['inside', PICNIC_PLANS.inside], ['umbrella', PICNIC_PLANS.umbrella],
+  ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
+    ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
+]) {
   const button = el('button', 'btn small', label);
   button.type = 'button';
+  if (window) button.dataset.picnicWindow = window;
   button.onclick = () => {
-    if (!choosePicnicPlan(plan)) HOOK.toast('现在客厅没有足够的可达空位，可以换一个安排。', true);
+    if (!choosePicnicPlan(plan, window)) HOOK.toast('现在无法按这个办法继续，可以换一个安排。', true);
   };
   $('#picnicPlans').append(button);
 }

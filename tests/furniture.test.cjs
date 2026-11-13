@@ -739,6 +739,38 @@ test('rain can reroute a quiet visitor upstairs, keep a picnic outdoors, or post
   `);
 });
 
+test('a postponed picnic keeps its selected time window and waits for the host to have time', () => runGame(`
+  load();
+  const host = residents()[0];
+  host.job = 'none';
+  G.time = 12 * 60;
+  G.weather = 'rain';
+  assert.ok(startGetTogether(host, 'picnic'));
+  communityTick();
+  const guest = G.community.active.guestPid;
+  assert.ok(choosePicnicPlan('postpone', 'afternoon'));
+  save();load();
+  finishGuestDeparture();
+  assert.equal(G.community.deferredPicnic.window, 'afternoon');
+  G.day++;
+  G.weather = 'sunny';
+  G.time = 10 * 60;
+  assert.equal(resumePicnic(), false);
+  G.time = 17 * 60;
+  assert.equal(resumePicnic(), false);
+  const before = leaveAbs;
+  leaveAbs = () => absNow() + 60;
+  G.time = 15 * 60;
+  assert.equal(resumePicnic(), false);
+  leaveAbs = before;
+  G.weather = 'rain';
+  assert.equal(resumePicnic(), false);
+  G.weather = 'sunny';
+  assert.ok(resumePicnic());
+  assert.equal(G.community.active.guestPid, guest);
+  assert.equal(G.community.deferredPicnic, null);
+`));
+
 test('dropping a resident on the piano assigns piano time instead of snapping back', () => {
   runGame(`
     load();
