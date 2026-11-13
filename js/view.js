@@ -26,7 +26,7 @@ function dollPose(d) {
   if (d.state === 'walk') return 'walk';
   if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
   if (d.state === 'act' && (['yoga', 'boxPractice'].includes(d.act?.type) || ROUTINES[d.act?.type]?.motion === 'stretch')) return 'dance';
-  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (['join', 'visitStay'].includes(d.act.type) && d.act.dance))) return 'dance';
+  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (['join', 'visitStay', 'homeTime'].includes(d.act.type) && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
 }
@@ -229,6 +229,7 @@ function drawHouseFurniture(c, f, t) {
     return;
   }
   drawFurnitureArt(c, f.id, x, y, f, t);
+  drawHomeTable(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 

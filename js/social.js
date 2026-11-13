@@ -324,7 +324,7 @@ function caught(L, cheater, third) {
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
 const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
-  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && !['visitStay', 'makeKeepsake', 'rainTea'].includes(x.act.type));
+  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && !['homeTime', 'visitStay', 'makeKeepsake', 'rainTea'].includes(x.act.type));
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {

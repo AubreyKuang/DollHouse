@@ -11,6 +11,7 @@ HOOK.toast = (msg, quiet) => {
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
+  if (inHomeTime(d)) return (d.state === 'walk' ? '去参加' : G.home.active?.phase === 'gather' ? '等大家来，准备' : '') + (HOME_TIMES[G.home.active?.kind]?.name || '小屋活动');
   if (d.act?.type === 'visitStay') {
     if (d.act.theme === 'quiet') return '在二楼书房聊天';
     if (d.act.theme === 'umbrella') return '撑着伞野餐';
@@ -198,6 +199,7 @@ $('#btnReset').onclick = () => {
   const s = defaultHouseSave(); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.paperMoments = G.paperMoments;
   s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
+  s.home = { ...G.home, active: null };
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
