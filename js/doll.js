@@ -10,6 +10,38 @@ const DOLL_PARTS = Object.fromEntries([
   'cap', 'bow', 'glasses', 'phones', 'cat', 'flower', 'crown',
 ].map((part, row) => [part, row]));
 const dollPalettes = new Map();
+const starterSprites = ['p-tao', 'p-lan', 'p-jing', 'p-tuan'].map(pid =>
+  DEFAULT_SAVE.dolls.find(doll => doll.pid === pid).look
+);
+const lookFields = Object.keys(starterSprites[0]);
+const starterSpriteRow = Object.keys(DOLL_PARTS).length;
+
+// The default outfits have a hand-painted front view. The last rows of the
+// atlas keep these portraits at the same scale and foot anchor as the parts.
+function drawStarterDoll(c, x, y, look, walking, frame) {
+  const index = starterSprites.findIndex(outfit => lookFields.every(key => outfit[key] === look[key]));
+  if (index === -1) return false;
+  const sx = index % 3 * DOLL_TILE;
+  const sy = (starterSpriteRow + Math.floor(index / 3)) * DOLL_TILE;
+  c.save();
+  c.imageSmoothingEnabled = true;
+  const bob = walking && frame % 2 ? .65 : 0;
+  const left = x - 12, top = y - 23.5 - bob;
+  const step = walking && frame % 2;
+  if (step) {
+    const cuff = 85;
+    c.drawImage(dollAtlas, sx, sy, 96, cuff, left, top, 24, cuff / 4);
+    for (const foot of [0, 1]) {
+      const shift = foot === (frame === 1 ? 0 : 1) ? -.8 : .4;
+      c.drawImage(dollAtlas, sx + foot * 48, sy + cuff, 48, 96 - cuff,
+        left + foot * 12, top + cuff / 4 + shift, 12, (96 - cuff) / 4);
+    }
+  } else {
+    c.drawImage(dollAtlas, sx, sy, 96, 96, left, top, 24, 24);
+  }
+  c.restore();
+  return true;
+}
 
 function dollArtReady() {
   return Boolean(dollAtlas?.complete && dollAtlas.naturalWidth);
@@ -65,11 +97,12 @@ function drawDoll(c, cx, by, look, options = {}) {
   const bob = walking && frame % 2 ? -1.5 : pose === 'dance' ? -1 : 0;
   const x = Math.round(cx), y = Math.round(by);
   if (!sleeping && !sitting && pose !== 'lift') contactShadow(c, x - 6, y - 1, 12);
+  if (dir === 'down' && (pose === 'stand' || walking) && drawStarterDoll(c, x, y - hop, look, walking, frame)) return;
 
   c.save();
   c.translate(x, y - hop);
   c.scale(dir === 'left' ? -.365 : .365, .365);
-  c.translate(-24, sleeping ? -38 : sitting ? -58 : -71);
+  c.translate(-24, sleeping ? -37 : sitting ? -55 : -65);
   c.imageSmoothingEnabled = true;
   const part = (id, px, py, color) => dollPart(c, id, direction, px, py, color);
 
@@ -80,20 +113,21 @@ function drawDoll(c, cx, by, look, options = {}) {
       const stride = walking && frame % 2 ? (i === 0 ? frame - 2 : 2 - frame) : 0;
       const lift = walking ? (frame === (i ? 3 : 1) ? -4 : 0) : pose === 'dance' && i === frame % 2 ? -4 : 0;
       const foot = offset + stride * 2 + (sitting && profile ? 4 : 0);
-      const legY = sitting ? 41 : 46;
-      part('hand', foot, legY - 15 + lift, short ? skin : bottom);
+      const legY = sitting ? 32 : 40;
+      part('hand', foot, legY - 17 + lift, short ? skin : bottom);
       part('shoe', foot, legY + lift, shoe);
     }
 
-    const bodyY = sitting ? 24 : 29 + bob;
-    if (topStyle !== 'dress' && topStyle !== 'overall' && bottomStyle !== 'skirt') part(bottomStyle, 0, bodyY + 7, bottom);
-    const arms = profile ? [-9] : [-12, 12];
+    const bodyY = sitting ? 20 : 25 + bob;
+    if (topStyle !== 'dress' && topStyle !== 'overall' && bottomStyle !== 'skirt') part(bottomStyle, 0, bodyY + 4, bottom);
+    const arms = profile ? [-8] : [-11, 11];
     const drawArm = (offset, index) => {
       const raised = pose === 'lift' || (pose === 'dance' && index === frame % 2);
       const swing = walking ? Math.sin(frame * Math.PI / 2) * (index ? -1 : 1) : 0;
       c.save();
       c.translate(24 + offset, bodyY + 14);
-      c.rotate(raised ? (offset < 0 ? 2.25 : -2.25) : swing * .24 + (sitting ? -.3 : 0));
+      c.rotate(raised ? (offset < 0 ? 1.9 : -1.9) : swing * .24 + (sitting ? -.3 : 0));
+      c.scale(.94, .79);
       part('hand', -24, -14, skin);
       part('arm', -24, -14, top);
       c.restore();
@@ -101,7 +135,7 @@ function drawDoll(c, cx, by, look, options = {}) {
     if (direction === 2) arms.forEach(drawArm);
     part(topStyle, 0, bodyY - (topStyle === 'dress' ? 4 : 0), top);
     if (topStyle === 'overall') {
-      part('pants', 0, bodyY + 5, bottom);
+      part('pants', 0, bodyY + 2, bottom);
       c.strokeStyle = bottom;
       c.lineWidth = 3.5;
       for (const a of [19, 29]) {
@@ -113,7 +147,7 @@ function drawDoll(c, cx, by, look, options = {}) {
         c.fillRect(a - 1, bodyY + 20, 2, 2);
       }
     }
-    if (topStyle !== 'dress' && topStyle !== 'overall' && bottomStyle === 'skirt') part('skirt', 0, bodyY + 6, bottom);
+    if (topStyle !== 'dress' && topStyle !== 'overall' && bottomStyle === 'skirt') part('skirt', 0, bodyY + 4, bottom);
     if (direction !== 2) arms.forEach(drawArm);
   }
 
