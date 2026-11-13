@@ -827,6 +827,34 @@ test('a postponed picnic keeps its selected time window and waits for the host t
   assert.equal(G.community.deferredPicnic, null);
 `));
 
+test('changing a deferred picnic to the first available slot keeps its original guests and timing', () => runGame(`
+  load();
+  const host=residents()[0];host.job='none';
+  G.time=720;G.weather='rain';
+  assert.ok(startGetTogether(host,'picnic'));communityTick();
+  const guest=G.community.active.guestPid;
+  assert.ok(choosePicnicPlan('postpone','afternoon'));
+  const at=G.community.deferredPicnic.at;
+  assert.ok(changePicnicWindow('flexible'));
+  load();finishGuestDeparture();
+  const pending=G.community.deferredPicnic;
+  const savedHost=communityDoll(host.pid);
+  assert.deepEqual([pending.hostPid,pending.guestPid,pending.at,pending.window],[host.pid,guest,at,'flexible']);
+  G.day++;G.time=600;G.weather='rain';
+  assert.equal(picnicWaitReason(pending,savedHost),'等雨雪停');
+  assert.equal(resumePicnic(),false);
+  G.weather='sunny';
+  const previous=leaveAbs;
+  leaveAbs=()=>absNow()+174;
+  assert.equal(picnicWaitReason(pending,savedHost),'等'+savedHost.name+'有空');
+  assert.equal(resumePicnic(),false);
+  leaveAbs=previous;
+  assert.equal(picnicWaitReason(pending,savedHost),'');
+  assert.ok(resumePicnic());
+  assert.equal(G.community.active.guestPid,guest);
+  assert.equal(G.community.deferredPicnic,null);
+`));
+
 test('dropping a resident on the piano assigns piano time instead of snapping back', () => {
   runGame(`
     load();

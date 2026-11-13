@@ -618,6 +618,11 @@ function updateCommunityStatus() {
   const status = $('#communityStatus');
   const pending = G.community.deferredPicnic;
   $('#cancelPicnic').hidden = !pending;
+  $('#picnicReschedule').hidden = !pending;
+  if (pending) {
+    const value = Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window) ? pending.window : '';
+    if ($('#picnicWindow').value !== value) $('#picnicWindow').value = value;
+  }
   const outing = G.community.outing;
   status.hidden = !event && !pending && !outing;
   $('#picnicNotice').hidden = !event?.rainDeadline;
@@ -630,9 +635,11 @@ function updateCommunityStatus() {
   for (const button of $('#picnicPlans').querySelectorAll('[data-picnic-window]')) button.disabled = !!pending;
   if ($('#neighborDialog').open) updateNeighborDialog();
   if (!event) {
-    const window = Object.hasOwn(PICNIC_WINDOWS, pending?.window) && PICNIC_WINDOWS[pending.window];
+    const window = Object.hasOwn(PICNIC_WINDOW_LABELS, pending?.window) ? PICNIC_WINDOW_LABELS[pending.window] : '原时段';
+    const host = pending && communityDoll(pending.hostPid);
+    const wait = host && picnicWaitReason(pending, host);
     const message = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}`
-      : pending ? `🧺 野餐已改期 · ${window ? window.label + ' · ' + hhmm(window.start) + '–' + hhmm(window.end) + ' · ' : ''}等天晴且主人有空` : '';
+      : pending ? `🧺 野餐已改期 · ${window} · ${wait || '等院子和通路就绪'}` : '';
     if (status.textContent !== message) status.textContent = message;
     return;
   }
@@ -642,6 +649,16 @@ function updateCommunityStatus() {
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
+const picnicWindowSelect = $('#picnicWindow');
+for (const [key, label] of [['', '原时段'], ...Object.entries(PICNIC_WINDOW_LABELS)]) {
+  const option = el('option', null, label);
+  option.value = key;
+  option.disabled = !key;
+  picnicWindowSelect.append(option);
+}
+picnicWindowSelect.onchange = () => {
+  if (!changePicnicWindow(picnicWindowSelect.value)) updateCommunityStatus();
+};
 $('#cancelPicnic').onclick = () => {
   if (!G.community.deferredPicnic) return;
   G.community.deferredPicnic = null;
@@ -655,6 +672,7 @@ for (const [plan, label, window] of [
   ['inside', PICNIC_PLANS.inside], ['study', PICNIC_PLANS.study], ['umbrella', PICNIC_PLANS.umbrella],
   ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
     ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
+  ['postpone', '天晴后第一个可用时段', 'flexible'],
 ]) {
   const button = el('button', 'btn small', label);
   button.type = 'button';
@@ -864,7 +882,11 @@ function loop(now) {
   // 月报曾因玩家正忙（拖小人、衣橱、别的弹窗）而挂起：等空闲了再弹出来
   if (G.paperPending && typeof playerBusy === 'function' && !playerBusy()) { G.paperPending = false; updateHousePaperButton(); showHousePaper(); }
   uiT += dt;
-  if (uiT > 0.25) { uiT = 0; updateClock(); refreshSceneHint(); tickInfo(); renderShopBar(); if ($('#neighborDialog').open) updateNeighborDialog(); }
+  if (uiT > 0.25) {
+    uiT = 0; updateClock(); refreshSceneHint(); tickInfo(); renderShopBar();
+    if (G.community.deferredPicnic || $('#cancelPicnic').hidden === false) updateCommunityStatus();
+    else if ($('#neighborDialog').open) updateNeighborDialog();
+  }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }
   requestAnimationFrame(loop);
 }
