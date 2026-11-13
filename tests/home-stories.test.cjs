@@ -143,6 +143,53 @@ test('a reader can decline once, move after a second greeting, or finish in a qu
   assert.equal(G.log.filter(e=>e.text.includes('聊了几句书')).length,1);
 `));
 
+test('study quiet protects reading without blocking access and preserves the setting across saves', () => game(`
+  const [reader,walker,...others] = residents();
+  for (const other of others) other.state = 'away';
+  const window = addFurniture('window', 9, UPPER_WALL), chair = addFurniture('chair', 10, 16);
+  const shelf = addFurniture('shelf', 12, 16);
+  G.furniture = [window,chair,shelf];
+  placeDollAt(reader,10,17);
+  rel(reader,walker).f=55;
+  reader.mbti='ENFP';
+  reader.needs.social=25;walker.needs.social=25;
+  G.keepsakes.corners[chair.key]={kind:'read',regulars:[reader.pid],visits:{}};
+  G.keepsakes.corners[shelf.key]={kind:'read',regulars:[walker.pid],visits:{}};
+  rebuild();
+  orderUse(reader,chair);arrive(reader);
+  assert.equal(reader.act?.type,'read');
+  assert.equal(G.studyQuiet,false);
+  placeDollAt(walker,8,17);
+  function pass(){
+    placeDollAt(walker,9,17);
+    walker.state='walk';walker.path=[{x:10,y:17},{x:11,y:17}];walker.act={type:'wander'};
+    for(let i=0;i<40&&walker.state==='walk';i++)updateDoll(walker,.1);
+  }
+  assert.equal(readingNeighbor(walker,shelf),reader);
+  G.studyQuiet=true;
+  assert.equal(readingNeighbor(walker,shelf),undefined);
+  walker.mbti='INTJ';walker.needs.social=88;
+  assert.equal(readingCornerBonus(walker,shelf),12);
+  walker.needs.social=25;
+  assert.equal(readingCornerBonus(walker,shelf),0);
+  assert.ok(findPath(7,UPPER_DOOR_Y,[{x:8,y:UPPER_DOOR_Y}]));
+  pass();
+  assert.equal(walker.tx,11);
+  assert.equal(reader.act.type,'read');
+  assert.equal(reader.needs.social,25);
+  assert.equal(G.keepsakes.readingGreetings,null);
+  G.studyQuiet=false;
+  pass();
+  assert.equal(reader.needs.social,31);
+  G.studyQuiet=true;
+  save();load();
+  assert.equal(G.studyQuiet,true);
+  const legacy=houseSaveData();
+  delete legacy.studyQuiet;
+  applySave(legacy);
+  assert.equal(G.studyQuiet,false);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

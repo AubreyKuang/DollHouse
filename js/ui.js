@@ -168,6 +168,13 @@ HOOK.select = () => {
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
 
+const studyQuietButton = $('#studyQuiet');
+studyQuietButton.onclick = () => {
+  G.studyQuiet = !G.studyQuiet;
+  refreshSceneHint();
+  save();
+};
+
 function refreshSceneHint() {
   const hint = $('#hint');
   const resident = G.dolls.find(d => d.uid === G.sel);
@@ -176,6 +183,14 @@ function refreshSceneHint() {
     : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
   if (hint.textContent !== text) hint.textContent = text;
   const strip = $('#residentQuick'), action = $('#quickFurniture');
+  const quietHint = $('#studyQuietHint');
+  studyQuietButton.hidden = G.mode !== 'live';
+  quietHint.hidden = studyQuietButton.hidden;
+  const quietState = String(G.studyQuiet);
+  if (studyQuietButton.getAttribute('aria-pressed') !== quietState) {
+    studyQuietButton.setAttribute('aria-pressed', quietState);
+    quietHint.textContent = G.studyQuiet ? '路过的人不打扰，也不结伴读。' : '书房开放，熟人可以路过搭话或结伴阅读。';
+  }
   if (!strip || !action) return;
   strip.hidden = G.mode !== 'live';
   for (const button of strip.children) {

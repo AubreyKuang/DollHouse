@@ -7,6 +7,7 @@ const UPPER_DOOR_Y = 16;
 const BATH_X = 4;
 const BATH_DOOR_Y = 17;
 G.bedDoor = true;
+G.studyQuiet = false;
 
 const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
@@ -100,6 +101,14 @@ function partitionDrawables(c) {
   if (G.bathroom) {
     const bx = HOUSE_X + BATH_X * T, by = houseY(BATH_DOOR_Y * T, STOREYS[1]);
     drawables.push({ y: by + FLOOR_STEP, draw: () => R(c, bx - 5, by + 2, 10, 2, '#ddcfaf') });
+  }
+  if (G.studyQuiet) {
+    const x = HOUSE_X + BX * T, y = houseY(UPPER_DOOR_Y * T, STOREYS[1]);
+    drawables.push({ y: y + FLOOR_STEP, draw: () => {
+      R(c, x - 5, y - 11, 10, 7, '#665851');
+      R(c, x - 4, y - 10, 8, 5, '#f7d390');
+      R(c, x - 2, y - 8, 4, 1, '#665851');
+    } });
   }
   return drawables;
 }
