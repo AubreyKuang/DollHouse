@@ -139,9 +139,9 @@ function bookPaperReader(chair) {
     ? communityDoll(readers[0]) : null;
 }
 
-function submitBookToPaper(chair) {
+function submitBookToPaper(chair, replacing) {
   const reader = bookPaperReader(chair);
-  if (!reader || bookPaperSubmitted()) return false;
+  if (!reader || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   const author = communityDoll(note.from);
   const moment = {
@@ -151,7 +151,7 @@ function submitBookToPaper(chair) {
     result: [BOOK_PAPER_LABEL, '📖', `${reader.name}读完了${author.name}推荐的书摘，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;
-  G.paperMoments = [...previous, moment];
+  G.paperMoments = replacing ? previous.map(draft => draft === replacing ? moment : draft) : [...previous, moment];
   delete notes[chair.key];
   if (save()) return true;
   notes[chair.key] = note;

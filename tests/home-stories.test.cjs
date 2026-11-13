@@ -447,16 +447,27 @@ test('a partially shared book can reserve a monthly paper slot instead of a seco
   const write=save;
   save=()=>false;
   assert.equal(submitBookToPaper(seat),false);
-  assert.equal(bookPaperSubmitted(),false);
+  assert.equal(bookPaperDraft(),undefined);
   assert.equal(bookRecommendation(seat).readBy.length,1);
   save=write;
   assert.ok(submitBookToPaper(seat));
   assert.equal(finishBookRecommendation(other,seat),false);
   load();
-  assert.equal(bookPaperSubmitted(),true);
+  const draft=bookPaperDraft();
+  assert.ok(draft);
   const chair=G.furniture.find(f=>f.key===seat.key);
-  G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:reader.pid,until:G.day+1,readBy:[reader.pid]};
+  const replacement={from:author.pid,to:other.pid,until:G.day+1,readBy:[other.pid]};
+  G.keepsakes.bookRecommendations[seat.key]=replacement;
   assert.equal(submitBookToPaper(chair),false);
+  assert.equal(submitBookToPaper(chair,{...draft}),false);
+  save=()=>false;
+  assert.equal(submitBookToPaper(chair,draft),false);
+  assert.equal(bookPaperDraft(),draft);
+  assert.equal(bookRecommendation(chair),replacement);
+  save=write;
+  assert.ok(submitBookToPaper(chair,draft));
+  load();
+  assert.equal(G.paperMoments.filter(moment=>moment.result?.[0]==='窗边书摘').length,1);
   for(let i=0;i<30;i++)recordPaperMeeting(communityDoll(author.pid),communityDoll(reader.pid),'chat','together');
   addLog('甲和乙分手了');addLog('甲陪乙过了生日');addLog('甲慢慢练出了新本领');
   finishHouseMonth();
@@ -464,7 +475,7 @@ test('a partially shared book can reserve a monthly paper slot instead of a seco
   assert.equal(issue.stories.length,3);
   const story=issue.stories.find(story=>story.label==='窗边书摘');
   assert.equal(story.steps.length,3);
-  assert.deepEqual(story.people.map(d=>d.name),[author.name,reader.name]);
+  assert.deepEqual(story.people.map(d=>d.name),[author.name,other.name]);
 `));
 
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`

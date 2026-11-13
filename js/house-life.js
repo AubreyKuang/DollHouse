@@ -72,8 +72,8 @@ const PAPER_EVENTS = [
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
 ];
 const BOOK_PAPER_LABEL = '窗边书摘';
-function bookPaperSubmitted() {
-  return G.paperMoments.some(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
+function bookPaperDraft() {
+  return G.paperMoments.find(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
 }
 
 function paperLogStory(text) {

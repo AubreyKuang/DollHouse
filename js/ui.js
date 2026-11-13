@@ -222,8 +222,16 @@ bookPublicButton.onclick = () => {
 };
 bookPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
-  if (!chair || G.mode !== 'live' || !submitBookToPaper(chair)) return;
-  bookMoveStatus.textContent = '书摘已交给本期月报，窗边的便条已收起。';
+  if (!chair || G.mode !== 'live') return;
+  const reader = bookPaperReader(chair);
+  if (!reader) return;
+  const draft = bookPaperDraft();
+  if (draft) {
+    const author = communityDoll(bookRecommendation(chair).from);
+    if (!confirm(`原稿：${draft.result[2]}\n新稿：${reader.name}读完了${author.name}推荐的书摘。\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
+  }
+  if (!submitBookToPaper(chair, draft)) return;
+  bookMoveStatus.textContent = draft ? '本期月报已换稿，新便条已收起。' : '书摘已交给本期月报，窗边的便条已收起。';
   refreshReadingSeats();
   readingSeat.focus();
 };
@@ -278,8 +286,10 @@ function refreshReadingSeats() {
   bookPublicButton.hidden = !recommendation || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
   bookPaperButton.hidden = !publicReaders?.length;
-  const submitted = bookPaperSubmitted();
-  bookPaperButton.disabled = submitted || !bookPaperReader(chair);
+  const draft = bookPaperDraft();
+  const paperAction = draft ? '替换本期书摘' : '收起便条，交给月报';
+  if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
+  bookPaperButton.disabled = !bookPaperReader(chair);
   const sharing = String(!!publicReaders);
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
@@ -297,7 +307,7 @@ function refreshReadingSeats() {
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
   const hint = publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? (submitted ? '本期月报已有书摘，可以继续传阅。' : '可继续传阅，也可在空座时收起便条，交给本期月报。') : '座位空闲时可改回私下荐书。'}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? (draft ? '可继续传阅，也可在空座时用这篇替换月报原稿。' : '可继续传阅，也可在空座时收起便条，交给本期月报。') : '座位空闲时可改回私下荐书。'}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 
