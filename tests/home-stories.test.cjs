@@ -583,6 +583,15 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.ok(save());load();
   const chair=G.furniture.find(f=>f.key===destination.key);
   assert.equal(bookPaperReaders(chair).length,2);
+  const a=communityDoll(first.pid),b=communityDoll(second.pid);
+  for(const d of [a,b])Object.assign(d,{state:'idle',job:'none',needs:{energy:80,hunger:80,bladder:80,social:40,fun:50}});
+  placeDollAt(a,chair.x,chair.y+1);placeDollAt(b,chair.x+1,chair.y+1);
+  b.state='away';assert.equal(talkAboutBook(chair),false);b.state='idle';
+  const log=JSON.stringify(G.log);
+  save=()=>false;assert.equal(talkAboutBook(chair),false);
+  assert.deepEqual([a.needs.social,b.needs.social,bookRecommendation(chair).followup,JSON.stringify(G.log)],[40,40,undefined,log]);
+  save=write;assert.ok(talkAboutBook(chair));assert.equal(talkAboutBook(chair),false);
+  assert.deepEqual([a.needs.social,b.needs.social],[44,44]);
   assert.equal(submitBookToPaper(chair),false);
   const draft=bookPaperDraft();
   assert.ok(submitBookToPaper(chair,draft));
@@ -591,12 +600,13 @@ test('a kept book records both readers and can replace a draft after reload', ()
   const excerpts=G.paper.at(-1).stories.filter(story=>story.label===BOOK_PAPER_LABEL);
   assert.equal(excerpts.length,1);
   assert.deepEqual(excerpts[0].people.map(d=>d.name),[author.name,first.name,second.name]);
-  assert.equal(excerpts[0].steps.length,6);
+  assert.equal(excerpts[0].steps.length,7);
   assert.match(excerpts[0].text,/从书房传到/);
   assert.equal(excerpts[0].steps[1],first.name+'在书房读完了这段书摘。');
   assert.equal(excerpts[0].steps[2],second.name+'在'+readingRoomNames[cornerRoom(chair)]+'读完了这段书摘。');
   assert.match(excerpts[0].steps[3],/让你想起了什么/);
   assert.match(excerpts[0].steps[4],/下雨时/);
+  assert.match(excerpts[0].steps[5],/在窗边聊起/);
 `));
 
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`

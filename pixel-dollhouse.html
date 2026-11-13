@@ -620,6 +620,7 @@ body{
         <button type="button" class="btn small" id="bookQuestion" aria-pressed="false"
           aria-describedby="bookQuestionHint" hidden>给下一位留个问题</button>
         <span class="hint" id="bookQuestionHint" hidden></span>
+        <button type="button" class="btn small" id="bookFollowup" aria-describedby="bookQuestionHint" hidden>让两位读者当面聊</button>
         <button type="button" class="btn small" id="bookReply" aria-describedby="readingSeatHint" hidden>回信给推荐人</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
         <div id="bookReaderControls" hidden>
@@ -7012,6 +7013,7 @@ const BOOK_PUBLIC_FUN = 4;
 const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
+const BOOK_FOLLOWUP_SOCIAL = 4;
 const BOOK_QUESTION = '这一段让你想起了什么？';
 const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
 function publicBookReaders(note) {
@@ -7072,6 +7074,40 @@ function bookPaperReaders(chair) {
   return readers.map(communityDoll).filter(d => d && !d.guest);
 }
 
+function bookFollowupReaders(chair) {
+  const note = bookRecommendation(chair);
+  if (!note?.question || note.followup || publicBookReaders(note)?.length !== BOOK_PUBLIC_READERS) return [];
+  return bookPaperReaders(chair);
+}
+
+function canTalkAboutBook(chair, readers) {
+  const [first, second] = readers;
+  return readers.length === BOOK_PUBLIC_READERS && !quietStudy(chair) &&
+    canDiscussReading(first, second, chair) && canDiscussReading(second, first, chair) &&
+    readers.every(hasTimeToDiscussReading) && !tensionBetween(first, second);
+}
+
+function talkAboutBook(chair) {
+  if (!G.furniture.includes(chair)) return false;
+  const readers = bookFollowupReaders(chair);
+  if (!canTalkAboutBook(chair, readers)) return false;
+  const [first, second] = readers, note = bookRecommendation(chair);
+  const social = readers.map(d => d.needs.social), log = G.log.slice();
+  note.followup = true;
+  for (const d of readers) d.needs.social = Math.min(100, d.needs.social + BOOK_FOLLOWUP_SOCIAL);
+  addLog(`📖 ${first.name}和${second.name}在窗边聊起了便条上的答复。`);
+  if (!save()) {
+    delete note.followup;
+    readers.forEach((d, i) => { d.needs.social = social[i]; });
+    G.log = log;
+    HOOK.logged();
+    return false;
+  }
+  say(first, '原来你也想到了窗边的雨。');
+  say(second, '下次下雨，再一起坐一会儿吧。');
+  return true;
+}
+
 function replyToBookRecommendation(chair) {
   const reader = firstPublicBookReader(chair);
   if (!reader || !G.furniture.includes(chair)) return false;
@@ -7109,6 +7145,8 @@ function submitBookToPaper(chair, replacing) {
       return `${d.name}${room ? '在' + room : ''}读完了这段书摘。`;
     }), ...(note.question && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
+    ...(note.followup && readers.length === BOOK_PUBLIC_READERS
+      ? [`${readers[0].name}和${readers[1].name}在窗边聊起了这句答复。`] : []),
     '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
@@ -9331,6 +9369,7 @@ const bookPaperButton = $('#bookPaper');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
+const bookFollowupButton = $('#bookFollowup');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -9418,6 +9457,15 @@ bookQuestionButton.onclick = () => {
   else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条照旧。';
   refreshReadingSeats();
 };
+bookFollowupButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (talkAboutBook(chair)) {
+    bookMoveStatus.textContent = '两位读者已经聊过这句答复。';
+    readingSeat.focus();
+  } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，可以稍后再聊。';
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -9490,9 +9538,14 @@ function refreshReadingSeats() {
   bookQuestionButton.hidden = publicReaders?.length !== 1;
   bookQuestionButton.disabled = !firstReader;
   const questioning = recommendation?.question === true;
+  const followupReaders = bookFollowupReaders(chair);
+  bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true;
+  bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
   if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
   bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
-  const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」`
+  const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
+      (recommendation.followup ? '两位读者已经当面聊过。'
+        : `可先交稿，也可等两位读者在窗边有空时聊一聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
   if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);

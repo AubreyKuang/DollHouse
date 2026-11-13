@@ -133,6 +133,7 @@ const BOOK_PUBLIC_FUN = 4;
 const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
+const BOOK_FOLLOWUP_SOCIAL = 4;
 const BOOK_QUESTION = '这一段让你想起了什么？';
 const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
 function publicBookReaders(note) {
@@ -193,6 +194,40 @@ function bookPaperReaders(chair) {
   return readers.map(communityDoll).filter(d => d && !d.guest);
 }
 
+function bookFollowupReaders(chair) {
+  const note = bookRecommendation(chair);
+  if (!note?.question || note.followup || publicBookReaders(note)?.length !== BOOK_PUBLIC_READERS) return [];
+  return bookPaperReaders(chair);
+}
+
+function canTalkAboutBook(chair, readers) {
+  const [first, second] = readers;
+  return readers.length === BOOK_PUBLIC_READERS && !quietStudy(chair) &&
+    canDiscussReading(first, second, chair) && canDiscussReading(second, first, chair) &&
+    readers.every(hasTimeToDiscussReading) && !tensionBetween(first, second);
+}
+
+function talkAboutBook(chair) {
+  if (!G.furniture.includes(chair)) return false;
+  const readers = bookFollowupReaders(chair);
+  if (!canTalkAboutBook(chair, readers)) return false;
+  const [first, second] = readers, note = bookRecommendation(chair);
+  const social = readers.map(d => d.needs.social), log = G.log.slice();
+  note.followup = true;
+  for (const d of readers) d.needs.social = Math.min(100, d.needs.social + BOOK_FOLLOWUP_SOCIAL);
+  addLog(`📖 ${first.name}和${second.name}在窗边聊起了便条上的答复。`);
+  if (!save()) {
+    delete note.followup;
+    readers.forEach((d, i) => { d.needs.social = social[i]; });
+    G.log = log;
+    HOOK.logged();
+    return false;
+  }
+  say(first, '原来你也想到了窗边的雨。');
+  say(second, '下次下雨，再一起坐一会儿吧。');
+  return true;
+}
+
 function replyToBookRecommendation(chair) {
   const reader = firstPublicBookReader(chair);
   if (!reader || !G.furniture.includes(chair)) return false;
@@ -230,6 +265,8 @@ function submitBookToPaper(chair, replacing) {
       return `${d.name}${room ? '在' + room : ''}读完了这段书摘。`;
     }), ...(note.question && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
+    ...(note.followup && readers.length === BOOK_PUBLIC_READERS
+      ? [`${readers[0].name}和${readers[1].name}在窗边聊起了这句答复。`] : []),
     '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };

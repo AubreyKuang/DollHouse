@@ -180,6 +180,7 @@ const bookPaperButton = $('#bookPaper');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
+const bookFollowupButton = $('#bookFollowup');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -267,6 +268,15 @@ bookQuestionButton.onclick = () => {
   else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条照旧。';
   refreshReadingSeats();
 };
+bookFollowupButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (talkAboutBook(chair)) {
+    bookMoveStatus.textContent = '两位读者已经聊过这句答复。';
+    readingSeat.focus();
+  } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，可以稍后再聊。';
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -339,9 +349,14 @@ function refreshReadingSeats() {
   bookQuestionButton.hidden = publicReaders?.length !== 1;
   bookQuestionButton.disabled = !firstReader;
   const questioning = recommendation?.question === true;
+  const followupReaders = bookFollowupReaders(chair);
+  bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true;
+  bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
   if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
   bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
-  const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」`
+  const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
+      (recommendation.followup ? '两位读者已经当面聊过。'
+        : `可先交稿，也可等两位读者在窗边有空时聊一聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
   if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);
