@@ -459,13 +459,7 @@ function startAct(d, o) {
   }
   const f = o.furn, F = FURNITURE[f.id];
   if (furnitureInUse(f)) return false;
-  const distinct = F.cap > 1;
-  const tiles = approachTiles(f).filter(tile=>!distinct || !f.users.some(user=>{
-    const destination=user.path.at(-1)||user;
-    return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
-  }));
-  const here = tiles.find(t => t.x === d.tx && t.y === d.ty);
-  const path = here ? [] : findPath(d.tx, d.ty, tiles);
+  const path = o.path ?? furniturePath(d, f);
   if (!path) return false;
   f.users.push(d);
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
@@ -674,20 +668,39 @@ function furnitureOrderBlock(d, f) {
   if (!spec.use) return `「${spec.name}」是摆设，不能安排活动`;
   if (d.state === 'away') return `${d.name} 还没回家`;
   if (d.state === 'lift') return `先放下 ${d.name}`;
+  if (inHomeTime(d) || CARE_ACTIONS.includes(d.act?.type) || d.act?.type === 'leave') {
+    return `${d.name}正在忙，等这件事做完再安排吧`;
+  }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }
 
+function furniturePath(d, f, x = d.tx, y = d.ty) {
+  const distinct = FURNITURE[f.id].cap > 1;
+  const tiles = approachTiles(f).filter(tile => !distinct || !f.users.some(user => {
+    if (user === d) return false;
+    const destination = user.path.at(-1) || user;
+    return tile.x === (destination.tx ?? destination.x) && tile.y === (destination.ty ?? destination.y);
+  }));
+  return tiles.some(tile => tile.x === x && tile.y === y) ? [] : findPath(x, y, tiles);
+}
+
 // 选中的小人被点到的家具上去
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
-  const blocked = furnitureOrderBlock(d, f);
+  let blocked = furnitureOrderBlock(d, f);
+  const path = blocked ? null : d.act?.onFurn ? furniturePath(d, f, d.act.back.x, d.act.back.y) : furniturePath(d, f);
+  if (!blocked && !path) blocked = `从这里走不到「${F.name}」旁边，试试别件家具`;
   if (blocked) { HOOK.toast(blocked, true); SFX.play('deny'); return false; }
   if (d.act) endAct(d);
   const meal = savedMealFor(d, f);
   if (meal && beginCareAction(d, meal, 'savedMeal')) return true;
-  if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); HOOK.toast(`从这里走不到「${F.name}」旁边`, true); SFX.play('deny'); return false; }
+  if (!startAct(d, { type: F.use, furn: f, path })) {
+    HOOK.toast(`「${F.name}」现在无法使用，试试别件家具`, true);
+    SFX.play('deny');
+    return false;
+  }
   say(d, '好的～', 1.2);
   return true;
 }

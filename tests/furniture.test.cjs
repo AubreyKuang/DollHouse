@@ -236,6 +236,27 @@ test('clicking occupied furniture leaves the selected resident’s activity inta
   `, { withView: true });
 });
 
+test('an unreachable furniture order keeps the resident’s previous activity', () => {
+  runGame(`
+    load();
+    const resident = G.dolls[0];
+    placeDollAt(resident, 10, 7);
+    const table = G.furniture.find(f => f.id === 'table');
+    const piano = G.furniture.find(f => f.id === 'piano');
+    assert.ok(orderUse(resident, table));
+    const original = resident.act;
+    const originalApproach = approachTiles;
+    approachTiles = f => f === piano ? [] : originalApproach(f);
+    let message;
+    HOOK.toast = text => { message = text; };
+
+    assert.equal(orderUse(resident, piano), false);
+    assert.match(message, /走不到.*钢琴/);
+    assert.equal(resident.act, original);
+    assert.ok(table.users.includes(resident));
+  `);
+});
+
 test('an urgent resident uses the toilet and the new need survives save and reload', () => {
   runGame(`
     load();

@@ -243,6 +243,35 @@ test('home controls render real portraits, launch a selected gathering, and expo
   $('#btnSaveHome').onclick();assert.match($('#saveState').textContent,/4 位住户/);
 `, undefined, true));
 
+test('deferring a wish lets another resident speak and survives a reload', () => game(`
+  const [a,b,c,d] = residents();
+  $('#btnHome').onclick();
+  $('#homeWishes').children[0].children[1].children.at(-1).onclick();
+  assert.equal(homeWishLine(a),null);
+  assert.ok(homeWishLine(b) && homeWishLine(c));
+  G.home=restoreHomeStories(JSON.parse(JSON.stringify(G.home)));
+  ensureHomeWishes();
+  assert.equal(homeWishLine(a),null);
+  renderHomeWishes();
+  $('#homeWishes').children[0].children[1].children.at(-1).onclick();
+  assert.ok(homeWishLine(c) && homeWishLine(d));
+  G.day++;
+  ensureHomeWishes();
+  assert.equal(G.home.wishes.some(w=>w.deferred),false);
+`, undefined, true));
+
+test('two-person gatherings build more trust for the same pair than group gatherings', () => game(`
+  const all=residents(), [a,b]=all;
+  assert.equal(startHomeTime('stories',all.map(d=>d.pid)),null);
+  advanceHome(80);
+  const groupTrust=trustOf(a,b);
+  assert.ok(groupTrust>0);
+  assert.equal(startHomeTime('stories',[a.pid,b.pid]),null);
+  advanceHome(80);
+  assert.equal(trustOf(a,b)-groupTrust,2);
+  assert.ok(groupTrust<2);
+`));
+
 test('all three activities finish with personality lines and no unexpected costs', () => game(`
   for (const kind of ['stories','music']) {
     const pair=residents().slice(0,2);

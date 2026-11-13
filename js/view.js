@@ -311,7 +311,11 @@ function drawFurnitureTargets(c, resident) {
 
 function furnitureOrderHint(resident, furniture) {
   if (resident.state === 'away') return `${resident.name} 还没回家`;
-  if (resident.state === 'lift' || !furniture) return `已选 ${resident.name} · 点带金色标记的家具安排活动`;
+  if (resident.state === 'lift') return `把 ${resident.name} 放到家具旁或空地上`;
+  if (inHomeTime(resident) || CARE_ACTIONS.includes(resident.act?.type) || resident.act?.type === 'leave') {
+    return `已选 ${resident.name} · ${doingText(resident)}，等这件事做完再安排吧`;
+  }
+  if (!furniture) return `已选 ${resident.name} · ${doingText(resident)} · 点带金色标记的家具安排活动`;
   if (furniture.piece) return `查看「${FURNITURE[furniture.id].name}」的来历`;
   const blocked = furnitureOrderBlock(resident, furniture);
   if (blocked) return blocked;
@@ -440,7 +444,7 @@ function playerBusy() {
 }
 
 // 把拎着的小人放到一件家具上：先站到家具旁边的空位，再让 TA 去用
-// 成功返回 null；失败返回原因，小人会回到原处，不会悄悄弹回去
+// 成功返回 null；orderUse 已显示失败原因时返回空字符串。
 function dropOnFurniture(d, f) {
   const F = FURNITURE[f.id];
   if (d.guest && F.use === 'sleep') return '访客不在这里睡觉哦';
@@ -450,7 +454,7 @@ function dropOnFurniture(d, f) {
   const ox = d.tx, oy = d.ty;
   placeDollAt(d, spot.x, spot.y);
   d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null;
-  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return '过不去呀…'; }
+  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return ''; }
   return null;
 }
 
@@ -558,7 +562,7 @@ cv.addEventListener('pointerup', e => {
       HOOK.toast(invite.reason, true);
     } else if (furn && FURNITURE[furn.id].use) {
       const reason = dropOnFurniture(d, furn);
-      if (reason) { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast(reason, true); }
+      if (reason !== null) { placeDollAt(d, d.tx, d.ty); settle(); if (reason) HOOK.toast(reason, true); }
       else { SFX.play('drop'); HOOK.toast(`✅ ${d.name}去${ACT_NAMES[FURNITURE[furn.id].use] || FURNITURE[furn.id].name}`, true); }
     } else if (furn) {
       placeDollAt(d, d.tx, d.ty);
@@ -578,7 +582,7 @@ cv.addEventListener('pointerup', e => {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd && orderUse(sd, press.furn)) {
       const note = savedMealNote(press.furn);
-      HOOK.toast(note || `✓ ${sd.name}要去${furnitureAction(sd, press.furn)}`, true);
+      HOOK.toast(note || `已安排 ${sd.name}去${furnitureAction(sd, press.furn)} · ${FURNITURE[press.furn.id].name}`, true);
     }
   } else if (press.furn) {
     const note = savedMealNote(press.furn);

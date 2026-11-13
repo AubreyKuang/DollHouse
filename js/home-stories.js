@@ -58,7 +58,7 @@ const HOME_LINES = {
 };
 
 function restoreHomeStories(saved) {
-  return { wishes: Array.isArray(saved?.wishes) ? saved.wishes.slice(-8) : [],
+  return { wishes: Array.isArray(saved?.wishes) ? saved.wishes.slice(-16) : [],
     album: Array.isArray(saved?.album) ? saved.album.slice(-120) : [],
     next: Math.max(1, Number(saved?.next) || 1), lastWishMonth: saved?.lastWishMonth || 0,
     active: saved?.active && Object.hasOwn(HOME_TIMES, saved.active.kind)
@@ -94,15 +94,19 @@ function ensureHomeWishes() {
   home.wishes = home.wishes.filter(w => residents().some(d => d.pid === w.pid));
   if (home.lastWishMonth === G.day) return;
   home.lastWishMonth = G.day;
-  home.wishes = home.wishes.filter(w => !w.done || w.done >= G.day - 2);
+  home.wishes = home.wishes.filter(w => (!w.done || w.done >= G.day - 2) && !w.deferred);
+  fillHomeWishes();
+}
+function fillHomeWishes() {
+  const home = G.home;
   const candidates = residents().filter(d => !home.wishes.some(w => w.pid === d.pid));
-  for (const d of candidates.slice(0, Math.max(0, 2 - home.wishes.filter(w => !w.done).length))) {
+  for (const d of candidates.slice(0, Math.max(0, 2 - home.wishes.filter(w => !w.done && !w.deferred).length))) {
     const [kind, text] = HOME_WISHES[d.persona] || HOME_WISHES.genki;
     home.wishes.push({ pid: d.pid, kind, text, since: G.day, done: 0 });
   }
 }
 function homeWishLine(d) {
-  return G.home?.wishes.find(w => w.pid === d.pid && !w.done)?.text || null;
+  return G.home?.wishes.find(w => w.pid === d.pid && !w.done && !w.deferred)?.text || null;
 }
 const inHomeTime = d => d?.act?.type === 'homeTime';
 const homeFurnitureReserved = f => G.home?.active?.anchor === f.key;
@@ -227,12 +231,15 @@ function finishHomeTime(active, group) {
     d.happy = 3;
     const companion = group.find(o => o !== d);
     perceptions.push({ person: d.pid, subject: companion.pid, emotion: .75, impact: 75, interpretation: text });
-    const wish = G.home.wishes.find(w => !w.done && w.pid === d.pid && w.kind === active.kind);
+    const wish = G.home.wishes.find(w => !w.done && !w.deferred && w.pid === d.pid && w.kind === active.kind);
     if (wish) { wish.done = G.day; say(d, '这就是我一直想和你们做的事。', 4); }
     else say(d, active.kind === 'supper' ? '吃饱了，心里也暖暖的。' : '这一小段时间，我会记得的。', 4);
   }
+  // Each resident's attention is shared across the other participants.
+  const companions = group.length - 1;
   for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
-    bump(group[i], other, 4); addTrust(group[i], other, 2); addTrust(other, group[i], 2);
+    bump(group[i], other, 4 / companions);
+    addTrust(group[i], other, 2 / companions); addTrust(other, group[i], 2 / companions);
     if (active.kind === 'supper') countTogether('meal', group[i], other);
   }
   NPCMemory.record(G, { type: 'home-time', time: absNow(), participants: group.map(d => d.pid), outcome: active.kind }, perceptions);

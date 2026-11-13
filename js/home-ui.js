@@ -27,7 +27,13 @@ function renderHomeWishes() {
       button.onclick=()=>{homeKind='birthday';renderHomeInvitation(d.pid,true)};card.append(button); }
     return card;
   }));
-  $('#homeWishes').replaceChildren(...G.home.wishes.slice(-4).map(w => {
+  const active = G.home.wishes.filter(w => !w.done && !w.deferred);
+  const recent = G.home.wishes.filter(w => w.done).slice(-(4 - active.length));
+  if (!active.length && G.home.wishes.some(w => w.deferred)) {
+    $('#homeWishes').replaceChildren(el('p', 'hint', '本月的心愿先放一放，下个月再来看看。'));
+    return;
+  }
+  $('#homeWishes').replaceChildren(...[...active, ...recent].map(w => {
     const d = communityDoll(w.pid), card = el('article', 'home-wish' + (w.done ? ' fulfilled' : ''));
     const body = el('div'), title = el('small'), quote = el('p');
     title.textContent = w.done ? `${d.name} · 已经一起做过啦` : `${d.name}悄悄惦记着`;
@@ -36,7 +42,16 @@ function renderHomeWishes() {
     if (!w.done) {
       const button = el('button', 'btn small ghost', '就做这件事');
       button.onclick = () => { homeKind = w.kind; renderHomeInvitation(d.pid); };
-      body.append(button);
+      const defer = el('button', 'btn small ghost', '先放一放');
+      defer.setAttribute('aria-label', `先放一放${d.name}的心愿`);
+      defer.onclick = () => {
+        w.deferred = true;
+        fillHomeWishes();
+        save();
+        renderHomeWishes();
+        ($('#homeWishes').querySelector?.('button') || $('#homeToday')).focus?.();
+      };
+      body.append(button, defer);
     }
     card.append(homeCast([d], true), body); return card;
   }));
@@ -56,7 +71,7 @@ function renderHomeInvitation(ownerPid, reset = false) {
     button.onclick = () => { homeKind = key; renderHomeInvitation(undefined,true); };
     return button;
   }));
-  $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint;
+  $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint + ' 人少时，每一对住户能有更多时间相处。';
   const special=homeKind==='birthday'||!!LESSON_SKILLS[homeKind], focus=$('#homeFocus');
   $('#homeFocusLabel').hidden=!special;
   $('#homeFocusCaption').textContent=homeKind==='birthday'?'为谁过生日？':'这次谁来学？';

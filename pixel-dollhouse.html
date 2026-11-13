@@ -478,7 +478,7 @@ body{
   font-size:9px;line-height:1.3;font-weight:700;text-align:center;white-space:nowrap
 }
 #buildBar{border-top:1px solid var(--hud-line);max-height:40dvh;overflow:auto}
-#toast{bottom:calc(64px + env(safe-area-inset-bottom))}
+#toast{bottom:calc(64px + env(safe-area-inset-bottom));width:max-content;max-width:calc(100% - 24px)}
 @media(max-width:700px) and (orientation:portrait){
   #stageWrap{justify-content:center}
   #buildBar{margin:0 -8px -8px}
@@ -3191,13 +3191,7 @@ function startAct(d, o) {
   }
   const f = o.furn, F = FURNITURE[f.id];
   if (furnitureInUse(f)) return false;
-  const distinct = F.cap > 1;
-  const tiles = approachTiles(f).filter(tile=>!distinct || !f.users.some(user=>{
-    const destination=user.path.at(-1)||user;
-    return tile.x===(destination.tx??destination.x)&&tile.y===(destination.ty??destination.y);
-  }));
-  const here = tiles.find(t => t.x === d.tx && t.y === d.ty);
-  const path = here ? [] : findPath(d.tx, d.ty, tiles);
+  const path = o.path ?? furniturePath(d, f);
   if (!path) return false;
   f.users.push(d);
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
@@ -3406,20 +3400,39 @@ function furnitureOrderBlock(d, f) {
   if (!spec.use) return `「${spec.name}」是摆设，不能安排活动`;
   if (d.state === 'away') return `${d.name} 还没回家`;
   if (d.state === 'lift') return `先放下 ${d.name}`;
+  if (inHomeTime(d) || CARE_ACTIONS.includes(d.act?.type) || d.act?.type === 'leave') {
+    return `${d.name}正在忙，等这件事做完再安排吧`;
+  }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }
 
+function furniturePath(d, f, x = d.tx, y = d.ty) {
+  const distinct = FURNITURE[f.id].cap > 1;
+  const tiles = approachTiles(f).filter(tile => !distinct || !f.users.some(user => {
+    if (user === d) return false;
+    const destination = user.path.at(-1) || user;
+    return tile.x === (destination.tx ?? destination.x) && tile.y === (destination.ty ?? destination.y);
+  }));
+  return tiles.some(tile => tile.x === x && tile.y === y) ? [] : findPath(x, y, tiles);
+}
+
 // 选中的小人被点到的家具上去
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
-  const blocked = furnitureOrderBlock(d, f);
+  let blocked = furnitureOrderBlock(d, f);
+  const path = blocked ? null : d.act?.onFurn ? furniturePath(d, f, d.act.back.x, d.act.back.y) : furniturePath(d, f);
+  if (!blocked && !path) blocked = `从这里走不到「${F.name}」旁边，试试别件家具`;
   if (blocked) { HOOK.toast(blocked, true); SFX.play('deny'); return false; }
   if (d.act) endAct(d);
   const meal = savedMealFor(d, f);
   if (meal && beginCareAction(d, meal, 'savedMeal')) return true;
-  if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); HOOK.toast(`从这里走不到「${F.name}」旁边`, true); SFX.play('deny'); return false; }
+  if (!startAct(d, { type: F.use, furn: f, path })) {
+    HOOK.toast(`「${F.name}」现在无法使用，试试别件家具`, true);
+    SFX.play('deny');
+    return false;
+  }
   say(d, '好的～', 1.2);
   return true;
 }
@@ -6843,7 +6856,7 @@ const HOME_LINES = {
 };
 
 function restoreHomeStories(saved) {
-  return { wishes: Array.isArray(saved?.wishes) ? saved.wishes.slice(-8) : [],
+  return { wishes: Array.isArray(saved?.wishes) ? saved.wishes.slice(-16) : [],
     album: Array.isArray(saved?.album) ? saved.album.slice(-120) : [],
     next: Math.max(1, Number(saved?.next) || 1), lastWishMonth: saved?.lastWishMonth || 0,
     active: saved?.active && Object.hasOwn(HOME_TIMES, saved.active.kind)
@@ -6879,15 +6892,19 @@ function ensureHomeWishes() {
   home.wishes = home.wishes.filter(w => residents().some(d => d.pid === w.pid));
   if (home.lastWishMonth === G.day) return;
   home.lastWishMonth = G.day;
-  home.wishes = home.wishes.filter(w => !w.done || w.done >= G.day - 2);
+  home.wishes = home.wishes.filter(w => (!w.done || w.done >= G.day - 2) && !w.deferred);
+  fillHomeWishes();
+}
+function fillHomeWishes() {
+  const home = G.home;
   const candidates = residents().filter(d => !home.wishes.some(w => w.pid === d.pid));
-  for (const d of candidates.slice(0, Math.max(0, 2 - home.wishes.filter(w => !w.done).length))) {
+  for (const d of candidates.slice(0, Math.max(0, 2 - home.wishes.filter(w => !w.done && !w.deferred).length))) {
     const [kind, text] = HOME_WISHES[d.persona] || HOME_WISHES.genki;
     home.wishes.push({ pid: d.pid, kind, text, since: G.day, done: 0 });
   }
 }
 function homeWishLine(d) {
-  return G.home?.wishes.find(w => w.pid === d.pid && !w.done)?.text || null;
+  return G.home?.wishes.find(w => w.pid === d.pid && !w.done && !w.deferred)?.text || null;
 }
 const inHomeTime = d => d?.act?.type === 'homeTime';
 const homeFurnitureReserved = f => G.home?.active?.anchor === f.key;
@@ -7012,12 +7029,15 @@ function finishHomeTime(active, group) {
     d.happy = 3;
     const companion = group.find(o => o !== d);
     perceptions.push({ person: d.pid, subject: companion.pid, emotion: .75, impact: 75, interpretation: text });
-    const wish = G.home.wishes.find(w => !w.done && w.pid === d.pid && w.kind === active.kind);
+    const wish = G.home.wishes.find(w => !w.done && !w.deferred && w.pid === d.pid && w.kind === active.kind);
     if (wish) { wish.done = G.day; say(d, '这就是我一直想和你们做的事。', 4); }
     else say(d, active.kind === 'supper' ? '吃饱了，心里也暖暖的。' : '这一小段时间，我会记得的。', 4);
   }
+  // Each resident's attention is shared across the other participants.
+  const companions = group.length - 1;
   for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
-    bump(group[i], other, 4); addTrust(group[i], other, 2); addTrust(other, group[i], 2);
+    bump(group[i], other, 4 / companions);
+    addTrust(group[i], other, 2 / companions); addTrust(other, group[i], 2 / companions);
     if (active.kind === 'supper') countTogether('meal', group[i], other);
   }
   NPCMemory.record(G, { type: 'home-time', time: absNow(), participants: group.map(d => d.pid), outcome: active.kind }, perceptions);
@@ -7941,7 +7961,11 @@ function drawFurnitureTargets(c, resident) {
 
 function furnitureOrderHint(resident, furniture) {
   if (resident.state === 'away') return `${resident.name} 还没回家`;
-  if (resident.state === 'lift' || !furniture) return `已选 ${resident.name} · 点带金色标记的家具安排活动`;
+  if (resident.state === 'lift') return `把 ${resident.name} 放到家具旁或空地上`;
+  if (inHomeTime(resident) || CARE_ACTIONS.includes(resident.act?.type) || resident.act?.type === 'leave') {
+    return `已选 ${resident.name} · ${doingText(resident)}，等这件事做完再安排吧`;
+  }
+  if (!furniture) return `已选 ${resident.name} · ${doingText(resident)} · 点带金色标记的家具安排活动`;
   if (furniture.piece) return `查看「${FURNITURE[furniture.id].name}」的来历`;
   const blocked = furnitureOrderBlock(resident, furniture);
   if (blocked) return blocked;
@@ -8070,7 +8094,7 @@ function playerBusy() {
 }
 
 // 把拎着的小人放到一件家具上：先站到家具旁边的空位，再让 TA 去用
-// 成功返回 null；失败返回原因，小人会回到原处，不会悄悄弹回去
+// 成功返回 null；orderUse 已显示失败原因时返回空字符串。
 function dropOnFurniture(d, f) {
   const F = FURNITURE[f.id];
   if (d.guest && F.use === 'sleep') return '访客不在这里睡觉哦';
@@ -8080,7 +8104,7 @@ function dropOnFurniture(d, f) {
   const ox = d.tx, oy = d.ty;
   placeDollAt(d, spot.x, spot.y);
   d.state = 'idle'; d.think = 1.5; d.frame = 0; d.liftShadow = null; d.bubble = null;
-  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return '过不去呀…'; }
+  if (!orderUse(d, f)) { placeDollAt(d, ox, oy); d.state = 'idle'; d.think = 1.5; d.frame = 0; return ''; }
   return null;
 }
 
@@ -8188,7 +8212,7 @@ cv.addEventListener('pointerup', e => {
       HOOK.toast(invite.reason, true);
     } else if (furn && FURNITURE[furn.id].use) {
       const reason = dropOnFurniture(d, furn);
-      if (reason) { placeDollAt(d, d.tx, d.ty); settle(); HOOK.toast(reason, true); }
+      if (reason !== null) { placeDollAt(d, d.tx, d.ty); settle(); if (reason) HOOK.toast(reason, true); }
       else { SFX.play('drop'); HOOK.toast(`✅ ${d.name}去${ACT_NAMES[FURNITURE[furn.id].use] || FURNITURE[furn.id].name}`, true); }
     } else if (furn) {
       placeDollAt(d, d.tx, d.ty);
@@ -8208,7 +8232,7 @@ cv.addEventListener('pointerup', e => {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd && orderUse(sd, press.furn)) {
       const note = savedMealNote(press.furn);
-      HOOK.toast(note || `✓ ${sd.name}要去${furnitureAction(sd, press.furn)}`, true);
+      HOOK.toast(note || `已安排 ${sd.name}去${furnitureAction(sd, press.furn)} · ${FURNITURE[press.furn.id].name}`, true);
     }
   } else if (press.furn) {
     const note = savedMealNote(press.furn);
@@ -8442,7 +8466,14 @@ function renderDollList() {
     const P = PERSONAS[d.persona];
     const m = el('div', 'meta', `<b>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small class="couple-label" data-partners="${d.uid}" hidden></small><small data-doing="${d.uid}">${esc(doingText(d))}</small>`);
     b.append(c, m);
-    b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
+    b.onclick = () => {
+      G.sel = d.uid === G.sel ? null : d.uid;
+      if (G.sel && matchMedia('(max-width:700px) and (orientation:portrait)').matches) {
+        $('#side').open = false;
+        $('#side summary').focus({ preventScroll: true });
+      }
+      SFX.play('click'); HOOK.select();
+    };
     box.append(b);
   }
   const count = G.community.applications.length;
@@ -8699,7 +8730,12 @@ function renderPalette() {
 HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette(); };
 
 /* ---------- 家庭基金与扩建 ---------- */
+let shopBarState = '';
 function renderShopBar() {
+  const crowdDisabled = TEST_MODE || G.crowdDay === G.day;
+  const state = `${G.level}:${G.fund}:${crowdDisabled}`;
+  if (state === shopBarState) return;
+  shopBarState = state;
   const fund = TEST_MODE ? '∞' : yuan(G.fund);
   $('#fundAmt').textContent = $('#fundTop').textContent = fund;
   const L = LEVELS[G.level], next = LEVELS[G.level + 1];
@@ -8708,7 +8744,7 @@ function renderShopBar() {
   ex.textContent = next ? `🔨 扩建成「${next.name}」${yuan(next.cost)}` : '🏰 已经是最大的房子了';
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
-  $('#btnCrowd').disabled = TEST_MODE || G.crowdDay === G.day;
+  $('#btnCrowd').disabled = crowdDisabled;
 }
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
@@ -9273,7 +9309,13 @@ function renderHomeWishes() {
       button.onclick=()=>{homeKind='birthday';renderHomeInvitation(d.pid,true)};card.append(button); }
     return card;
   }));
-  $('#homeWishes').replaceChildren(...G.home.wishes.slice(-4).map(w => {
+  const active = G.home.wishes.filter(w => !w.done && !w.deferred);
+  const recent = G.home.wishes.filter(w => w.done).slice(-(4 - active.length));
+  if (!active.length && G.home.wishes.some(w => w.deferred)) {
+    $('#homeWishes').replaceChildren(el('p', 'hint', '本月的心愿先放一放，下个月再来看看。'));
+    return;
+  }
+  $('#homeWishes').replaceChildren(...[...active, ...recent].map(w => {
     const d = communityDoll(w.pid), card = el('article', 'home-wish' + (w.done ? ' fulfilled' : ''));
     const body = el('div'), title = el('small'), quote = el('p');
     title.textContent = w.done ? `${d.name} · 已经一起做过啦` : `${d.name}悄悄惦记着`;
@@ -9282,7 +9324,16 @@ function renderHomeWishes() {
     if (!w.done) {
       const button = el('button', 'btn small ghost', '就做这件事');
       button.onclick = () => { homeKind = w.kind; renderHomeInvitation(d.pid); };
-      body.append(button);
+      const defer = el('button', 'btn small ghost', '先放一放');
+      defer.setAttribute('aria-label', `先放一放${d.name}的心愿`);
+      defer.onclick = () => {
+        w.deferred = true;
+        fillHomeWishes();
+        save();
+        renderHomeWishes();
+        ($('#homeWishes').querySelector?.('button') || $('#homeToday')).focus?.();
+      };
+      body.append(button, defer);
     }
     card.append(homeCast([d], true), body); return card;
   }));
@@ -9302,7 +9353,7 @@ function renderHomeInvitation(ownerPid, reset = false) {
     button.onclick = () => { homeKind = key; renderHomeInvitation(undefined,true); };
     return button;
   }));
-  $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint;
+  $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint + ' 人少时，每一对住户能有更多时间相处。';
   const special=homeKind==='birthday'||!!LESSON_SKILLS[homeKind], focus=$('#homeFocus');
   $('#homeFocusLabel').hidden=!special;
   $('#homeFocusCaption').textContent=homeKind==='birthday'?'为谁过生日？':'这次谁来学？';

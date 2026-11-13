@@ -41,7 +41,14 @@ function renderDollList() {
     const P = PERSONAS[d.persona];
     const m = el('div', 'meta', `<b>${esc(d.name)}${d.guest ? ' <em class="guest-tag">访客</em>' : ''} <span class="g-${d.gender}">${d.gender === 'm' ? '♂' : '♀'}</span> ${P.icon}</b><small class="couple-label" data-partners="${d.uid}" hidden></small><small data-doing="${d.uid}">${esc(doingText(d))}</small>`);
     b.append(c, m);
-    b.onclick = () => { G.sel = d.uid === G.sel ? null : d.uid; SFX.play('click'); HOOK.select(); };
+    b.onclick = () => {
+      G.sel = d.uid === G.sel ? null : d.uid;
+      if (G.sel && matchMedia('(max-width:700px) and (orientation:portrait)').matches) {
+        $('#side').open = false;
+        $('#side summary').focus({ preventScroll: true });
+      }
+      SFX.play('click'); HOOK.select();
+    };
     box.append(b);
   }
   const count = G.community.applications.length;
@@ -298,7 +305,12 @@ function renderPalette() {
 HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette(); };
 
 /* ---------- 家庭基金与扩建 ---------- */
+let shopBarState = '';
 function renderShopBar() {
+  const crowdDisabled = TEST_MODE || G.crowdDay === G.day;
+  const state = `${G.level}:${G.fund}:${crowdDisabled}`;
+  if (state === shopBarState) return;
+  shopBarState = state;
   const fund = TEST_MODE ? '∞' : yuan(G.fund);
   $('#fundAmt').textContent = $('#fundTop').textContent = fund;
   const L = LEVELS[G.level], next = LEVELS[G.level + 1];
@@ -307,7 +319,7 @@ function renderShopBar() {
   ex.textContent = next ? `🔨 扩建成「${next.name}」${yuan(next.cost)}` : '🏰 已经是最大的房子了';
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
-  $('#btnCrowd').disabled = TEST_MODE || G.crowdDay === G.day;
+  $('#btnCrowd').disabled = crowdDisabled;
 }
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
