@@ -848,20 +848,52 @@ test('a rainy tradition invites the same former guest back after a save', () => 
   `);
 });
 
-test('starter wardrobe updates once and preserves custom outfits', () => {
+test('default residents match the original outfits and only prior defaults migrate', () => {
   runGame(`
     const old = defaultHouseSave();
     const tao = old.dolls.find(d => d.pid === 'p-tao');
     const jing = old.dolls.find(d => d.pid === 'p-jing');
-    tao.look = { ...ORIGINAL_STARTER_LOOKS[tao.pid] };
-    jing.look = { ...ORIGINAL_STARTER_LOOKS[jing.pid], shoes: 1 };
+    assert.equal(tao.look.top, 'tee');
+    assert.equal(jing.look.hair, 'bob');
+    old.cottageLooksV = 1;
+    tao.look = { ...COTTAGE_STARTER_LOOKS[tao.pid] };
+    jing.look = { ...COTTAGE_STARTER_LOOKS[jing.pid], shoes: 1 };
     applySave(old);
-    assert.equal(communityDoll(tao.pid).look.top, 'dress');
-    assert.equal(communityDoll(jing.pid).look.top, 'suit');
+    assert.deepEqual(communityDoll(tao.pid).look, ORIGINAL_STARTER_LOOKS[tao.pid]);
+    assert.equal(communityDoll(jing.pid).look.top, 'cardigan');
     assert.equal(communityDoll(jing.pid).look.shoes, 1);
     const saved = JSON.parse(JSON.stringify(houseSaveData()));
-    saved.dolls.find(d => d.pid === tao.pid).look = { ...ORIGINAL_STARTER_LOOKS[tao.pid] };
+    saved.dolls.find(d => d.pid === tao.pid).look = { ...COTTAGE_STARTER_LOOKS[tao.pid] };
     applySave(saved);
-    assert.equal(communityDoll(tao.pid).look.top, 'tee');
+    assert.equal(communityDoll(tao.pid).look.top, 'dress');
+  `);
+});
+
+test('an overtime worker chats with an available roommate in three turns', () => {
+  runGame(`
+    load();
+    rebuild();
+    G.weather = 'sunny';
+    const worker = communityDoll('p-jing');
+    const listener = communityDoll('p-lan');
+    const door = doorTile();
+    const home = free(door.x, door.y) ? door : nearestFree(door.x, door.y);
+    const side = [home.x - 1, home.x + 1].find(x => free(x, home.y));
+    assert.ok(side != null);
+    for (const person of residents()) person.state = 'away';
+    listener.state = 'idle';
+    worker.overtime = true;
+    placeDollAt(listener, side, home.y);
+    comeHome(worker);
+    assert.equal(listener.act.partner, worker);
+    arrive(listener);
+    assert.equal(listener.bubble.text, '回来啦，辛苦了。');
+    tickHouseExchange(listener, 1.6);
+    assert.equal(worker.bubble.text, JOBS.office.tired);
+    tickHouseExchange(listener, 1.6);
+    assert.match(listener.bubble.text, /坐|歇/);
+    assert.match(G.log.at(-1).text, /刚回家的/);
+    endAct(worker);
+    assert.equal(listener.act, null);
   `);
 });
