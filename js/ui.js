@@ -344,7 +344,7 @@ function renderWardrobe() {
   const chips = (obj, key) => {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
-      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : '')) === k;
+      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : key === 'features' ? 'plain' : '')) === k;
       const b = el('button', 'chip' + (selected ? ' on' : ''), name);
       b.setAttribute('aria-pressed', String(selected));
       if (key === 'hair') {
@@ -386,6 +386,7 @@ function renderWardrobe() {
     section('发型', chips(OUTFIT.hair, 'hair'));
     section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
     section('肤色', swatches(OUTFIT.skin, 'skin'));
+    section('脸部小细节', chips(OUTFIT.features, 'features'));
     section('上衣', chips(OUTFIT.top, 'top'));
     section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
     if (!['dress', 'pinafore'].includes(d.look.top)) section('下装', chips(OUTFIT.bottom, 'bottom'));

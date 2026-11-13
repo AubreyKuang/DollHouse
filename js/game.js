@@ -35,7 +35,7 @@ function houseSaveData() {
   return {
     cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    keepsakes: G.keepsakes, home: G.home,
+    keepsakes: G.keepsakes, home: G.home, care: G.care,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
       .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -138,6 +138,7 @@ function applySave(s) {
   }
   G.keepsakes = restoreKeepsakes(s.keepsakes);
   G.home = restoreHomeStories(s.home);
+  G.care = restoreHomeCare(s.care);
   G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
@@ -337,6 +338,7 @@ function endAct(d) {
 }
 
 function decide(d) {
+  if (tryHomeCare(d)) return;
   if (joinGetTogether(d)) return;
   const P = PERSONAS[d.persona], N = d.needs, opts = [];
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
@@ -382,7 +384,7 @@ function decide(d) {
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
     (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay'))
-    && !inHomeTime(o) && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
+    && !inHomeTime(o) && !CARE_ACTIONS.includes(o.act?.type) && canDisturb(d, o));   // 不打断正在端饭、吃留饭的人
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.23 + (canSee(d, p) && Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) <= 4 ? 10 : 0) + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -454,6 +456,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (CARE_ACTIONS.includes(a?.type)) { arriveHomeCare(d); return; }
   if (a?.type === 'homeTime') { arriveHomeTime(d); return; }
   if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
@@ -578,6 +581,7 @@ function updateDoll(d, dt) {
 
   if (d.state === 'act') {
     const a = d.act;
+    if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
     if (a.type === 'visitStay' || (a.type === 'homeTime' && a.homeKind === 'music')) {
@@ -608,7 +612,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
-    if (a.type === 'cook' && a.t <= 0) shareCookedMeal(d);
+    if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
     if (a.t <= 0 || wake) endAct(d);
     return;
   }
@@ -644,6 +648,8 @@ function orderUse(d, f) {
   if (!F.use) { say(d, '这个不能用哦'); return false; }
   if (d.state === 'lift' || d.state === 'away' || (d.guest && F.use === 'sleep')) return false;
   if (d.act) endAct(d);
+  const meal = savedMealFor(d, f);
+  if (meal && beginCareAction(d, meal, 'savedMeal')) return true;
   if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); SFX.play('deny'); return false; }
   say(d, '好的～', 1.2);
   return true;
@@ -697,6 +703,7 @@ function update(realDt) {
     const carrying = G.dolls.some(d => d.state === 'lift');
     if (!carrying) tickKeepsakes(dt);
     if (!carrying) tickHomeStories(dt);
+    if (!carrying) tickHomeCare();
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);

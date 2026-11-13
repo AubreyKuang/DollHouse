@@ -88,7 +88,7 @@ function comeHome(d) {
   payday(d);
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
-  greetAfterWork(d, line, soaked);
+  if (!noticeSavedMeal(d)) greetAfterWork(d, line, soaked);
   if (G.sel === d.uid) HOOK.select();
 }
 

@@ -136,7 +136,10 @@ function tickHouseExchange(d, dt) {
     delete d.act.exchange;
     return;
   }
-  if (talk.next >= talk.lines.length) return;
+  if (talk.next >= talk.lines.length) {
+    if (talk.careId) { finishCareThanks(d, talk.partner, talk.careId); delete talk.careId; }
+    return;
+  }
   talk.delay -= dt;
   if (talk.delay > 0) return;
   const speaker = talk.next % 2 ? talk.partner : d;
@@ -161,7 +164,10 @@ function startSocial(d, p, introduced = false) {
   const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
   d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
   const lines = exchange?.lines || (kind === 'chat' ? houseChatLines(d) : null);
-  if (lines) startHouseExchange(d, p, lines);
+  if (lines) {
+    startHouseExchange(d, p, lines);
+    if (exchange?.careId) { d.act.exchange.careId = exchange.careId; d.act.t = p.act.t = Math.max(6, d.act.t); }
+  }
   else say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
   let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
