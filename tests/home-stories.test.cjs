@@ -437,6 +437,43 @@ test('a public recommendation rewards two distinct residents across reloads and 
   assert.equal(bookRecommendation(chair),null);
 `));
 
+test('the first public reader can send a private reply with the original deadline', () => game(`
+  const [author,reader,other]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  const note={from:author.pid,to:other.pid,until:G.day+1,readBy:[]};
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.equal(replyToBookRecommendation(seat),false);
+  assert.ok(finishBookRecommendation(reader,seat));
+  seat.users.push(other);
+  assert.equal(replyToBookRecommendation(seat),false);
+  seat.users.pop();
+  const write=save;
+  save=()=>false;
+  assert.equal(replyToBookRecommendation(seat),false);
+  assert.equal(bookRecommendation(seat),note);
+  save=write;
+  assert.ok(replyToBookRecommendation(seat));
+  load();
+  const chair=G.furniture.find(f=>f.key===seat.key);
+  const a=communityDoll(author.pid),r=communityDoll(reader.pid),o=communityDoll(other.pid);
+  const reply=bookRecommendation(chair);
+  assert.deepEqual({...reply},{from:r.pid,to:a.pid,until:note.until,reply:true});
+  assert.equal(replyToBookRecommendation(chair),false);
+  assert.equal(togglePublicBook(chair),false);
+  assert.equal(toggleBookDiscussion(chair),false);
+  assert.equal(submitBookToPaper(chair),false);
+  assert.equal(finishBookRecommendation(o,chair),false);
+  const day=G.day;
+  G.day=reply.until+1;assert.equal(finishBookRecommendation(a,chair),false);G.day=day;
+  const relationship=rel(a,r),expectedFriendship=relationship.f+2*relationship.chem*compat(a,r);
+  assert.ok(finishBookRecommendation(a,chair));
+  assert.deepEqual([a.needs.fun,r.needs.fun,o.needs.fun,relationship.f],[58,54,50,expectedFriendship]);
+  assert.equal(bookRecommendation(chair),null);
+  assert.equal(finishBookRecommendation(a,chair),false);
+  assert.match(G.log.at(-1).text,/荐书回信/);
+`));
+
 test('a partially shared book can reserve a monthly paper slot instead of a second reading', () => game(`
   const [author,reader,other]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});

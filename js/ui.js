@@ -177,6 +177,7 @@ const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
+const bookReplyButton = $('#bookReply');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
@@ -223,7 +224,7 @@ bookPublicButton.onclick = () => {
 bookPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
-  const reader = bookPaperReader(chair);
+  const reader = firstPublicBookReader(chair);
   if (!reader) return;
   const draft = bookPaperDraft();
   if (draft) {
@@ -232,6 +233,17 @@ bookPaperButton.onclick = () => {
   }
   if (!submitBookToPaper(chair, draft)) return;
   bookMoveStatus.textContent = draft ? '本期月报已换稿，新便条已收起。' : '书摘已交给本期月报，窗边的便条已收起。';
+  refreshReadingSeats();
+  readingSeat.focus();
+};
+bookReplyButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (!replyToBookRecommendation(chair)) {
+    if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条仍可传阅。';
+    return;
+  }
+  bookMoveStatus.textContent = '传阅已结束，回信留在窗边。';
   refreshReadingSeats();
   readingSeat.focus();
 };
@@ -282,14 +294,17 @@ function refreshReadingSeats() {
   const publicReaders = publicBookReaders(recommendation);
   const reader = reservedBookReader(chair);
   bookSeatButton.hidden = !recommendation || !!publicReaders;
-  bookDiscussButton.hidden = !recommendation || !chair.readingNotes || !!publicReaders;
-  bookPublicButton.hidden = !recommendation || !chair.readingNotes;
+  bookDiscussButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes || !!publicReaders;
+  bookPublicButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
   bookPaperButton.hidden = !publicReaders?.length;
   const draft = bookPaperDraft();
   const paperAction = draft ? '替换本期书摘' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
-  bookPaperButton.disabled = !bookPaperReader(chair);
+  const firstReader = firstPublicBookReader(chair);
+  bookPaperButton.disabled = !firstReader;
+  bookReplyButton.hidden = !publicReaders?.length;
+  bookReplyButton.disabled = !firstReader;
   const sharing = String(!!publicReaders);
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
@@ -306,8 +321,13 @@ function refreshReadingSeats() {
   const discussion = recommendation && chair.readingNotes
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
-  const hint = publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? (draft ? '可继续传阅，也可在空座时用这篇替换月报原稿。' : '可继续传阅，也可在空座时收起便条，交给本期月报。') : '座位空闲时可改回私下荐书。'}`
+  const publicChoice = publicReaders?.length
+    ? `空座时可${draft ? '替换月报原稿' : '交给月报'}，或结束传阅，给${communityDoll(recommendation.from).name}留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
+    : '座位空闲时可改回私下荐书。';
+  const hint = recommendation?.reply
+    ? `${communityDoll(recommendation.from).name}的回信留给${communityDoll(recommendation.to).name}，须在原便条到期前读完。读完得 ${BOOK_PRIVATE_FUN} 点乐趣，友情也会增加。${reader ? ' ' + text : ''}`
+    : publicReaders
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicChoice}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 

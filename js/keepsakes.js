@@ -129,18 +129,29 @@ function bookRecommendation(chair) {
 const BOOK_SEAT_MINUTES = 60;
 const BOOK_PUBLIC_READERS = 2;
 const BOOK_PUBLIC_FUN = 4;
+const BOOK_PRIVATE_FUN = 8;
 function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
 }
 
-function bookPaperReader(chair) {
+function firstPublicBookReader(chair) {
   const readers = publicBookReaders(bookRecommendation(chair));
   return chair.readingNotes && isWindowChair(chair) && !chair.users.length && readers?.length === 1
     ? communityDoll(readers[0]) : null;
 }
 
+function replyToBookRecommendation(chair) {
+  const reader = firstPublicBookReader(chair);
+  if (!reader || !G.furniture.includes(chair)) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  notes[chair.key] = { from: reader.pid, to: note.from, until: note.until, reply: true };
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
+}
+
 function submitBookToPaper(chair, replacing) {
-  const reader = bookPaperReader(chair);
+  const reader = firstPublicBookReader(chair);
   if (!reader || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   const author = communityDoll(note.from);
@@ -162,7 +173,7 @@ function submitBookToPaper(chair, replacing) {
 function togglePublicBook(chair) {
   const note = bookRecommendation(chair);
   const readers = publicBookReaders(note);
-  if (!note || !chair.readingNotes || !isWindowChair(chair) || readers?.length || chair.users.length) return false;
+  if (!note || note.reply || !chair.readingNotes || !isWindowChair(chair) || readers?.length || chair.users.length) return false;
   const notes = G.keepsakes.bookRecommendations;
   const { readBy, seatUntil, discuss, ...base } = note;
   notes[chair.key] = readers ? base : { ...base, readBy: [] };
@@ -213,7 +224,7 @@ function moveBookRecommendation(source, target) {
 
 function toggleBookDiscussion(chair) {
   const note = bookRecommendation(chair);
-  if (!note || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
+  if (!note || note.reply || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
   const previous = note.discuss;
   if (previous === true) delete note.discuss;
   else note.discuss = true;
@@ -241,6 +252,12 @@ function finishBookRecommendation(reader, chair) {
   if (tensionBetween(author, reader)) return false;
   delete G.keepsakes.bookRecommendations[chair.key];
   bump(reader, author, 2);
+  if (note.reply) {
+    reader.needs.fun = Math.min(100, reader.needs.fun + BOOK_PRIVATE_FUN);
+    say(reader, '原来这一段也让你想起了我。');
+    addLog(`📖 ${reader.name}在窗边读到了${author.name}的荐书回信。`);
+    return true;
+  }
   if (note.discuss === true && !quietStudy(chair) && canDiscussReading(reader, author, chair) &&
       [reader, author].every(hasTimeToDiscussReading)) {
     for (const d of [reader, author]) d.needs.social = Math.min(100, d.needs.social + 6);
@@ -249,7 +266,7 @@ function finishBookRecommendation(reader, chair) {
     addLog(`📖 ${reader.name}读完荐书，和${author.name}在窗边聊了几句。`);
     return true;
   }
-  reader.needs.fun = Math.min(100, reader.needs.fun + 8);
+  reader.needs.fun = Math.min(100, reader.needs.fun + BOOK_PRIVATE_FUN);
   say(reader, '原来你想推荐的是这一段。');
   addLog(`📖 ${reader.name}读完了${author.name}推荐的那一段。`);
   return true;
