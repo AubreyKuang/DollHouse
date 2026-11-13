@@ -5692,6 +5692,7 @@ function joinGetTogether(d) {
   const participants = new Set([...event.joined, ...Object.keys(event.reserved)]);
   const otherCount = [...participants].filter(pid => pid !== event.hostPid && pid !== event.guestPid).length;
   const quiet = event.quietPids?.includes(d.pid);
+  if (event.rainMode === 'study' && !quiet) return false;
   if (!principal && !quiet && (event.kind === 'visit' || otherCount >= 3
     || (!isE(d) && d.needs.social > 58) || (isE(d) && d.needs.social > 88))) return false;
   if (event.rainMode === 'umbrella' && !principal && ['tidy', 'lazy'].includes(d.persona)) {
@@ -5701,7 +5702,8 @@ function joinGetTogether(d) {
   }
   if (absNow() + 12 >= event.endsAt) return false;
   const occupied = Object.values(event.reserved);
-  const open = (quiet ? event.quietTiles : event.tiles).filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
+  const tiles = event.rainMode === 'study' ? [event.quietTiles[event.quietPids.indexOf(d.pid)]] : quiet ? event.quietTiles : event.tiles;
+  const open = tiles.filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
   const spaced = open.filter(tile => !occupied.some(spot => spot.x === tile.x && Math.abs(spot.y - tile.y) < 3));
   let route = null;
   for (const tile of new Set([...spaced, ...open])) {
@@ -6046,6 +6048,7 @@ function returnFromNeighbor(d, sharedMeal) {
 // A picnic keeps its host and guest when the weather changes its plans.
 const PICNIC_PLANS = {
   inside: '搬进客厅',
+  study: '和访客去书房',
   postpone: '改天再野餐',
   umbrella: '撑伞继续',
 };
@@ -6086,15 +6089,30 @@ function picnicQuietPair(event, host, guest) {
   const resident = availableHosts().filter(d => d !== host && quiet(d))
     .sort((a, b) => Number(b.persona === 'nerd') - Number(a.persona === 'nerd'))[0];
   if (!resident) return;
+  const seats = picnicStudySeats(resident, guest);
+  if (!seats) return;
+  event.quietPids = [resident.pid, guest.pid];
+  event.quietTiles = seats;
+}
+
+function picnicStudySeats(resident, guest) {
+  if (![resident, guest].every(d => readyForKeepsake(d) && d.needs.energy >= 34 && d.needs.hunger >= 25) ||
+      tensionBetween(resident, guest)) return;
+  const leave = leaveAbs(resident);
+  if (leave != null && leave < absNow() + 140) return;
   const tiles = [];
   for (let y = FLOOR_SPLIT; y < ROWS; y++) for (let x = BX; x < COLS; x++) {
     if (free(x, y) && !isDoorTile(x, y) && !(x === stairsColumn() && y === UPPER_LANDING)) tiles.push({ x, y });
   }
-  const corner = tiles.find(tile => tiles.some(other => other.y === tile.y && other.x === tile.x + 1) &&
-    [resident, guest].every(d => findPath(d.tx, d.ty, [tile, { x: tile.x + 1, y: tile.y }])));
-  if (!corner) return;
-  event.quietPids = [resident.pid, guest.pid];
-  event.quietTiles = [corner, { x: corner.x + 1, y: corner.y }];
+  for (const tile of tiles) {
+    if (!tiles.some(other => other.y === tile.y && other.x === tile.x + 1)) continue;
+    const seats = [tile, { x: tile.x + 1, y: tile.y }];
+    const routes = pairRoutes(resident, guest, seats);
+    if (routes) return routes.map((path,i) => {
+      const person = i === 0 ? resident : guest;
+      return path.at(-1) || { x: person.tx, y: person.ty };
+    });
+  }
 }
 
 function choosePicnicPlan(plan, window) {
@@ -6109,10 +6127,17 @@ function choosePicnicPlan(plan, window) {
     event.tiles = tiles;
     picnicQuietPair(event, host, guest);
   }
+  if (plan === 'study') {
+    const seats = picnicStudySeats(host, guest);
+    if (!seats) return false;
+    event.quietPids = [host.pid, guest.pid];
+    event.quietTiles = seats;
+  }
   event.rainMode = plan;
   delete event.rainDeadline;
   const result = {
     inside: '把野餐搬进了客厅，点心还是一样好吃。',
+    study: '请访客一起上楼，在书房听雨。',
     postpone: '收起野餐篮，约好等雨停了再聚。',
     umbrella: '给大家分了伞，决定在雨里继续野餐。',
   };
@@ -9241,7 +9266,7 @@ $('#cancelPicnic').onclick = () => {
 };
 
 for (const [plan, label, window] of [
-  ['inside', PICNIC_PLANS.inside], ['umbrella', PICNIC_PLANS.umbrella],
+  ['inside', PICNIC_PLANS.inside], ['study', PICNIC_PLANS.study], ['umbrella', PICNIC_PLANS.umbrella],
   ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
     ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
 ]) {
@@ -9249,7 +9274,9 @@ for (const [plan, label, window] of [
   button.type = 'button';
   if (window) button.dataset.picnicWindow = window;
   button.onclick = () => {
-    if (!choosePicnicPlan(plan, window)) HOOK.toast('现在无法按这个办法继续，可以换一个安排。', true);
+    if (!choosePicnicPlan(plan, window)) HOOK.toast(plan === 'study'
+      ? '去书房需要主人和访客都有空，也要有两个能走到的座位。'
+      : '现在无法按这个办法继续，可以换一个安排。', true);
   };
   $('#picnicPlans').append(button);
 }

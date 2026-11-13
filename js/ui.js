@@ -646,7 +646,7 @@ $('#cancelPicnic').onclick = () => {
 };
 
 for (const [plan, label, window] of [
-  ['inside', PICNIC_PLANS.inside], ['umbrella', PICNIC_PLANS.umbrella],
+  ['inside', PICNIC_PLANS.inside], ['study', PICNIC_PLANS.study], ['umbrella', PICNIC_PLANS.umbrella],
   ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
     ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
 ]) {
@@ -654,7 +654,9 @@ for (const [plan, label, window] of [
   button.type = 'button';
   if (window) button.dataset.picnicWindow = window;
   button.onclick = () => {
-    if (!choosePicnicPlan(plan, window)) HOOK.toast('现在无法按这个办法继续，可以换一个安排。', true);
+    if (!choosePicnicPlan(plan, window)) HOOK.toast(plan === 'study'
+      ? '去书房需要主人和访客都有空，也要有两个能走到的座位。'
+      : '现在无法按这个办法继续，可以换一个安排。', true);
   };
   $('#picnicPlans').append(button);
 }

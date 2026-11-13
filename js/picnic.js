@@ -1,6 +1,7 @@
 // A picnic keeps its host and guest when the weather changes its plans.
 const PICNIC_PLANS = {
   inside: '搬进客厅',
+  study: '和访客去书房',
   postpone: '改天再野餐',
   umbrella: '撑伞继续',
 };
@@ -41,15 +42,30 @@ function picnicQuietPair(event, host, guest) {
   const resident = availableHosts().filter(d => d !== host && quiet(d))
     .sort((a, b) => Number(b.persona === 'nerd') - Number(a.persona === 'nerd'))[0];
   if (!resident) return;
+  const seats = picnicStudySeats(resident, guest);
+  if (!seats) return;
+  event.quietPids = [resident.pid, guest.pid];
+  event.quietTiles = seats;
+}
+
+function picnicStudySeats(resident, guest) {
+  if (![resident, guest].every(d => readyForKeepsake(d) && d.needs.energy >= 34 && d.needs.hunger >= 25) ||
+      tensionBetween(resident, guest)) return;
+  const leave = leaveAbs(resident);
+  if (leave != null && leave < absNow() + 140) return;
   const tiles = [];
   for (let y = FLOOR_SPLIT; y < ROWS; y++) for (let x = BX; x < COLS; x++) {
     if (free(x, y) && !isDoorTile(x, y) && !(x === stairsColumn() && y === UPPER_LANDING)) tiles.push({ x, y });
   }
-  const corner = tiles.find(tile => tiles.some(other => other.y === tile.y && other.x === tile.x + 1) &&
-    [resident, guest].every(d => findPath(d.tx, d.ty, [tile, { x: tile.x + 1, y: tile.y }])));
-  if (!corner) return;
-  event.quietPids = [resident.pid, guest.pid];
-  event.quietTiles = [corner, { x: corner.x + 1, y: corner.y }];
+  for (const tile of tiles) {
+    if (!tiles.some(other => other.y === tile.y && other.x === tile.x + 1)) continue;
+    const seats = [tile, { x: tile.x + 1, y: tile.y }];
+    const routes = pairRoutes(resident, guest, seats);
+    if (routes) return routes.map((path,i) => {
+      const person = i === 0 ? resident : guest;
+      return path.at(-1) || { x: person.tx, y: person.ty };
+    });
+  }
 }
 
 function choosePicnicPlan(plan, window) {
@@ -64,10 +80,17 @@ function choosePicnicPlan(plan, window) {
     event.tiles = tiles;
     picnicQuietPair(event, host, guest);
   }
+  if (plan === 'study') {
+    const seats = picnicStudySeats(host, guest);
+    if (!seats) return false;
+    event.quietPids = [host.pid, guest.pid];
+    event.quietTiles = seats;
+  }
   event.rainMode = plan;
   delete event.rainDeadline;
   const result = {
     inside: '把野餐搬进了客厅，点心还是一样好吃。',
+    study: '请访客一起上楼，在书房听雨。',
     postpone: '收起野餐篮，约好等雨停了再聚。',
     umbrella: '给大家分了伞，决定在雨里继续野餐。',
   };

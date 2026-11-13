@@ -739,6 +739,34 @@ test('rain can reroute a quiet visitor upstairs, keep a picnic outdoors, or post
   `);
 });
 
+test('choosing the study seats only the host and guest, and credits their conversation once after arrival', () => runGame(`
+  load();G.time=12*60;G.weather='rain';
+  const [host, other]=residents();
+  for(const d of residents()){d.job='none';d.needs={energy:90,hunger:90,bladder:90,social:45,fun:50};}
+  assert.ok(startGetTogether(host,'picnic'));communityTick();
+  const event=G.community.active, guest=communityDoll(event.guestPid);
+  const route=findPath;
+  findPath=()=>null;
+  assert.equal(choosePicnicPlan('study'),false);
+  assert.ok(event.rainDeadline);
+  findPath=route;
+  assert.ok(choosePicnicPlan('study'));
+  assert.deepEqual(Array.from(event.quietPids),[host.pid,guest.pid]);
+  assert.equal(joinGetTogether(other),false);
+  for(const d of [guest,host]){
+    assert.ok(joinGetTogether(d));
+    for(let i=0;i<720&&d.act?.type==='visitGather';i++)updateDoll(d,.05);
+    assert.equal(roomOf(d),'study');
+    assert.equal(d.act?.theme,'quiet');
+    assert.equal(!!event.quietDone,d===host);
+  }
+  assert.notEqual(host.tx,guest.tx);
+  assert.equal(G.log.filter(e=>e.text.includes('安静的书房聊熟')).length,1);
+  save();load();
+  assert.equal(G.community.active.rainMode,'study');
+  assert.equal(G.community.active.quietDone,true);
+`));
+
 test('a postponed picnic keeps its selected time window and waits for the host to have time', () => runGame(`
   load();
   const host = residents()[0];
