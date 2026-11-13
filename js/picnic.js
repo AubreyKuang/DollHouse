@@ -140,6 +140,32 @@ function changePicnicWindow(window) {
   return true;
 }
 
+function changePicnicBackup(pid) {
+  const pending = G.community.deferredPicnic;
+  if (!pending || (pid && (pid === pending.hostPid || !residents().some(d => d.pid === pid)))) return false;
+  const previous = pending.backupPid;
+  if (pid) pending.backupPid = pid;
+  else delete pending.backupPid;
+  if (!save()) {
+    if (previous) pending.backupPid = previous;
+    else delete pending.backupPid;
+    return false;
+  }
+  HOOK.community();
+  return true;
+}
+
+function picnicHostReady(pending, host) {
+  if (!host || !availableHosts().includes(host) || host.act?.type === 'leave') return false;
+  const checkShift = pending.backupPid || Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window);
+  const departure = checkShift ? leaveAbs(host) : null;
+  return departure == null || departure >= absNow() + GET_TOGETHERS.picnic.minutes;
+}
+
+function picnicBackup(pending) {
+  return residents().find(d => d.pid === pending.backupPid && d.pid !== pending.hostPid);
+}
+
 function picnicWaitReason(pending, host) {
   const now = absNow();
   if (G.community.active || G.community.outing || now < Math.max(pending.at, G.community.nextEventAt)) return '等上场聚会散场和准备时间结束';
@@ -149,8 +175,10 @@ function picnicWaitReason(pending, host) {
     : Object.hasOwn(PICNIC_WINDOWS, pending.window) ? [PICNIC_WINDOWS[pending.window]] : [];
   if (windows.length ? !windows.some(slot => G.time >= slot.start && G.time + duration <= slot.end)
     : G.time < 10 * 60 || G.time >= 19 * 60) return '等可开场的时间';
-  const departure = windows.length ? leaveAbs(host) : null;
-  if (!availableHosts().includes(host) || (departure != null && departure < now + duration)) return `等${host.name}有空`;
+  const backup = picnicBackup(pending);
+  if (!picnicHostReady(pending, host) && !picnicHostReady(pending, backup)) {
+    return backup ? `等${host.name}或${backup.name}有空` : `等${host.name}有空`;
+  }
   return '';
 }
 
@@ -161,9 +189,15 @@ function resumePicnic() {
   const friend = G.community.friends.find(f => f.pid === pending.guestPid);
   if (!host || !friend || communityDoll(friend.pid)) { G.community.deferredPicnic = null; return false; }
   if (picnicWaitReason(pending, host)) return false;
-  if (!startGetTogether(host, 'picnic', { friend, rescheduled: true })) return false;
+  const selectedHost = picnicHostReady(pending, host) ? host : picnicBackup(pending);
   G.community.deferredPicnic = null;
-  addLog(`🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`);
+  if (!startGetTogether(selectedHost, 'picnic', { friend, rescheduled: true })) {
+    G.community.deferredPicnic = pending;
+    return false;
+  }
+  addLog(selectedHost === host
+    ? `🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`
+    : `🧺 野餐重新开场，${selectedHost.name}替${host.name}接待${friend.name}。`);
   HOOK.community();
   save();
   return true;

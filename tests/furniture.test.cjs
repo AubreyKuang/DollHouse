@@ -855,6 +855,37 @@ test('changing a deferred picnic to the first available slot keeps its original 
   assert.equal(G.community.deferredPicnic,null);
 `));
 
+test('a postponed picnic prefers its original host and can use the saved backup when needed', () => {
+  for (const originalAvailable of [true,false]) runGame(`
+    load();G.time=720;G.weather='rain';
+    const [host,backup]=residents();
+    host.job='none';backup.job='none';
+    assert.ok(startGetTogether(host,'picnic'));communityTick();
+    const guest=G.community.active.guestPid;
+    assert.ok(choosePicnicPlan('postpone','morning'));
+    assert.equal(changePicnicBackup(host.pid),false);
+    assert.equal(changePicnicBackup(guest),false);
+    assert.ok(changePicnicBackup(backup.pid));
+    load();finishGuestDeparture();
+    const pending=G.community.deferredPicnic;
+    const original=communityDoll(host.pid), standIn=communityDoll(backup.pid);
+    assert.equal(pending.backupPid,standIn.pid);
+    G.day++;G.time=600;G.weather='sunny';
+    const originalLeave=leaveAbs;
+    leaveAbs=()=>absNow()+60;
+    assert.equal(resumePicnic(),false);
+    assert.equal(G.community.deferredPicnic,pending);
+    leaveAbs=d=>d===original&&!${originalAvailable}?absNow()+60:originalLeave(d);
+    assert.ok(resumePicnic());
+    assert.equal(G.community.active.hostPid,${originalAvailable}?original.pid:standIn.pid);
+    assert.equal(G.community.active.guestPid,guest);
+    assert.equal(G.community.friends.find(friend=>friend.pid===guest).hostPid,original.pid);
+    load();
+    assert.equal(G.community.deferredPicnic,null);
+    assert.equal(G.community.active.guestPid,guest);
+  `);
+});
+
 test('dropping a resident on the piano assigns piano time instead of snapping back', () => {
   runGame(`
     load();

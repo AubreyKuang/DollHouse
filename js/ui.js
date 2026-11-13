@@ -619,6 +619,17 @@ function updateCommunityStatus() {
   const pending = G.community.deferredPicnic;
   $('#cancelPicnic').hidden = !pending;
   $('#picnicReschedule').hidden = !pending;
+  const backups = pending ? residents().filter(d => d.pid !== pending.hostPid) : [];
+  $('#picnicBackupRow').hidden = !backups.length;
+  if (backups.length) {
+    const key = JSON.stringify(backups.map(d => [d.pid, d.name]));
+    if (picnicBackupSelect.dataset.options !== key) {
+      picnicBackupSelect.dataset.options = key;
+      picnicBackupSelect.replaceChildren(new Option('等原主人', ''), ...backups.map(d => new Option(d.name, d.pid)));
+    }
+    const value = picnicBackup(pending)?.pid || '';
+    if (picnicBackupSelect.value !== value) picnicBackupSelect.value = value;
+  }
   if (pending) {
     const value = Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window) ? pending.window : '';
     if ($('#picnicWindow').value !== value) $('#picnicWindow').value = value;
@@ -650,6 +661,10 @@ function updateCommunityStatus() {
 }
 HOOK.community = updateCommunityStatus;
 const picnicWindowSelect = $('#picnicWindow');
+const picnicBackupSelect = $('#picnicBackup');
+picnicBackupSelect.onchange = () => {
+  if (!changePicnicBackup(picnicBackupSelect.value)) updateCommunityStatus();
+};
 for (const [key, label] of [['', '原时段'], ...Object.entries(PICNIC_WINDOW_LABELS)]) {
   const option = el('option', null, label);
   option.value = key;
