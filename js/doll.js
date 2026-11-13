@@ -31,6 +31,10 @@ const HAIR = {
     halfup: [[0, 3, 2, 8], [10, 3, 2, 8], [2, 3, 3, 1], [7, 3, 2, 1], [5, -2, 3, 2]],
     doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1], [2, 3, 2, 1], [8, 3, 2, 1]],
     wavy: [[0, 2, 2, 5], [-1, 7, 3, 3], [0, 10, 3, 3], [10, 2, 2, 5], [10, 7, 3, 3], [9, 10, 3, 3], [2, 3, 3, 1]],
+    curtain: [[1, -1, 4, 2], [7, -1, 4, 2], [2, 2, 2, 3], [8, 2, 2, 3]],
+    crop: [[2, 3, 8, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [1, 3, 3, 2], [6, 3, 3, 1]],
+    sidebraid: [[2, 3, 6, 1], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
   },
   up: {
     base: [[1, 0, 10, 9]],
@@ -44,6 +48,10 @@ const HAIR = {
     halfup: [[0, 2, 12, 10], [5, -2, 3, 2], [4, 3, 4, 5]],
     doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1]],
     wavy: [[0, 2, 12, 6], [-1, 7, 14, 3], [0, 10, 12, 3]],
+    curtain: [[1, -1, 4, 2], [7, -1, 4, 2], [2, 8, 3, 2], [7, 8, 3, 2]],
+    crop: [[2, 7, 8, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [1, 7, 2, 3], [8, 7, 3, 2]],
+    sidebraid: [[2, 7, 8, 3], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
   },
   right: {
     base: [[1, 0, 10, 3], [1, 2, 4, 6], [8, 3, 2, 1]],
@@ -55,6 +63,10 @@ const HAIR = {
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2]],
     halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -1, 3, 2], [1, -2, 1, 1]],
     wavy: [[0, 2, 4, 5], [-1, 7, 4, 3], [0, 10, 4, 3]],
+    curtain: [[2, -1, 4, 2], [8, 2, 2, 3], [1, 7, 3, 3]],
+    crop: [[2, 3, 4, 1]],
+    fluffy: [[2, -2, 3, 2], [5, -1, 4, 2], [9, 0, 3, 3], [0, 6, 3, 3]],
+    sidebraid: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [6, 3, 3, 1]],
   },
 };
 
@@ -355,15 +367,37 @@ function dollPortrait(cv, L, dir = 'down', frame = 0, pose = 'stand') {
   c.restore();
 }
 
-function randomLook() {
-  const keys = o => Object.keys(o), r = n => (Math.random() * n) | 0;
-  const look = {
-    skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
-    ...pick(OUTFIT_SETS).look,
-    features: Math.random() < .65 ? 'plain' : pick(keys(OUTFIT.features)),
+function lookDistance(a, b) {
+  // 忽略肤色、脸上一点和鞋底：不能靠不可辨的小差异冒充另一张脸。
+  const hairShape = h => ['short','pixie','crop','sidepart'].includes(h) ? 'short' : ['long','wavy','halfup'].includes(h) ? 'long' : h;
+  const topShape = l => ['dress','pinafore'].includes(l.top) ? 'dress' : l.top === 'overall' ? 'overall' : l.top === 'raincoat' ? 'coat' : 'shirt';
+  const lowerShape = l => topShape(l)==='dress' ? 'skirt' : ['skirt','pleated'].includes(l.bottom) ? 'skirt' : l.bottom==='shorts' ? 'shorts' : 'pants';
+  const colorDistance = (palette, x, y) => {
+    const rgb = i => (palette[i] || palette[0]).slice(1).match(/../g).map(v => parseInt(v,16));
+    const ca=rgb(x),cb=rgb(y);
+    return Math.min(1,Math.hypot(...ca.map((v,i)=>v-cb[i]))/130);
   };
-  // 小概率换成自由款式，保留整套配色，让全部款式都有机会自然出现。
-  if (Math.random() < .25) { look.top = pick(keys(OUTFIT.top)); look.bottom = pick(keys(OUTFIT.bottom)); }
-  if (Math.random() < .25) look.acc = pick(keys(OUTFIT.acc));
-  return look;
+  // 头饰或一条围巾不同也仍可能撞脸；主轮廓和大色块优先。
+  return (hairShape(a.hair)!==hairShape(b.hair)?3:0)
+    + colorDistance(OUTFIT.hairColor,a.hairColor,b.hairColor)
+    + (topShape(a)!==topShape(b)?2:0) + (lowerShape(a)!==lowerShape(b)?1:0)
+    + 2*colorDistance(OUTFIT.clothColor,a.topColor,b.topColor)
+    + colorDistance(OUTFIT.clothColor,a.bottomColor,b.bottomColor);
+}
+
+function randomLook(gender, avoid = [], nearby = avoid) {
+  const pool = RESIDENT_LOOK_SETS.filter(set => !gender || set.gender === gender);
+  const known = avoid.filter(Boolean), room = nearby.filter(Boolean);
+  const candidates = (pool.length ? pool : RESIDENT_LOOK_SETS).flatMap(set => set.hairTones.map(hairColor => {
+    const look = { ...set.look, hairColor };
+    const distance = known.length ? Math.min(...known.map(other => lookDistance(look,other))) : Infinity;
+    const roomDistance = room.length ? Math.min(...room.map(other => lookDistance(look,other))) : Infinity;
+    return { look, distance, roomDistance };
+  }));
+  // 熟人再多也优先避开眼前的住户，不能因所有模板都曾见过而又与室友撞脸。
+  const roomDistinct = candidates.filter(c => c.roomDistance >= 4);
+  const available = roomDistinct.length ? roomDistinct : candidates.filter(c => c.roomDistance >= Math.max(...candidates.map(c => c.roomDistance)) - .001);
+  const distinct = available.filter(c => c.distance >= 4);
+  const best = distinct.length ? distinct : available.filter(c => c.distance >= Math.max(...available.map(c => c.distance)) - .001);
+  return { ...pick(best).look, skin: (Math.random()*OUTFIT.skin.length)|0 };
 }

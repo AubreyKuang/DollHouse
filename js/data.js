@@ -161,7 +161,8 @@ const OUTFIT = {
   skin:  ['#ffe0c7', '#f6c9a4', '#e0a77e', '#b97a52', '#8a5638'],
   hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头',
     pixie: '短碎发', sidepart: '偏分短发', curl: '自然卷', pony: '高马尾', lowpony: '低马尾',
-    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发' },
+    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发',
+    curtain: '中分短发', crop: '清爽寸发', fluffy: '蓬松短发', sidebraid: '侧编发' },
   hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a', '#61534b', '#a77763', '#c5a68b', '#505d76'],
   top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫',
     sweater: '软软毛衣', vest: '衬衫马甲', sailor: '海军领', apron: '小围裙', jacket: '短外套', raincoat: '雨衣', pinafore: '背带裙', pajamas: '睡衣' },
@@ -195,6 +196,39 @@ const OUTFIT_SETS = [
 function wearOutfit(look, id) {
   const outfit = OUTFIT_SETS.find(set => set.id === id);
   return outfit ? { ...look, ...outfit.look } : { ...look };
+}
+
+// 完整人物造型：自动生成按性别选池；手动试穿不限制，也不改人物身份。
+const RESIDENT_LOOK_SETS = [
+  { id:'f-meadow', gender:'f', name:'雏菊花园', hairTones:[1,11,2], look:{skin:0,hair:'sidebraid',hairColor:1,top:'pinafore',topColor:12,bottom:'skirt',bottomColor:12,shoes:4,shoeStyle:'maryjanes',acc:'flower',extra:'none',features:'freckles'} },
+  { id:'f-berry', gender:'f', name:'莓果书页', hairTones:[0,10,1], look:{skin:1,hair:'bob',hairColor:0,top:'vest',topColor:15,bottom:'pleated',bottomColor:8,shoes:0,shoeStyle:'maryjanes',acc:'roundglasses',extra:'none',features:'plain'} },
+  { id:'f-seabreeze', gender:'f', name:'海盐汽水', hairTones:[13,0,10], look:{skin:2,hair:'pony',hairColor:13,top:'sailor',topColor:14,bottom:'shorts',bottomColor:13,shoes:1,shoeStyle:'sneakers',acc:'ribbon',extra:'none',features:'plain'} },
+  { id:'f-peach', gender:'f', name:'蜜桃团团', hairTones:[5,11,1], look:{skin:0,hair:'doublebun',hairColor:5,top:'dress',topColor:15,bottom:'skirt',bottomColor:15,shoes:2,shoeStyle:'maryjanes',acc:'starclip',extra:'none',features:'rosy'} },
+  { id:'f-chestnut', gender:'f', name:'栗子烘焙', hairTones:[1,2,11], look:{skin:3,hair:'braids',hairColor:1,top:'apron',topColor:17,bottom:'cropped',bottomColor:13,shoes:4,shoeStyle:'classic',acc:'ribbon',extra:'none',features:'freckles'} },
+  { id:'f-lilac', gender:'f', name:'丁香琴声', hairTones:[0,10,13], look:{skin:1,hair:'halfup',hairColor:0,top:'cardigan',topColor:16,bottom:'pleated',bottomColor:7,shoes:0,shoeStyle:'maryjanes',acc:'bow',extra:'none',features:'mole'} },
+  { id:'f-sunshine', gender:'f', name:'柠檬踏青', hairTones:[2,1,12], look:{skin:2,hair:'pixie',hairColor:2,top:'jacket',topColor:2,bottom:'shorts',bottomColor:12,shoes:1,shoeStyle:'sneakers',acc:'headband',extra:'backpack',features:'freckles'} },
+  { id:'f-moon', gender:'f', name:'月光来信', hairTones:[4,12,13], look:{skin:4,hair:'wavy',hairColor:4,top:'sweater',topColor:14,bottom:'skirt',bottomColor:16,shoes:1,shoeStyle:'boots',acc:'starclip',extra:'none',features:'plain'} },
+  { id:'f-clover', gender:'f', name:'四叶草午后', hairTones:[10,0,1], look:{skin:1,hair:'lowpony',hairColor:10,top:'overall',topColor:13,bottom:'pants',bottomColor:12,shoes:4,shoeStyle:'classic',acc:'ribbon',extra:'none',features:'rosy'} },
+  { id:'f-cocoa', gender:'f', name:'可可画室', hairTones:[1,11,0], look:{skin:3,hair:'curl',hairColor:1,top:'stripe',topColor:17,bottom:'pleated',bottomColor:8,shoes:0,shoeStyle:'boots',acc:'beret',extra:'satchel',features:'plain'} },
+  { id:'f-apricot', gender:'f', name:'杏子茶会', hairTones:[11,2,1], look:{skin:0,hair:'bun',hairColor:11,top:'dress',topColor:13,bottom:'skirt',bottomColor:13,shoes:4,shoeStyle:'maryjanes',acc:'flower',extra:'none',features:'rosy'} },
+  { id:'f-starry', gender:'f', name:'星星放映室', hairTones:[13,8,0], look:{skin:2,hair:'twin',hairColor:13,top:'hoodie',topColor:16,bottom:'denim',bottomColor:14,shoes:1,shoeStyle:'sneakers',acc:'phones',extra:'none',features:'plain'} },
+  { id:'m-forest', gender:'m', name:'松林来信', hairTones:[0,10,13], look:{skin:0,hair:'curtain',hairColor:0,top:'cardigan',topColor:12,bottom:'pants',bottomColor:13,shoes:4,shoeStyle:'classic',acc:'none',extra:'satchel',features:'plain'} },
+  { id:'m-toast', gender:'m', name:'焦糖吐司', hairTones:[2,11,1], look:{skin:2,hair:'fluffy',hairColor:2,top:'sweater',topColor:17,bottom:'cropped',bottomColor:13,shoes:1,shoeStyle:'sneakers',acc:'none',extra:'scarf',features:'freckles'} },
+  { id:'m-athlete', gender:'m', name:'橘子球场', hairTones:[0,10,1], look:{skin:3,hair:'crop',hairColor:0,top:'jacket',topColor:1,bottom:'shorts',bottomColor:8,shoes:1,shoeStyle:'sneakers',acc:'none',extra:'backpack',features:'plain'} },
+  { id:'m-indigo', gender:'m', name:'靛蓝耳机', hairTones:[13,0,10], look:{skin:1,hair:'spiky',hairColor:13,top:'hoodie',topColor:14,bottom:'denim',bottomColor:8,shoes:1,shoeStyle:'sneakers',acc:'phones',extra:'none',features:'plain'} },
+  { id:'m-roast', gender:'m', name:'咖啡手冲', hairTones:[1,0,10], look:{skin:2,hair:'sidepart',hairColor:1,top:'apron',topColor:11,bottom:'pants',bottomColor:7,shoes:4,shoeStyle:'classic',acc:'none',extra:'none',features:'mole'} },
+  { id:'m-ink', gender:'m', name:'墨色书房', hairTones:[10,0,13], look:{skin:0,hair:'short',hairColor:10,top:'vest',topColor:8,bottom:'pants',bottomColor:14,shoes:0,shoeStyle:'classic',acc:'roundglasses',extra:'none',features:'plain'} },
+  { id:'m-painter', gender:'m', name:'暖阳画家', hairTones:[11,1,2], look:{skin:4,hair:'curl',hairColor:11,top:'stripe',topColor:2,bottom:'cropped',bottomColor:11,shoes:4,shoeStyle:'boots',acc:'beret',extra:'satchel',features:'freckles'} },
+  { id:'m-mint', gender:'m', name:'薄荷骑行', hairTones:[12,2,11], look:{skin:1,hair:'pixie',hairColor:12,top:'tee',topColor:4,bottom:'shorts',bottomColor:7,shoes:1,shoeStyle:'sneakers',acc:'cap',extra:'none',features:'plain'} },
+  { id:'m-melody', gender:'m', name:'落日琴弦', hairTones:[1,10,0], look:{skin:3,hair:'lowpony',hairColor:1,top:'jacket',topColor:15,bottom:'denim',bottomColor:8,shoes:0,shoeStyle:'boots',acc:'none',extra:'none',features:'plain'} },
+  { id:'m-workshop', gender:'m', name:'橡木工坊', hairTones:[0,10,1], look:{skin:2,hair:'crop',hairColor:10,top:'overall',topColor:13,bottom:'pants',bottomColor:11,shoes:4,shoeStyle:'boots',acc:'none',extra:'none',features:'freckles'} },
+  { id:'m-sea', gender:'m', name:'海边白帆', hairTones:[4,12,2], look:{skin:4,hair:'curtain',hairColor:4,top:'sailor',topColor:5,bottom:'shorts',bottomColor:9,shoes:3,shoeStyle:'sneakers',acc:'none',extra:'none',features:'plain'} },
+  { id:'m-cloud', gender:'m', name:'云朵邮差', hairTones:[1,11,10], look:{skin:1,hair:'fluffy',hairColor:1,top:'raincoat',topColor:12,bottom:'pants',bottomColor:14,shoes:4,shoeStyle:'boots',acc:'none',extra:'satchel',features:'rosy'} },
+];
+
+function wearResidentLook(look, id) {
+  const preset = RESIDENT_LOOK_SETS.find(set => set.id === id);
+  return preset ? { ...preset.look, skin: look.skin ?? preset.look.skin } : { ...look };
 }
 
 const WALLS = [
