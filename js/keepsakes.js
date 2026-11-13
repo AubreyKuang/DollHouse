@@ -127,15 +127,33 @@ function bookRecommendation(chair) {
 }
 
 const BOOK_SEAT_MINUTES = 60;
+const BOOK_PUBLIC_READERS = 2;
+const BOOK_PUBLIC_FUN = 4;
+function publicBookReaders(note) {
+  return Array.isArray(note?.readBy) ? note.readBy : null;
+}
+
+function togglePublicBook(chair) {
+  const note = bookRecommendation(chair);
+  const readers = publicBookReaders(note);
+  if (!note || !chair.readingNotes || !isWindowChair(chair) || readers?.length || chair.users.length) return false;
+  const notes = G.keepsakes.bookRecommendations;
+  const { readBy, seatUntil, discuss, ...base } = note;
+  notes[chair.key] = readers ? base : { ...base, readBy: [] };
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
+}
+
 function reservedBookReader(chair) {
   if (!chair.readingNotes || !isWindowChair(chair)) return null;
   const note = bookRecommendation(chair);
-  return Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
+  return !publicBookReaders(note) && Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
 }
 
 function toggleBookSeat(chair) {
   const note = bookRecommendation(chair);
-  if (!note || !chair.readingNotes || !isWindowChair(chair)) return false;
+  if (!note || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
   if (reservedBookReader(chair)) delete note.seatUntil;
   else {
     if (furnitureInUse(chair, communityDoll(note.to))) return false;
@@ -148,7 +166,8 @@ function canMoveBookRecommendation(source, target, note) {
   if (!note || source === target || !source.readingNotes || !isWindowChair(source) ||
       !target?.readingNotes || !isWindowChair(target) || bookRecommendation(target)) return false;
   const reader = communityDoll(note.to);
-  return !source.users.includes(reader) && !furnitureInUse(target, reader);
+  return publicBookReaders(note) ? !source.users.length && !furnitureInUse(target) :
+    !source.users.includes(reader) && !furnitureInUse(target, reader);
 }
 
 function moveBookRecommendation(source, target) {
@@ -168,7 +187,7 @@ function moveBookRecommendation(source, target) {
 
 function toggleBookDiscussion(chair) {
   const note = bookRecommendation(chair);
-  if (!note || !chair.readingNotes || !isWindowChair(chair)) return false;
+  if (!note || publicBookReaders(note) || !chair.readingNotes || !isWindowChair(chair)) return false;
   const previous = note.discuss;
   if (previous === true) delete note.discuss;
   else note.discuss = true;
@@ -180,7 +199,18 @@ function toggleBookDiscussion(chair) {
 
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
-  if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;
+  if (!note || reader.guest || !chair.readingNotes || !isWindowChair(chair)) return false;
+  const readers = publicBookReaders(note);
+  if (readers) {
+    if (reader.pid === note.from || readers.includes(reader.pid) || readers.length >= BOOK_PUBLIC_READERS) return false;
+    readers.push(reader.pid);
+    if (readers.length === BOOK_PUBLIC_READERS) delete G.keepsakes.bookRecommendations[chair.key];
+    reader.needs.fun = Math.min(100, reader.needs.fun + BOOK_PUBLIC_FUN);
+    say(reader, '这一段也值得推荐。');
+    addLog(`📖 ${reader.name}读完了窗边传阅的书摘。`);
+    return true;
+  }
+  if (note.to !== reader.pid) return false;
   const author = communityDoll(note.from);
   if (tensionBetween(author, reader)) return false;
   delete G.keepsakes.bookRecommendations[chair.key];
@@ -211,7 +241,10 @@ function readingNeighbor(d, f) {
 }
 
 function readingCornerBonus(d, f) {
-  if (f.readingNotes && isWindowChair(f) && bookRecommendation(f)?.to === d.pid) return 24;
+  const note = f.readingNotes && isWindowChair(f) && bookRecommendation(f);
+  const readers = publicBookReaders(note);
+  if (readers && !d.guest && d.pid !== note.from && !readers.includes(d.pid)) return 12;
+  if (!readers && note?.to === d.pid) return 24;
   if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
 }

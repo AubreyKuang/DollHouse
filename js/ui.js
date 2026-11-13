@@ -175,6 +175,7 @@ const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
+const bookPublicButton = $('#bookPublic');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
@@ -211,6 +212,11 @@ bookSeatButton.onclick = () => {
 bookDiscussButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !toggleBookDiscussion(chair)) return;
+  refreshReadingSeats();
+};
+bookPublicButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !togglePublicBook(chair)) return;
   refreshReadingSeats();
 };
 soloReadingButton.onclick = () => {
@@ -257,9 +263,14 @@ function refreshReadingSeats() {
   if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
   const recommendation = bookRecommendation(chair);
+  const publicReaders = publicBookReaders(recommendation);
   const reader = reservedBookReader(chair);
-  bookSeatButton.hidden = !recommendation;
-  bookDiscussButton.hidden = !recommendation || !chair.readingNotes;
+  bookSeatButton.hidden = !recommendation || !!publicReaders;
+  bookDiscussButton.hidden = !recommendation || !chair.readingNotes || !!publicReaders;
+  bookPublicButton.hidden = !recommendation || !chair.readingNotes;
+  bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
+  const sharing = String(!!publicReaders);
+  if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
   if (bookDiscussButton.getAttribute('aria-pressed') !== discussing) bookDiscussButton.setAttribute('aria-pressed', discussing);
   bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
@@ -274,7 +285,9 @@ function refreshReadingSeats() {
   const discussion = recommendation && chair.readingNotes
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
-  const hint = text + discussion;
+  const hint = publicReaders
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? '传阅已经开始。' : '座位空闲时可改回私下荐书。'}`
+    : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 
   const destinations = seats.flatMap((seat, i) => canMoveBookRecommendation(chair, seat, recommendation)

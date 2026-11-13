@@ -405,6 +405,38 @@ test('a saved discussion exchanges solo fun for shared social recovery only when
   `);
 });
 
+test('a public recommendation rewards two distinct residents across reloads and releases the private hold', () => game(`
+  const [author,reader,other]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  const note={from:author.pid,to:reader.pid,until:G.day+1,discuss:true};
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.ok(toggleBookSeat(seat));
+  const write=save;
+  save=()=>false;
+  assert.equal(togglePublicBook(seat),false);
+  assert.equal(bookRecommendation(seat),note);
+  assert.equal(reservedBookReader(seat),reader);
+  save=write;
+  assert.ok(togglePublicBook(seat));
+  assert.equal(reservedBookReader(seat),null);
+  assert.equal(toggleBookDiscussion(seat),false);
+  assert.ok(togglePublicBook(seat));
+  assert.equal(publicBookReaders(bookRecommendation(seat)),null);
+  assert.ok(togglePublicBook(seat));
+  assert.equal(finishBookRecommendation(author,seat),false);
+  assert.equal(readingCornerBonus(other,seat),12);
+  assert.ok(finishBookRecommendation(reader,seat));
+  assert.equal(reader.needs.fun,54);
+  assert.equal(togglePublicBook(seat),false);
+  assert.ok(save());load();
+  const chair=G.furniture.find(f=>f.key===seat.key),first=communityDoll(reader.pid),second=communityDoll(other.pid);
+  assert.equal(finishBookRecommendation(first,chair),false);
+  assert.ok(finishBookRecommendation(second,chair));
+  assert.equal(second.needs.fun,54);
+  assert.equal(bookRecommendation(chair),null);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;
