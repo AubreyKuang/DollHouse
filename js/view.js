@@ -86,8 +86,8 @@ function drawDollObj(c, d) {
 function drawWindowLight(c) {
   if (G.weather !== 'sunny' || G.time < 8 * 60 || G.time >= 18 * 60) return;
   const afternoon = G.time >= 13 * 60;
-  const bright = afternoon ? '#ffd59c48' : '#fff3cc39';
-  const pale = afternoon ? '#ffc98828' : '#fff3cc20';
+  const bright = afternoon ? '#ffd29a7b' : '#fff3cc5c';
+  const pale = afternoon ? '#ffc98837' : '#fff3cc30';
   for (const f of G.furniture) {
     if (f.id !== 'window') continue;
     const { x, w, storey } = houseFurnitureRect(f);
