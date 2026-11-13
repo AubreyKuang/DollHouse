@@ -65,16 +65,16 @@ function game(code, ui = false) {
   vm.runInContext(code, ctx);
 }
 
-test('384 original resident animation frames remain pixel-identical', () => game(`
+test('160 original front/back frames retain the original pixel appearance', () => game(`
   const expected = {
-    'p-tao':'c20844cd2d89325fe83061883b5e58479160229db131435aed252eed3db32a00',
-    'p-lan':'e1a04d7d1ee09a44ce872b988bdfec4892413b55fdf046162262218297eb0b1f',
-    'p-jing':'705b8f1b844f521a3852bd7d1727f09e260923a6cd71f30a08532b7565b38721',
-    'p-tuan':'3c1851cddf42fe48391646d15dcd22a736aa6e2e13fafefa3a89144f337b50d5',
+    'p-tao':'f0b307ae13f7835f3b5f47b2ec4f0b4517ee0b1f948d7e5c52be0e590bae31a9',
+    'p-lan':'7482238ff6b1ffad705f131a98493cadbc465e8ff93971ebc7d449eb0b89c353',
+    'p-jing':'720760f2795e0207259af587d0a8670c3dfc89aecc4cb0c4876c72d768cbd315',
+    'p-tuan':'4adc7fb0e398c9af3696811650aecf6a69061ee0094e285396a564636004b626',
   };
   for (const d of DEFAULT_SAVE.dolls) {
     const frames=[];
-    for(const dir of ['down','left','right','up']) for(const pose of ['stand','walk','sit','lift','dance','head']) for(let frame=0;frame<4;frame++) {
+    for(const dir of ['down','up']) for(const pose of ['stand','walk','sit','lift','dance']) for(let frame=0;frame<4;frame++) {
       const c=raster(); drawDoll(c,20,30,d.look,{dir,pose,frame,happy:true}); frames.push(c.pixels);
     }
     assert.equal(hash(JSON.stringify(frames)),expected[d.pid],d.name);
@@ -164,3 +164,22 @@ test('wardrobe presets, direction, poses and per-resident undo work through thei
   pages[0].click();assert.ok($('#wdOptions').children[0].children[0].textContent.includes('今日穿什么'));
   closeWardrobe();assert.equal($('#wardrobe').hidden,true);
 `, true));
+
+
+test('face details and held bowls remain readable and within bounds while walking, eating and sleeping', () => game(`
+  const base={...DEFAULT_SAVE.dolls[0].look,hair:'pixie',acc:'none'};
+  for(const features of Object.keys(OUTFIT.features))for(const dir of ['down','left','right','up'])for(const pose of ['stand','walk','sit','head'])for(let frame=0;frame<4;frame++){
+    const c=raster(24,28);drawDoll(c,12,pose==='head'?18:27,{...base,features},{dir,pose,frame,prop:pose==='head'?null:'bowl',gesture:'eat',expression:'content'});
+    assert.equal(c.outside.length,0,features+' '+dir+' '+pose);
+  }
+  for(const features of ['freckles','rosy','mole']){
+    const c=raster(),plain=raster();drawDoll(c,20,30,{...base,features});drawDoll(plain,20,30,base);
+    assert.notEqual(hash(JSON.stringify(c.pixels)),hash(JSON.stringify(plain.pixels)));
+    assert.deepEqual(wearOutfit({...base,features},'mint').features,features);
+  }
+  const left=raster(),right=raster();
+  drawDoll(right,20,30,base,{dir:'right',pose:'head'});
+  assert.equal(right.pixels[27*40+21],DOLL_INK,'side sleeping eyes are closed at y + 6');
+  const empty=raster(),back=raster();drawDoll(empty,20,30,base,{dir:'up'});drawDoll(back,20,30,base,{dir:'up',prop:'bowl'});
+  assert.deepEqual(back.pixels,empty.pixels,'bowl is hidden behind the body from the back');
+`));

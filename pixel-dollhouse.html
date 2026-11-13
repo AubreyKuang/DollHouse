@@ -841,6 +841,7 @@ const OUTFIT = {
     beret: '贝雷帽', beanie: '毛线帽', headband: '发箍', starclip: '星星发夹', ribbon: '小缎带', roundglasses: '圆眼镜' },
   extra: { none: '无', scarf: '小围巾', satchel: '斜挎包', backpack: '双肩包' },
   shoeStyle: { classic: '原版小鞋', sneakers: '运动鞋', boots: '短靴', maryjanes: '搭扣鞋' },
+  features: { plain: '原版小脸', freckles: '小雀斑', rosy: '桃桃脸颊', mole: '小泪痣' },
 };
 
 // 穿搭只包含衣物，不改肤色、头发或人物设定；随机来客也从协调的配色中挑选。
@@ -1409,11 +1410,11 @@ const HAIR = {
     pixie: [[2, -1, 3, 1], [2, 3, 2, 1], [6, 3, 1, 1]],
     sidepart: [[2, -1, 5, 1], [2, 3, 3, 1], [5, 2, 3, 1]],
     curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 2, 3], [10, 3, 2, 3], [3, 3, 2, 1], [8, 3, 2, 1]],
-    pony: [[2, 3, 3, 1], [7, 3, 2, 1], [9, -3, 3, 3], [11, 0, 3, 6]],
+    pony: [[2, 3, 3, 1], [7, 3, 2, 1], [9, -2, 2, 2], [11, 0, 2, 3], [12, 3, 1, 2]],
     lowpony: [[2, 3, 3, 1], [7, 3, 2, 1], [10, 7, 3, 5]],
     braids: [[2, 3, 2, 1], [8, 3, 2, 1], [0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
     halfup: [[0, 3, 2, 8], [10, 3, 2, 8], [2, 3, 3, 1], [7, 3, 2, 1], [5, -2, 3, 2]],
-    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3], [2, 3, 2, 1], [8, 3, 2, 1]],
+    doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1], [2, 3, 2, 1], [8, 3, 2, 1]],
     wavy: [[0, 2, 2, 5], [-1, 7, 3, 3], [0, 10, 3, 3], [10, 2, 2, 5], [10, 7, 3, 3], [9, 10, 3, 3], [2, 3, 3, 1]],
   },
   up: {
@@ -1426,7 +1427,7 @@ const HAIR = {
     lowpony: [[5, 7, 3, 6]],
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
     halfup: [[0, 2, 12, 10], [5, -2, 3, 2], [4, 3, 4, 5]],
-    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3]],
+    doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1]],
     wavy: [[0, 2, 12, 6], [-1, 7, 14, 3], [0, 10, 12, 3]],
   },
   right: {
@@ -1435,9 +1436,9 @@ const HAIR = {
     bun: [[3, -3, 4, 3]], spiky: [[2, -2, 2, 2], [5, -3, 2, 3], [8, -2, 2, 2]], bob: [[0, 2, 5, 7], [6, 3, 4, 1]],
     pixie: [[3, -1, 3, 1]], sidepart: [[3, -1, 5, 1], [6, 3, 2, 1]],
     curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 3, 5]],
-    pony: [[-2, -3, 3, 3], [-3, 0, 3, 7]], lowpony: [[-2, 6, 3, 6]],
+    pony: [[-1, -2, 2, 2], [-2, 0, 2, 4], [-1, 4, 1, 2]], lowpony: [[-1, 6, 2, 4], [0, 10, 1, 2]],
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2]],
-    halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -2, 3, 3]],
+    halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -1, 3, 2], [1, -2, 1, 1]],
     wavy: [[0, 2, 4, 5], [-1, 7, 4, 3], [0, 10, 4, 3]],
   },
 };
@@ -1511,6 +1512,10 @@ function drawDoll(c, cx, by, L, o = {}) {
     R(c, x + 4, yb + 13, 1, 1, '#dfba83');
   }
   if (L.top === 'suit' && front) { R(c, x + 5, yb + 10, 2, 3, '#ffffff'); R(c, x + 5, yb + 11, 1, 2, '#e26d7d'); }
+  if (view === 'right' && ['suit', 'cardigan', 'vest', 'apron'].includes(L.top)) {
+    R(c, x + 8, yb + 10, 1, 3, '#fffaf0');
+    if (L.top === 'suit') R(c, x + 8, yb + 12, 1, 1, '#e26d7d');
+  }
   drawClothingDetail(c, x, yb, L, C, view);
   // 下装（连衣裙自带裙摆）
   if (isDress || L.top === 'raincoat' || L.bottom === 'skirt' || L.bottom === 'pleated') {
@@ -1531,7 +1536,7 @@ function drawDoll(c, cx, by, L, o = {}) {
     R(c, x + ax, yb + 10 + dy, 1, sleeve, sleeveColor);
     R(c, x + ax, yb + 10 + dy + sleeve, 1, 4 - sleeve, C.skin);
   };
-  const sw = walking ? (fr === 1 ? 1 : fr === 3 ? -1 : 0) : 0;
+  const sw = walking ? (fr === 1 ? 1 : fr === 3 ? -1 : 0) : o.gesture === 'talk' && fr % 2 ? -1 : 0;
   if (view === 'right') arm(6, sw, pose === 'lift' || (pose === 'dance' && fr % 2));
   else {
     const upA = pose === 'lift' || (pose === 'dance' && fr % 2 === 0);
@@ -1541,7 +1546,22 @@ function drawDoll(c, cx, by, L, o = {}) {
 
   drawBodyAccessory(c, x, yb, L, C, view);
   drawHead(c, x, yb, L, C, view, o);
+  if (o.prop === 'bowl') drawHeldBowl(c, x, yb, C, view, o.gesture === 'eat' && fr % 2 === 1);
   c.restore();
+}
+
+function drawHeldBowl(c, x, y, C, view, bite) {
+  if (view === 'up') return; // 背面碗在身前，不穿过身体。
+  const bx = x + (view === 'right' ? 7 : 2), by = y + 13, width = view === 'right' ? 6 : 8;
+  R(c, bx, by, width, 1, DOLL_INK); R(c, bx + 1, by + 1, width - 2, 2, '#fff3d9');
+  R(c, bx + 2, by + 3, width - 4, 1, '#96796a'); R(c, bx + 1, by - 1, width - 2, 1, '#d3a25d');
+  R(c, bx + 2, by - 1, 2, 1, '#8eaf85');
+  R(c, bx - 1, by, 1, 2, C.skin);
+  if (view === 'down') R(c, bx + width, by, 1, 2, C.skin);
+  if (bite) {
+    const spoon = view === 'right' ? x + 10 : x + 7;
+    R(c, spoon, y + 9, 1, 3, '#d9cbb5'); R(c, spoon - 1, y + 9, 2, 1, '#fff3d9');
+  }
 }
 
 function drawClothingDetail(c, x, y, L, C, view) {
@@ -1599,24 +1619,45 @@ function drawBodyAccessory(c, x, y, L, C, view) {
 }
 
 function drawHead(c, x, y, L, C, view, o) {
-  box(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
+  if (view === 'right') bevel(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
+  else box(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
   if (view === 'down') {
     if (L.acc === 'glasses') { R(c, x + 3, y + 4, 3, 3, DOLL_INK); R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 4, y + 5, 1, 1, '#cfeaf7'); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
     if (o.sleep || o.blink) { R(c, x + 3, y + 6, 2, 1, DOLL_INK); R(c, x + 7, y + 6, 2, 1, DOLL_INK); }
     else if (L.acc === 'glasses') { R(c, x + 4, y + 5, 1, 1, DOLL_INK); R(c, x + 7, y + 5, 1, 1, DOLL_INK); }
-    else { R(c, x + 4, y + 5, 1, 2, DOLL_INK); R(c, x + 7, y + 5, 1, 2, DOLL_INK); }
+    else { R(c, x + 4, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK); R(c, x + 7, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK); }
     R(c, x + 2, y + 7, 2, 1, '#f59aa8'); R(c, x + 8, y + 7, 2, 1, '#f59aa8');
-    if (o.happy) R(c, x + 5, y + 8, 2, 1, '#c0505a');
+    if (o.happy || o.expression === 'content') R(c, x + 5, y + 8, 2, 1, '#c0505a');
   } else if (view === 'right') {
     if (L.acc === 'glasses') { R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
-    if (o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK); else R(c, x + 7, y + 5, 1, 2, DOLL_INK);
+    if (o.sleep || o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK); else R(c, x + 7, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK);
     R(c, x + 8, y + 7, 2, 1, '#f59aa8');
-    if (o.happy) R(c, x + 9, y + 8, 1, 1, '#c0505a');
+    if (o.happy || o.expression === 'content') R(c, x + 9, y + 8, 1, 1, '#c0505a');
   }
+
+  const freckles = shade(C.skin, -.24);
+  if (view !== 'up' && L.features === 'freckles') {
+    for (const px of view === 'right' ? [8, 10] : [2, 4, 7, 9]) R(c, x + px, y + 7, 1, 1, freckles);
+  }
+  if (view !== 'up' && L.features === 'rosy') {
+    if (view === 'down') R(c, x + 2, y + 7, 2, 2, '#e89198');
+    R(c, x + 8, y + 7, 2, 2, '#e89198');
+  }
+  if (view !== 'up' && L.features === 'mole') R(c, x + 8, y + 7, 1, 1, '#805d52');
 
   const set = HAIR[view];
   const rects = set.base.concat(set[L.hair] || []);
   blob(c, x, y, rects, C.hair);
+  if (view === 'right') {
+    R(c, x + 4, y + 6, 2, 2, C.skin);
+    R(c, x + 4, y + 6, 1, 1, shade(C.skin, -.12));
+    R(c, x + 2, y + 4, 1, 2, shade(C.hair, .08));
+    if (L.acc === 'glasses') {
+      R(c, x + 6, y + 4, 4, 3, DOLL_INK); R(c, x + 7, y + 5, 2, 1, '#cfeaf7');
+      R(c, x + 8, y + 5, 1, 1, DOLL_INK);
+      if (o.sleep || o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK);
+    }
+  }
   if (view !== 'up') R(c, x + 3, y + 1, 3, 1, shade(C.hair, 0.18)); // 头发高光
   if (L.hair === 'braids') {
     for (const h of [6, 9]) {
@@ -1704,6 +1745,7 @@ function randomLook() {
   const look = {
     skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
     ...pick(OUTFIT_SETS).look,
+    features: Math.random() < .65 ? 'plain' : pick(keys(OUTFIT.features)),
   };
   // 小概率换成自由款式，保留整套配色，让全部款式都有机会自然出现。
   if (Math.random() < .25) { look.top = pick(keys(OUTFIT.top)); look.bottom = pick(keys(OUTFIT.bottom)); }
@@ -2085,6 +2127,7 @@ function shareMeal(host, guest, food, gain) {
 }
 
 const PAPER_EVENTS = [
+  [/晚归后吃完了.+留的饭|当面谢谢.+留下的饭/, '回家有盏灯', '🕯', 79],
   [/在家一起吃顿饭|在家围坐讲故事|在家开了一场小小音乐会/, '小屋时光', '🏡', 81],
   [/分手|变心/, '关系转折', '💔', 105],
   [/撞见|闹翻/, '关系转折', '💢', 100],
@@ -2454,7 +2497,7 @@ function houseSaveData() {
   return {
     cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    keepsakes: G.keepsakes, home: G.home,
+    keepsakes: G.keepsakes, home: G.home, care: G.care,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
       .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -2557,6 +2600,7 @@ function applySave(s) {
   }
   G.keepsakes = restoreKeepsakes(s.keepsakes);
   G.home = restoreHomeStories(s.home);
+  G.care = restoreHomeCare(s.care);
   G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
@@ -2756,6 +2800,7 @@ function endAct(d) {
 }
 
 function decide(d) {
+  if (tryHomeCare(d)) return;
   if (joinGetTogether(d)) return;
   const P = PERSONAS[d.persona], N = d.needs, opts = [];
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
@@ -2801,7 +2846,7 @@ function decide(d) {
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
     (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay'))
-    && !inHomeTime(o) && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
+    && !inHomeTime(o) && !CARE_ACTIONS.includes(o.act?.type) && canDisturb(d, o));   // 不打断正在端饭、吃留饭的人
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.23 + (canSee(d, p) && Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) <= 4 ? 10 : 0) + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -2873,6 +2918,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (CARE_ACTIONS.includes(a?.type)) { arriveHomeCare(d); return; }
   if (a?.type === 'homeTime') { arriveHomeTime(d); return; }
   if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
@@ -2997,6 +3043,7 @@ function updateDoll(d, dt) {
 
   if (d.state === 'act') {
     const a = d.act;
+    if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
     if (a.type === 'visitStay' || (a.type === 'homeTime' && a.homeKind === 'music')) {
@@ -3027,7 +3074,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
-    if (a.type === 'cook' && a.t <= 0) shareCookedMeal(d);
+    if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
     if (a.t <= 0 || wake) endAct(d);
     return;
   }
@@ -3063,6 +3110,8 @@ function orderUse(d, f) {
   if (!F.use) { say(d, '这个不能用哦'); return false; }
   if (d.state === 'lift' || d.state === 'away' || (d.guest && F.use === 'sleep')) return false;
   if (d.act) endAct(d);
+  const meal = savedMealFor(d, f);
+  if (meal && beginCareAction(d, meal, 'savedMeal')) return true;
   if (!startAct(d, { type: F.use, furn: f })) { say(d, '过不去呀…'); SFX.play('deny'); return false; }
   say(d, '好的～', 1.2);
   return true;
@@ -3116,6 +3165,7 @@ function update(realDt) {
     const carrying = G.dolls.some(d => d.state === 'lift');
     if (!carrying) tickKeepsakes(dt);
     if (!carrying) tickHomeStories(dt);
+    if (!carrying) tickHomeCare();
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
@@ -3263,7 +3313,10 @@ function tickHouseExchange(d, dt) {
     delete d.act.exchange;
     return;
   }
-  if (talk.next >= talk.lines.length) return;
+  if (talk.next >= talk.lines.length) {
+    if (talk.careId) { finishCareThanks(d, talk.partner, talk.careId); delete talk.careId; }
+    return;
+  }
   talk.delay -= dt;
   if (talk.delay > 0) return;
   const speaker = talk.next % 2 ? talk.partner : d;
@@ -3288,7 +3341,10 @@ function startSocial(d, p, introduced = false) {
   const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
   d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
   const lines = exchange?.lines || (kind === 'chat' ? houseChatLines(d) : null);
-  if (lines) startHouseExchange(d, p, lines);
+  if (lines) {
+    startHouseExchange(d, p, lines);
+    if (exchange?.careId) { d.act.exchange.careId = exchange.careId; d.act.t = p.act.t = Math.max(6, d.act.t); }
+  }
   else say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
   let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
@@ -3800,7 +3856,7 @@ function comeHome(d) {
   payday(d);
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
-  greetAfterWork(d, line, soaked);
+  if (!noticeSavedMeal(d)) greetAfterWork(d, line, soaked);
   if (G.sel === d.uid) HOOK.select();
 }
 
@@ -6673,6 +6729,187 @@ function drawHomeTable(c, f, x, y) {
 ACT_NAMES.homeTime = '共度小屋时光';
 </script>
 <script>
+// A cooked portion has a physical journey: stove → table → late return → thanks.
+// Keep progress in world state so reloading cannot create extra food or rewards.
+const CARE_ACTIONS = ['leaveMeal', 'savedMeal'];
+Object.assign(ACT_NAMES, { leaveMeal: '给晚归的人留饭', savedMeal: '吃室友留下的饭' });
+const carePerson = pid => residents().find(d => d.pid === pid);
+const careTable = meal => G.furniture.find(f => f.key === meal.table && f.id === 'table');
+
+function restoreHomeCare(saved) {
+  const meals = Array.isArray(saved?.meals) ? saved.meals.filter(m => m &&
+    typeof m.id === 'string' && typeof m.from === 'string' && typeof m.to === 'string' &&
+    typeof m.table === 'string' && ['packing', 'ready', 'eaten', 'thanked'].includes(m.phase) &&
+    Number.isFinite(m.created) && Number.isFinite(m.expires)).slice(-12).map(m => ({ ...m,
+      bites: Math.max(0, Math.min(6, Number(m.bites) || 0)), nextTry: 0 })) : [];
+  const prepared = Array.isArray(saved?.prepared) ? saved.prepared.filter(p => p && typeof p.pid === 'string' && Number.isInteger(p.month)).slice(-16) : [];
+  return { next: Math.max(1, Math.floor(Number(saved?.next) || 1)), meals, prepared };
+}
+function caringFor(cook, guest) {
+  if (tensionBetween(cook, guest) || rel(cook, guest).f < 0) return false;
+  return ['foodie', 'tidy', 'social'].includes(cook.persona) ||
+    ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook)) || arePartners(cook, guest) || rel(cook, guest).f >= 55;
+}
+function lateWorker(d) {
+  if (d.guest || d.state !== 'away' || G.community?.outing?.pid === d.pid || !JOBS[d.job]?.wage) return false;
+  const wait = d.awayUntil - absNow(), hour = ((d.awayUntil % 1440) + 1440) % 1440;
+  return wait > 0 && wait <= 12 * 60 && (hour >= 18 * 60 || d.job === 'night' || d.overtime);
+}
+function planSavedMeal(cook) {
+  if (cook.guest || !G.care || G.care.prepared.some(p => p.pid === cook.pid && p.month === G.day)) return false;
+  if (G.care.meals.filter(m => ['packing', 'ready'].includes(m.phase)).length >= 2) return false;
+  const guests = residents().filter(d => d !== cook && lateWorker(d) && caringFor(cook, d) &&
+    !G.care.meals.some(m => m.to === d.pid && ['packing', 'ready'].includes(m.phase)));
+  guests.sort((a, b) => Number(arePartners(cook, b)) - Number(arePartners(cook, a)) || a.needs.hunger - b.needs.hunger);
+  const guest = guests[0]; if (!guest) return false;
+  const table = G.furniture.find(f => f.id === 'table' && !homeFurnitureReserved(f) &&
+    !G.care.meals.some(m => m.table === f.key && ['packing', 'ready'].includes(m.phase)) &&
+    findPath(cook.tx, cook.ty, approachTiles(f)));
+  if (!table) return false;
+  const note = cook.persona === 'foodie' ? '多盛了一份，回来慢慢吃。' : cook.persona === 'tidy' ? '饭盖好了，碗筷也放在旁边。'
+    : isE(cook) ? '辛苦啦！给你留了饭，吃饱再休息。' : '桌上这份是你的。不急，慢慢吃。';
+  G.care.meals.push({ id: `meal-${G.care.next++}`, from: cook.pid, to: guest.pid, table: table.key,
+    phase: 'packing', note, created: absNow(), expires: guest.awayUntil + 8 * 60, bites: 0, nextTry: 0 });
+  G.care.prepared = G.care.prepared.filter(p => p.pid !== cook.pid && p.month >= G.day - 1);
+  G.care.prepared.push({ pid: cook.pid, month: G.day });
+  while (G.care.meals.length > 12) G.care.meals.splice(G.care.meals.findIndex(m => ['eaten', 'thanked'].includes(m.phase)), 1);
+  return true;
+}
+function savedMealFor(d, table) {
+  return G.care?.meals.find(m => m.to === d.pid && m.phase === 'ready' && m.expires > absNow() &&
+    (!table || table.key === m.table) && carePerson(m.from) && !tensionBetween(d, carePerson(m.from)));
+}
+function beginCareAction(d, meal, type) {
+  const table = careTable(meal); if (!table) return false;
+  if (homeFurnitureReserved(table) || table.users.length >= FURNITURE.table.cap) return false;
+  const tiles = approachTiles(table).filter(t => free(t.x, t.y) && !G.dolls.some(o => {
+    if (o === d || o.state === 'away') return false;
+    const dest = o.path.at(-1);
+    return (o.tx === t.x && o.ty === t.y) || (dest?.x === t.x && dest?.y === t.y);
+  }));
+  const path = findPath(d.tx, d.ty, tiles); if (!path) return false;
+  table.users.push(d); d.path = path; d.state = path.length ? 'walk' : 'arrive';
+  d.act = { type, careId: meal.id, furn: table, gain: null };
+  return true;
+}
+function stepAsideAfterServing(d, table) {
+  const front = approachTiles(table);
+  const kitchen = G.furniture.filter(f => f.id === 'stove').flatMap(approachTiles);
+  const tiles = [...kitchen, {x:d.tx-2,y:d.ty+1},{x:d.tx+2,y:d.ty+1},{x:d.tx-2,y:d.ty},{x:d.tx+2,y:d.ty}].filter(t =>
+    t.x !== d.tx && free(t.x,t.y) && !front.some(p => p.x === t.x && p.y === t.y) &&
+    !G.dolls.some(o => o !== d && o.state !== 'away' && o.tx === t.x && o.ty === t.y));
+  const path = findPath(d.tx,d.ty,tiles);
+  if (path?.length) { d.path=path;d.state='walk';d.act={type:'wander'}; }
+}
+function tryHomeCare(d) {
+  if (d.guest || !G.care || d.needs.bladder < 12 || d.needs.energy < 8 || inHomeTime(d)) return false;
+  const leave = leaveAbs(d);
+  if (leave != null && leave - absNow() < 35 && leave - absNow() > -180) return false;
+  const pending = G.care.meals.find(m => m.from === d.pid && m.phase === 'packing');
+  if (pending && beginCareAction(d, pending, 'leaveMeal')) return true;
+  const meal = savedMealFor(d);
+  if (meal && d.needs.hunger < 85 && beginCareAction(d, meal, 'savedMeal')) return true;
+  const thanks = G.care.meals.find(m => m.to === d.pid && m.phase === 'eaten' &&
+    G.day > m.eatenMonth && (m.nextTry || 0) <= absNow());
+  if (!thanks || G.time < 7 * 60 || G.time > 21 * 60) return false;
+  const cook = carePerson(thanks.from);
+  thanks.nextTry = absNow() + 30;
+  if (!cook || !availableForHouseChat(cook) || !canSee(d, cook) || !canDisturb(d, cook) || tensionBetween(d, cook)) return false;
+  const line = d.persona === 'foodie' ? '上次给我留的饭，连最后一口都吃光了。' : d.persona === 'nerd' ? '上次回来看到那张便签，忽然就没那么累了。'
+    : d.persona === 'lazy' ? '那天还以为得饿着睡呢……谢谢你的饭。' : '上次晚归的那份饭，谢谢你。我都记着呢。';
+  return startAct(d, { type: 'chat', partner: cook, kind: 'chat', exchange: {
+    careId: thanks.id, lines: [line, isE(cook) ? '吃好了就好，下次也一起吃呀。' : '嗯，回来有口饭吃就好。', '有你在家，真好。']
+  } });
+}
+function arriveHomeCare(d) {
+  if (!CARE_ACTIONS.includes(d.act?.type)) return;
+  const a = d.act, meal = G.care.meals.find(m => m.id === a.careId), table = meal && careTable(meal);
+  const expected = a.type === 'leaveMeal' ? 'packing' : 'ready';
+  if (!meal || meal.phase !== expected || table !== a.furn ||
+      !approachTiles(table).some(t => t.x === d.tx && t.y === d.ty)) { endAct(d); return; }
+  d.state = 'act'; d.dir = 'down'; a.t = a.type === 'leaveMeal' ? 2.4 : 6 - meal.bites;
+  a.careElapsed = 0;
+  say(d, a.type === 'leaveMeal' ? '这份留给晚回家的人。' : `是${carePerson(meal.from).name}留给我的……`, 2.5);
+}
+function tickCareAction(d, dt) {
+  if (!CARE_ACTIONS.includes(d.act?.type)) return;
+  const a = d.act, meal = G.care.meals.find(m => m.id === a.careId), cook = meal && carePerson(meal.from), guest = meal && carePerson(meal.to);
+  if (!meal || !cook || !guest || careTable(meal) !== a.furn || tensionBetween(cook, guest)) { endAct(d); return; }
+  a.careElapsed += dt;
+  if (a.type === 'savedMeal') {
+    const bite = Math.min(dt, 6 - meal.bites);
+    meal.bites += bite;
+    d.needs.hunger = Math.min(100, d.needs.hunger + bite * 7);
+    d.needs.energy = Math.min(100, d.needs.energy + bite);
+  }
+  a.t -= dt;
+  if (a.t > .00001) return;
+  if (a.type === 'leaveMeal') {
+    meal.phase = 'ready';
+    addLog(`🍲 ${cook.name} 给晚归的 ${guest.name} 留了一份饭和便签，还亮起了餐桌上的小灯`);
+    NPCMemory.record(G, { type: 'saved-meal-left', time: absNow(), participants: [cook.pid, guest.pid], outcome: 'waiting' }, [
+      { person: cook.pid, subject: guest.pid, emotion: .45, impact: 48, interpretation: `${guest.name} 还没回家，我把饭和便签留在了桌上` }
+    ]);
+  } else {
+    meal.phase = 'eaten'; meal.eatenMonth = G.day; d.happy = 5;
+    bump(cook, d, 3); addTrust(d, cook, 5);
+    const text = `${d.name} 晚归后吃完了 ${cook.name} 留的饭，收好了那张便签`;
+    addLog(`🕯 ${text}`);
+    NPCMemory.record(G, { type: 'saved-meal', time: absNow(), participants: [cook.pid, d.pid], outcome: 'eaten' }, [
+      { person: d.pid, subject: cook.pid, emotion: .8, impact: 78, interpretation: `晚归时，${cook.name} 给我留了饭和一盏灯` }
+    ]);
+    addHomeMemory('care', '回家时，有人为我留了饭', text, [cook, d], meal.id);
+    say(d, '吃饱了，好像也没那么累了。');
+  }
+  endAct(d);
+  if (a.type === 'leaveMeal') stepAsideAfterServing(d, a.furn);
+}
+function finishCareThanks(d, cook, id) {
+  const meal = G.care?.meals.find(m => m.id === id && m.phase === 'eaten' && m.to === d.pid && m.from === cook.pid);
+  if (!meal || tensionBetween(d, cook)) return;
+  meal.phase = 'thanked';
+  addLog(`💛 ${d.name} 当面谢谢 ${cook.name} 上次留下的饭，两人提起了那张便签`);
+  NPCMemory.record(G, { type: 'saved-meal-thanks', time: absNow(), participants: [d.pid, cook.pid], outcome: 'thanked' }, [
+    { person: cook.pid, subject: d.pid, emotion: .65, impact: 58, interpretation: `${d.name} 记着我留的饭，今天特意来道谢` }
+  ]);
+}
+function noticeSavedMeal(d) {
+  if (!savedMealFor(d)) return false;
+  d.think = .3;
+  say(d, '终于回来了，先找点吃的。');
+  return true;
+}
+function tickHomeCare() {
+  if (!G.care) return;
+  G.care.meals = G.care.meals.filter(m => {
+    const from = carePerson(m.from), to = carePerson(m.to);
+    if (!from || !to) return false;
+    if (['packing', 'ready'].includes(m.phase)) return !!careTable(m) && m.expires > absNow() &&
+      (m.phase !== 'packing' || m.created + 240 > absNow()) && !tensionBetween(from, to);
+    return m.eatenMonth >= G.day - 3;
+  });
+}
+function savedMealAt(f) { return G.care?.meals.find(m => m.table === f.key && m.phase === 'ready'); }
+function savedMealNote(f) {
+  const m = savedMealAt(f), cook = m && carePerson(m.from), guest = m && carePerson(m.to);
+  return cook && guest ? `📝 给${guest.name}：${m.note} ——${cook.name}` : null;
+}
+function drawSavedMeal(c, f, x, y) {
+  const meal = savedMealAt(f); if (!meal) return;
+  // Table-top props share the furniture's projection and occlusion; no floating sticker.
+  const eating = f.users.some(d => d.state === 'act' && d.act?.type === 'savedMeal');
+  if (!eating) {
+    R(c, x + 9, y - 3, 12, 2, '#765854'); R(c, x + 10, y - 4, 10, 1, '#fff5d9');
+    R(c, x + 11, y - 7, 8, 3, '#a7c9b7'); R(c, x + 13, y - 8, 4, 1, '#cce2d0');
+    R(c, x + 14, y - 10, 2, 2, '#765854');
+  }
+  R(c, x + 23, y - 5, 6, 5, '#fff4c8'); R(c, x + 24, y - 4, 3, 1, '#b48f72');
+  R(c, x + 24, y - 2, 2, 1, '#bc8390');
+  R(c, x + 3, y - 4, 4, 4, '#916e5b'); R(c, x + 3, y - 7, 4, 3, '#f7d68b');
+  R(c, x + 4, y - 6, 2, 2, '#fff4cf');
+}
+</script>
+<script>
 // Portable saves are inspected before applying; the previous home remains recoverable.
 const HOME_IMPORT_BACKUP = SAVE_KEY + ':before-import';
 const HOME_FILE_LIMIT = 5 * 1024 * 1024;
@@ -6812,8 +7049,14 @@ function dollPose(d) {
 }
 function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
+  const care = d.act && CARE_ACTIONS.includes(d.act.type);
+  const speaking = d.state === 'act' && d.act?.type === 'chat' && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
+  const eating = care && d.act.type === 'savedMeal' && d.state === 'act';
   drawDoll(c, x, y, d.look, {
-    dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
+    dir: d.dir, frame: eating ? Math.floor(d.act.careElapsed * 2) % 4 : speaking ? Math.floor(G.t * 2) % 4 : d.frame, pose: dollPose(d), hop: d.hop,
+    prop: care && (d.act.type === 'leaveMeal' || eating) ? 'bowl' : null,
+    gesture: eating ? 'eat' : speaking ? 'talk' : null,
+    expression: eating ? 'content' : d.needs.energy < 25 && !d.happy ? 'tired' : null,
     blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
@@ -6960,6 +7203,7 @@ function render() {
       if (f.id === 'tv' && f.active) hole(x + 16, y - 4, 34, .8);
       if (f.id === 'arcade') hole(x + 8, y - 8, 20, f.active ? .8 : .4);
       if (f.id === 'stove' && f.active) hole(x + 8, y - 6, 22, .7);
+      if (savedMealAt(f)) hole(x + 5, y - 5, 32, .85);
       if (f.id === 'fridge' && f.active) hole(x + 8, y, 24, .7);
       lctx.restore();
     }
@@ -7010,6 +7254,7 @@ function drawHouseFurniture(c, f, t) {
   }
   drawFurnitureArt(c, f.id, x, y, f, t);
   drawHomeTable(c, f, x, y);
+  drawSavedMeal(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
@@ -7293,9 +7538,12 @@ cv.addEventListener('pointerup', e => {
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
+    const note = savedMealNote(press.furn);
+    if (note) HOOK.toast(note, true);
   } else if (press.furn) {
-    HOOK.toast('先点一位居民，再点家具安排活动', true);
-    SFX.play('deny');
+    const note = savedMealNote(press.furn);
+    HOOK.toast(note || '先点一位居民，再点家具安排活动', true);
+    SFX.play(note ? 'click' : 'deny');
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
@@ -7827,7 +8075,7 @@ function renderWardrobe() {
   const chips = (obj, key) => {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
-      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : '')) === k;
+      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : key === 'features' ? 'plain' : '')) === k;
       const b = el('button', 'chip' + (selected ? ' on' : ''), name);
       b.setAttribute('aria-pressed', String(selected));
       if (key === 'hair') {
@@ -7869,6 +8117,7 @@ function renderWardrobe() {
     section('发型', chips(OUTFIT.hair, 'hair'));
     section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
     section('肤色', swatches(OUTFIT.skin, 'skin'));
+    section('脸部小细节', chips(OUTFIT.features, 'features'));
     section('上衣', chips(OUTFIT.top, 'top'));
     section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
     if (!['dress', 'pinafore'].includes(d.look.top)) section('下装', chips(OUTFIT.bottom, 'bottom'));

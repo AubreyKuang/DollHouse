@@ -32,8 +32,14 @@ function dollPose(d) {
 }
 function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
+  const care = d.act && CARE_ACTIONS.includes(d.act.type);
+  const speaking = d.state === 'act' && d.act?.type === 'chat' && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
+  const eating = care && d.act.type === 'savedMeal' && d.state === 'act';
   drawDoll(c, x, y, d.look, {
-    dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
+    dir: d.dir, frame: eating ? Math.floor(d.act.careElapsed * 2) % 4 : speaking ? Math.floor(G.t * 2) % 4 : d.frame, pose: dollPose(d), hop: d.hop,
+    prop: care && (d.act.type === 'leaveMeal' || eating) ? 'bowl' : null,
+    gesture: eating ? 'eat' : speaking ? 'talk' : null,
+    expression: eating ? 'content' : d.needs.energy < 25 && !d.happy ? 'tired' : null,
     blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
@@ -180,6 +186,7 @@ function render() {
       if (f.id === 'tv' && f.active) hole(x + 16, y - 4, 34, .8);
       if (f.id === 'arcade') hole(x + 8, y - 8, 20, f.active ? .8 : .4);
       if (f.id === 'stove' && f.active) hole(x + 8, y - 6, 22, .7);
+      if (savedMealAt(f)) hole(x + 5, y - 5, 32, .85);
       if (f.id === 'fridge' && f.active) hole(x + 8, y, 24, .7);
       lctx.restore();
     }
@@ -230,6 +237,7 @@ function drawHouseFurniture(c, f, t) {
   }
   drawFurnitureArt(c, f.id, x, y, f, t);
   drawHomeTable(c, f, x, y);
+  drawSavedMeal(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
@@ -513,9 +521,12 @@ cv.addEventListener('pointerup', e => {
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
     if (sd) orderUse(sd, press.furn);
+    const note = savedMealNote(press.furn);
+    if (note) HOOK.toast(note, true);
   } else if (press.furn) {
-    HOOK.toast('先点一位居民，再点家具安排活动', true);
-    SFX.play('deny');
+    const note = savedMealNote(press.furn);
+    HOOK.toast(note || '先点一位居民，再点家具安排活动', true);
+    SFX.play(note ? 'click' : 'deny');
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });

@@ -25,11 +25,11 @@ const HAIR = {
     pixie: [[2, -1, 3, 1], [2, 3, 2, 1], [6, 3, 1, 1]],
     sidepart: [[2, -1, 5, 1], [2, 3, 3, 1], [5, 2, 3, 1]],
     curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 2, 3], [10, 3, 2, 3], [3, 3, 2, 1], [8, 3, 2, 1]],
-    pony: [[2, 3, 3, 1], [7, 3, 2, 1], [9, -3, 3, 3], [11, 0, 3, 6]],
+    pony: [[2, 3, 3, 1], [7, 3, 2, 1], [9, -2, 2, 2], [11, 0, 2, 3], [12, 3, 1, 2]],
     lowpony: [[2, 3, 3, 1], [7, 3, 2, 1], [10, 7, 3, 5]],
     braids: [[2, 3, 2, 1], [8, 3, 2, 1], [0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
     halfup: [[0, 3, 2, 8], [10, 3, 2, 8], [2, 3, 3, 1], [7, 3, 2, 1], [5, -2, 3, 2]],
-    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3], [2, 3, 2, 1], [8, 3, 2, 1]],
+    doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1], [2, 3, 2, 1], [8, 3, 2, 1]],
     wavy: [[0, 2, 2, 5], [-1, 7, 3, 3], [0, 10, 3, 3], [10, 2, 2, 5], [10, 7, 3, 3], [9, 10, 3, 3], [2, 3, 3, 1]],
   },
   up: {
@@ -42,7 +42,7 @@ const HAIR = {
     lowpony: [[5, 7, 3, 6]],
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
     halfup: [[0, 2, 12, 10], [5, -2, 3, 2], [4, 3, 4, 5]],
-    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3]],
+    doublebun: [[-1, -1, 3, 2], [0, -2, 1, 1], [10, -1, 3, 2], [11, -2, 1, 1]],
     wavy: [[0, 2, 12, 6], [-1, 7, 14, 3], [0, 10, 12, 3]],
   },
   right: {
@@ -51,9 +51,9 @@ const HAIR = {
     bun: [[3, -3, 4, 3]], spiky: [[2, -2, 2, 2], [5, -3, 2, 3], [8, -2, 2, 2]], bob: [[0, 2, 5, 7], [6, 3, 4, 1]],
     pixie: [[3, -1, 3, 1]], sidepart: [[3, -1, 5, 1], [6, 3, 2, 1]],
     curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 3, 5]],
-    pony: [[-2, -3, 3, 3], [-3, 0, 3, 7]], lowpony: [[-2, 6, 3, 6]],
+    pony: [[-1, -2, 2, 2], [-2, 0, 2, 4], [-1, 4, 1, 2]], lowpony: [[-1, 6, 2, 4], [0, 10, 1, 2]],
     braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2]],
-    halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -2, 3, 3]],
+    halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -1, 3, 2], [1, -2, 1, 1]],
     wavy: [[0, 2, 4, 5], [-1, 7, 4, 3], [0, 10, 4, 3]],
   },
 };
@@ -127,6 +127,10 @@ function drawDoll(c, cx, by, L, o = {}) {
     R(c, x + 4, yb + 13, 1, 1, '#dfba83');
   }
   if (L.top === 'suit' && front) { R(c, x + 5, yb + 10, 2, 3, '#ffffff'); R(c, x + 5, yb + 11, 1, 2, '#e26d7d'); }
+  if (view === 'right' && ['suit', 'cardigan', 'vest', 'apron'].includes(L.top)) {
+    R(c, x + 8, yb + 10, 1, 3, '#fffaf0');
+    if (L.top === 'suit') R(c, x + 8, yb + 12, 1, 1, '#e26d7d');
+  }
   drawClothingDetail(c, x, yb, L, C, view);
   // 下装（连衣裙自带裙摆）
   if (isDress || L.top === 'raincoat' || L.bottom === 'skirt' || L.bottom === 'pleated') {
@@ -147,7 +151,7 @@ function drawDoll(c, cx, by, L, o = {}) {
     R(c, x + ax, yb + 10 + dy, 1, sleeve, sleeveColor);
     R(c, x + ax, yb + 10 + dy + sleeve, 1, 4 - sleeve, C.skin);
   };
-  const sw = walking ? (fr === 1 ? 1 : fr === 3 ? -1 : 0) : 0;
+  const sw = walking ? (fr === 1 ? 1 : fr === 3 ? -1 : 0) : o.gesture === 'talk' && fr % 2 ? -1 : 0;
   if (view === 'right') arm(6, sw, pose === 'lift' || (pose === 'dance' && fr % 2));
   else {
     const upA = pose === 'lift' || (pose === 'dance' && fr % 2 === 0);
@@ -157,7 +161,22 @@ function drawDoll(c, cx, by, L, o = {}) {
 
   drawBodyAccessory(c, x, yb, L, C, view);
   drawHead(c, x, yb, L, C, view, o);
+  if (o.prop === 'bowl') drawHeldBowl(c, x, yb, C, view, o.gesture === 'eat' && fr % 2 === 1);
   c.restore();
+}
+
+function drawHeldBowl(c, x, y, C, view, bite) {
+  if (view === 'up') return; // 背面碗在身前，不穿过身体。
+  const bx = x + (view === 'right' ? 7 : 2), by = y + 13, width = view === 'right' ? 6 : 8;
+  R(c, bx, by, width, 1, DOLL_INK); R(c, bx + 1, by + 1, width - 2, 2, '#fff3d9');
+  R(c, bx + 2, by + 3, width - 4, 1, '#96796a'); R(c, bx + 1, by - 1, width - 2, 1, '#d3a25d');
+  R(c, bx + 2, by - 1, 2, 1, '#8eaf85');
+  R(c, bx - 1, by, 1, 2, C.skin);
+  if (view === 'down') R(c, bx + width, by, 1, 2, C.skin);
+  if (bite) {
+    const spoon = view === 'right' ? x + 10 : x + 7;
+    R(c, spoon, y + 9, 1, 3, '#d9cbb5'); R(c, spoon - 1, y + 9, 2, 1, '#fff3d9');
+  }
 }
 
 function drawClothingDetail(c, x, y, L, C, view) {
@@ -215,24 +234,45 @@ function drawBodyAccessory(c, x, y, L, C, view) {
 }
 
 function drawHead(c, x, y, L, C, view, o) {
-  box(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
+  if (view === 'right') bevel(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
+  else box(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
   if (view === 'down') {
     if (L.acc === 'glasses') { R(c, x + 3, y + 4, 3, 3, DOLL_INK); R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 4, y + 5, 1, 1, '#cfeaf7'); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
     if (o.sleep || o.blink) { R(c, x + 3, y + 6, 2, 1, DOLL_INK); R(c, x + 7, y + 6, 2, 1, DOLL_INK); }
     else if (L.acc === 'glasses') { R(c, x + 4, y + 5, 1, 1, DOLL_INK); R(c, x + 7, y + 5, 1, 1, DOLL_INK); }
-    else { R(c, x + 4, y + 5, 1, 2, DOLL_INK); R(c, x + 7, y + 5, 1, 2, DOLL_INK); }
+    else { R(c, x + 4, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK); R(c, x + 7, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK); }
     R(c, x + 2, y + 7, 2, 1, '#f59aa8'); R(c, x + 8, y + 7, 2, 1, '#f59aa8');
-    if (o.happy) R(c, x + 5, y + 8, 2, 1, '#c0505a');
+    if (o.happy || o.expression === 'content') R(c, x + 5, y + 8, 2, 1, '#c0505a');
   } else if (view === 'right') {
     if (L.acc === 'glasses') { R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
-    if (o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK); else R(c, x + 7, y + 5, 1, 2, DOLL_INK);
+    if (o.sleep || o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK); else R(c, x + 7, y + (o.expression === 'tired' ? 6 : 5), 1, o.expression === 'tired' ? 1 : 2, DOLL_INK);
     R(c, x + 8, y + 7, 2, 1, '#f59aa8');
-    if (o.happy) R(c, x + 9, y + 8, 1, 1, '#c0505a');
+    if (o.happy || o.expression === 'content') R(c, x + 9, y + 8, 1, 1, '#c0505a');
   }
+
+  const freckles = shade(C.skin, -.24);
+  if (view !== 'up' && L.features === 'freckles') {
+    for (const px of view === 'right' ? [8, 10] : [2, 4, 7, 9]) R(c, x + px, y + 7, 1, 1, freckles);
+  }
+  if (view !== 'up' && L.features === 'rosy') {
+    if (view === 'down') R(c, x + 2, y + 7, 2, 2, '#e89198');
+    R(c, x + 8, y + 7, 2, 2, '#e89198');
+  }
+  if (view !== 'up' && L.features === 'mole') R(c, x + 8, y + 7, 1, 1, '#805d52');
 
   const set = HAIR[view];
   const rects = set.base.concat(set[L.hair] || []);
   blob(c, x, y, rects, C.hair);
+  if (view === 'right') {
+    R(c, x + 4, y + 6, 2, 2, C.skin);
+    R(c, x + 4, y + 6, 1, 1, shade(C.skin, -.12));
+    R(c, x + 2, y + 4, 1, 2, shade(C.hair, .08));
+    if (L.acc === 'glasses') {
+      R(c, x + 6, y + 4, 4, 3, DOLL_INK); R(c, x + 7, y + 5, 2, 1, '#cfeaf7');
+      R(c, x + 8, y + 5, 1, 1, DOLL_INK);
+      if (o.sleep || o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK);
+    }
+  }
   if (view !== 'up') R(c, x + 3, y + 1, 3, 1, shade(C.hair, 0.18)); // 头发高光
   if (L.hair === 'braids') {
     for (const h of [6, 9]) {
@@ -320,6 +360,7 @@ function randomLook() {
   const look = {
     skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
     ...pick(OUTFIT_SETS).look,
+    features: Math.random() < .65 ? 'plain' : pick(keys(OUTFIT.features)),
   };
   // 小概率换成自由款式，保留整套配色，让全部款式都有机会自然出现。
   if (Math.random() < .25) { look.top = pick(keys(OUTFIT.top)); look.bottom = pick(keys(OUTFIT.bottom)); }

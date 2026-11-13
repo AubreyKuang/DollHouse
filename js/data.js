@@ -173,6 +173,7 @@ const OUTFIT = {
     beret: '贝雷帽', beanie: '毛线帽', headband: '发箍', starclip: '星星发夹', ribbon: '小缎带', roundglasses: '圆眼镜' },
   extra: { none: '无', scarf: '小围巾', satchel: '斜挎包', backpack: '双肩包' },
   shoeStyle: { classic: '原版小鞋', sneakers: '运动鞋', boots: '短靴', maryjanes: '搭扣鞋' },
+  features: { plain: '原版小脸', freckles: '小雀斑', rosy: '桃桃脸颊', mole: '小泪痣' },
 };
 
 // 穿搭只包含衣物，不改肤色、头发或人物设定；随机来客也从协调的配色中挑选。
