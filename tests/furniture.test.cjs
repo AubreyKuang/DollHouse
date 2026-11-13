@@ -54,6 +54,38 @@ test('kitchen appliances and yard furniture follow their placement row', () => {
   `, { withView: true });
 });
 
+test('a caring resident shares one cooked portion with the hungriest broke roommate', () => {
+  runGame(`
+    load();
+    const cook = residents().find(person => person.pid === 'p-tuan');
+    const stove = G.furniture.find(f => f.id === 'stove');
+    const others = residents().filter(person => person !== cook);
+    placeDollAt(cook, stove.x, stove.y + 1);
+    for (const [i, person] of others.entries()) {
+      placeDollAt(person, stove.x, stove.y + 1);
+      person.state = 'idle';
+      person.act = null;
+      person.money = i === 2 ? 200 : 0;
+      person.needs.hunger = [10, 20, 5][i];
+    }
+    G.time = 12 * 60;
+    cook.state = 'act';
+    cook.act = { type: 'cook', furn: stove, t: 0 };
+    stove.users = [cook];
+    const money = cook.money;
+    updateDoll(cook, 0);
+    assert.deepEqual(others.map(person => person.needs.hunger), [38, 20, 5]);
+    assert.equal(others[0].money, 0);
+    assert.equal(cook.money, money);
+    assert.equal(trustOf(others[0], cook), 10);
+    assert.match(G.log.at(-1).text, /分了一份刚做好的饭/);
+    assert.ok(NPCMemory.recall(G, others[0].pid).some(entry => entry.interpretation.includes('分了刚做好的饭')));
+    const logs = G.log.length;
+    updateDoll(cook, 0);
+    assert.equal(G.log.length, logs);
+  `);
+});
+
 test('every purchasable furnishing has one category, a price, and a sprite', () => {
   runGame(`
     const items = Object.values(FURNITURE_GROUPS).flat();
