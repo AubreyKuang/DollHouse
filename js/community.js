@@ -37,7 +37,7 @@ function newcomerProfile() {
 }
 
 function availableHosts() {
-  return residents().filter(d => d.state !== 'away' && d.state !== 'lift' && !lying(d));
+  return residents().filter(d => d.state !== 'away' && d.state !== 'lift' && !lying(d) && !inHomeTime(d));
 }
 
 function friendFor(host) {

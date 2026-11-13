@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素小屋 · 测试模式</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2b20be3b4853">
 </head>
 <body data-mode="test">
 <header class="topbar">
@@ -19,6 +19,7 @@
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
+    <button id="btnHome" aria-haspopup="dialog">📖 小屋时光</button>
     <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
   </nav>
   <div class="speed" aria-label="速度">
@@ -26,6 +27,7 @@
     <button data-speed="1" class="on" title="正常">▶</button>
     <button data-speed="3" title="快进">⏩</button>
     <button id="btnSound" title="声音">🔇</button>
+    <button id="btnSaveHome" title="存档备份与恢复" aria-label="存档备份与恢复" aria-haspopup="dialog">💾</button>
     <label class="away-toggle" title="关页或切到后台时继续计时，回来最多补算一个游戏昼夜">
       <input id="houseOffline" type="checkbox"> 离开时继续
     </label>
@@ -41,6 +43,11 @@
       </div>
     </div>
     <p id="hint" class="hint">👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
+      <div id="homeNowCast" class="home-mini-cast"></div>
+      <span id="homeNowText" aria-live="polite"></span>
+      <button id="homeStop" class="btn small ghost">先散啦</button>
+    </section>
     <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
       <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
       <div id="picnicPlans"></div>
@@ -142,6 +149,43 @@
   <div id="applicationList"></div>
   <button id="btnRandomResident" class="btn small ghost">邀请一位新朋友</button>
 </dialog>
+<dialog id="homeDialog" class="paper-dialog home-dialog" aria-labelledby="homeTitle">
+  <header class="paper-head">
+    <div><small class="home-eyebrow">把日子，过成我们的故事</small><h2 id="homeTitle">小屋时光</h2></div>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭小屋时光">关闭</button></form>
+  </header>
+  <nav class="home-tabs" aria-label="小屋时光内容">
+    <button class="btn small on" id="homeToday" aria-pressed="true">一起做点什么</button>
+    <button class="btn small ghost" id="homeAlbum" aria-pressed="false">我们的相册</button>
+  </nav>
+  <div id="homeTodayPanel">
+    <p class="home-intro">不是每个月都要发生大事。有人在等一顿饭，有人想把故事讲给你听。</p>
+    <div id="homeWishes" class="home-wishes"></div>
+    <section class="home-invite" aria-label="邀请家人一起活动">
+      <h3>给彼此留一小段时间</h3>
+      <div id="homeKinds" class="home-kinds"></div>
+      <p id="homeKindHint" class="hint"></p>
+      <fieldset class="home-people"><legend>这次和谁一起？</legend><div id="homePeople"></div></fieldset>
+      <p id="homePlanStatus" class="hint" role="status"></p>
+      <button class="btn" id="homeStart">把大家叫过来</button>
+    </section>
+    <p class="hint home-gentle">没有期限，也没有必须完成的清单。随时来，慢慢过。</p>
+  </div>
+  <div id="homeAlbumPanel" hidden>
+    <div class="home-album-head"><p class="hint">留住那时候的样子。</p><button id="homeFavorites" class="btn small ghost" aria-pressed="false">只看珍藏</button></div>
+    <div id="homeMemories" class="home-memories"></div>
+  </div>
+</dialog>
+<dialog id="saveDialog" class="paper-dialog" aria-labelledby="saveTitle">
+  <header class="paper-head"><h2 id="saveTitle">把小屋好好收起来</h2><form method="dialog"><button class="btn small ghost" aria-label="关闭存档管理">关闭</button></form></header>
+  <p id="saveState" role="status"></p>
+  <p class="hint">进度自动保存在这台设备的浏览器里。下载一份备份，就可以把小屋带到另一台设备。</p>
+  <div class="home-save-actions"><button id="saveExport" class="btn">下载存档备份</button><label class="btn ghost" for="saveFile" tabindex="0">选择备份文件</label><input id="saveFile" type="file" accept=".json,application/json" hidden></div>
+  <section id="savePreview" class="home-import-preview" hidden><p id="savePreviewText"></p><button id="saveImport" class="btn">恢复这份小屋</button><button id="saveImportCancel" class="btn ghost">取消</button></section>
+  <p id="saveFeedback" class="hint" role="status"></p>
+  <button id="saveUndo" class="btn small ghost" hidden>撤销上次导入</button>
+  <p class="hint">恢复前会保留当前进度，可以撤销。正式版与测试版的备份分别使用。</p>
+</dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
     <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
@@ -201,10 +245,10 @@
 <script src="js/audio.js?v=bfed272d2ce4"></script>
 <script src="js/npc-memory.js?v=aa25de9db61f"></script>
 <script src="js/save-manager.js?v=d5ebb3e28e51"></script>
-<script src="js/house-life.js?v=fbb7ad751686"></script>
+<script src="js/house-life.js?v=ff1ee87993e5"></script>
 <script src="js/bonds.js?v=20a4e9383317"></script>
-<script src="js/game.js?v=862e61e79fc5"></script>
-<script src="js/social.js?v=13f353572076"></script>
+<script src="js/game.js?v=86930413c9b2"></script>
+<script src="js/social.js?v=203ad651c5f4"></script>
 <script src="js/relationship-fallout.js?v=a691f6e383e1"></script>
 <script src="js/work.js?v=09049ddd257b"></script>
 <script src="js/furniture2.js?v=d2feea9fe8e2"></script>
@@ -215,14 +259,17 @@
 <script src="js/season.js?v=52ed22e6aa86"></script>
 <script src="js/astro.js?v=293dacadbd27"></script>
 <script src="js/routines.js?v=8832c350c286"></script>
-<script src="js/community.js?v=b38f31b54c36"></script>
+<script src="js/community.js?v=7906752fa326"></script>
 <script src="js/neighbors.js?v=e3c87f10bbf7"></script>
 <script src="js/picnic.js?v=b56c8dbcd4b2"></script>
 <script src="js/house-view.js?v=b145a776857e"></script>
 <script src="js/yard.js?v=ce54dc627828"></script>
-<script src="js/keepsakes.js?v=ef8c94068175"></script>
-<script src="js/view.js?v=82525de9876b"></script>
-<script src="js/paper-card.js?v=2092b1e0a5eb"></script>
-<script src="js/ui.js?v=7ee2ac689f10"></script>
+<script src="js/keepsakes.js?v=a78bf2bcad4b"></script>
+<script src="js/home-stories.js?v=a1ca04c514b2"></script>
+<script src="js/save-portability.js?v=4098e1153894"></script>
+<script src="js/view.js?v=ebb93a7400cc"></script>
+<script src="js/paper-card.js?v=fd8e706a66cf"></script>
+<script src="js/ui.js?v=65e0fea3fa44"></script>
+<script src="js/home-ui.js?v=37c5a97ccccc"></script>
 </body>
 </html>

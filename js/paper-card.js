@@ -93,7 +93,7 @@ function drawHousePaperCard(issue) {
   ctx.fillStyle = '#ce718e';
   for (let x = 12; x < W - 12; x += 8) { ctx.fillRect(x, 10, 4, 3); ctx.fillRect(x, H - 13, 4, 3); }
   ctx.fillStyle = '#583c4b'; ctx.textAlign = 'center';
-  ctx.font = `700 28px ${sans}`; ctx.fillText('小屋月报', W / 2, 53);
+  ctx.font = `700 28px ${sans}`; ctx.fillText(issue.title || '小屋月报', W / 2, 53);
   ctx.font = `14px ${sans}`; ctx.fillText(issue.month, W / 2, 76);
   ctx.textAlign = 'left';
   issue.stories.forEach((story, i) => {
@@ -104,7 +104,7 @@ function drawHousePaperCard(issue) {
     if (hero) {
       ctx.textAlign = 'center';
       for (const [index, person] of people.entries()) {
-        const x = W / 2 + (index - (people.length - 1) / 2) * 84;
+        const x = W / 2 + (index - (people.length - 1) / 2) * Math.min(84, 280 / people.length);
         ctx.fillStyle = '#e9bacb'; ctx.fillRect(x - 28, y + 75, 56, 5);
         ctx.drawImage(paperPortrait(person), x - 30, y + 8, 60, 72);
         ctx.fillStyle = '#583c4b'; ctx.font = `12px ${sans}`; ctx.fillText(person.name, x, y + 98, 80);
@@ -121,7 +121,7 @@ function drawHousePaperCard(issue) {
     const left = hero ? 38 : 104;
     const baseline = y + (hero || 0);
     ctx.fillStyle = '#8a3d59'; ctx.font = `700 12px ${sans}`;
-    ctx.fillText(paperStoryTitle(story, i), left, baseline + 16);
+    ctx.fillText(issue.title ? story.label : paperStoryTitle(story, i), left, baseline + 16);
     ctx.fillStyle = '#3d2733'; ctx.font = `${i === 0 ? '700 16px' : '14px'} ${sans}`;
     let row = '', line = 0;
     for (const char of story.text) {
@@ -140,7 +140,7 @@ function saveHousePaperCard(issue) {
   drawHousePaperCard(issue).toBlob(blob => {
     if (!blob) return;
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); link.download = `小屋月报-${issue.month}.png`; link.click();
+    link.href = URL.createObjectURL(blob); link.download = `${issue.title || '小屋月报'}-${issue.month}.png`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   }, 'image/png');
 }

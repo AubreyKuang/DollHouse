@@ -36,7 +36,63 @@
   --bg:#221b26;--bg-2:#2c2332;--panel:#2f2637;--panel-2:#3b3044;--ink:#f3e8da;--muted:#b6a394;
   --line:#120d15;--shadow:#0a070c;--backdrop:rgba(5,3,8,.65);--couple-ink:#f3a5c0;color-scheme:dark;
 }
+.home-dialog{width:min(780px,calc(100vw - 24px))!important}
+.home-eyebrow{display:block;color:var(--muted);font-size:11px;letter-spacing:2px;margin-bottom:5px}
+.home-tabs{display:flex;gap:8px;margin:18px 0 14px}
+.home-intro{font-size:14px;line-height:1.8;color:var(--muted);margin:0 0 16px}
+.home-wishes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.home-wish{display:flex;gap:12px;align-items:center;background:var(--panel-2);padding:16px;border-radius:12px;border:1px solid color-mix(in srgb,var(--muted) 25%,transparent)}
+.home-wish small{color:var(--muted);font-size:11px}
+.home-wish p{font-size:13px;line-height:1.7;margin:5px 0 10px}
+.home-wish.fulfilled{border-style:dashed;opacity:.8}
+.home-mini-cast{display:flex;gap:6px;flex:none}
+.home-mini-cast figure,.home-memory-cast figure{display:flex;flex-direction:column;align-items:center;margin:0}
+.home-mini-cast canvas{width:30px;height:42px;image-rendering:pixelated}
+.home-mini-cast figcaption{font-size:10px;max-width:65px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.home-invite{margin-top:22px;border-top:1px dashed var(--muted);padding-top:8px}
+.home-invite h3{font-size:16px;font-weight:600;margin:14px 0}
+.home-kinds{display:flex;flex-wrap:wrap;gap:9px}
+.home-people{border:0;padding:0;margin:20px 0 8px;min-width:0}
+.home-people legend{font-size:12px;color:var(--muted);margin-bottom:10px}
+#homePeople{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+#homePeople label{display:flex;align-items:center;gap:9px;background:var(--panel-2);padding:9px;border-radius:8px;cursor:pointer;font-size:12px}
+#homePeople label:has(input:checked){box-shadow:inset 0 0 0 2px var(--accent)}
+#homePeople label:has(input:disabled){opacity:.55;cursor:default}
+#homePeople input{accent-color:var(--accent);width:16px;height:16px;flex:none}
+#homePeople canvas{width:25px;height:30px;image-rendering:pixelated;flex:none}
+#homePlanStatus{min-height:36px;line-height:1.65;margin:12px 0}
+#homeStart{background:#bd765d;color:#fff8ed;border-color:#825846;padding:10px 20px}
+.home-gentle{text-align:center;font-size:11px;margin-top:22px!important}
+.home-album-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:16px}
+.home-memories{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.home-memory{background:var(--panel-2);padding:18px;border-radius:3px 3px 14px 3px;box-shadow:0 3px 0 color-mix(in srgb,var(--muted) 20%,transparent)}
+.home-memory>small{font-size:11px;color:var(--muted)}
+.home-memory-cast{display:flex;justify-content:center;gap:18px;flex-wrap:wrap;padding:18px 12px 10px;background:color-mix(in srgb,var(--panel) 70%,transparent);border-radius:5px;margin:12px 0}
+.home-memory-cast canvas{width:40px;height:56px;image-rendering:pixelated}
+.home-memory-cast figcaption{font-size:10px;margin:5px 0;color:var(--muted)}
+.home-memory h3{font-size:16px;margin:12px 0 8px}
+.home-memory p{font-size:13px;line-height:1.75;margin:0 0 16px;overflow-wrap:anywhere}
+.home-memory-actions{display:flex;gap:8px;flex-wrap:wrap}
+.home-album-empty{grid-column:1/-1;text-align:center;padding:24px 16px;color:var(--muted);line-height:1.8}
+.home-now{display:flex;align-items:center;gap:12px;max-width:620px;margin:10px auto 0;padding:8px 12px;background:var(--panel);border:1px solid var(--muted);border-radius:10px;font-size:13px}
+.home-now>span{flex:1}.home-now .home-mini-cast figcaption{display:none}
+.home-save-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:24px 0 18px}
+.home-save-actions label{cursor:pointer}
+.home-import-preview{border:1px dashed var(--muted);padding:16px;border-radius:8px;margin:16px 0;line-height:1.8}
+.home-import-preview button{margin:5px 8px 0 0}
+@media(max-width:560px){
+  .home-wishes,.home-memories{grid-template-columns:1fr}
+  #homePeople{grid-template-columns:1fr}
+  .home-dialog{padding:16px!important}
+  .home-now{width:100%;gap:8px;font-size:12px}
+  .home-now .home-mini-cast canvas{width:20px;height:28px}
+  .home-memory-cast canvas{width:40px;height:56px}
+}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important;scroll-behavior:auto!important}}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
+button:focus-visible,a:focus-visible,label[tabindex]:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+button:disabled{cursor:not-allowed;opacity:.55}
 html,body{margin:0}
 body{
   background:var(--bg);
@@ -342,6 +398,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button class="mode on" data-mode="live">🏠 生活</button>
     <button class="mode" data-mode="build">🪑 布置</button>
     <button id="btnWardrobe">👗 衣橱</button>
+    <button id="btnHome" aria-haspopup="dialog">📖 小屋时光</button>
     <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
   </nav>
   <div class="speed" aria-label="速度">
@@ -349,6 +406,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <button data-speed="1" class="on" title="正常">▶</button>
     <button data-speed="3" title="快进">⏩</button>
     <button id="btnSound" title="声音">🔇</button>
+    <button id="btnSaveHome" title="存档备份与恢复" aria-label="存档备份与恢复" aria-haspopup="dialog">💾</button>
     <label class="away-toggle" title="关页或切到后台时继续计时，回来最多补算一个游戏昼夜">
       <input id="houseOffline" type="checkbox"> 离开时继续
     </label>
@@ -364,6 +422,11 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
       </div>
     </div>
     <p id="hint" class="hint">👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
+      <div id="homeNowCast" class="home-mini-cast"></div>
+      <span id="homeNowText" aria-live="polite"></span>
+      <button id="homeStop" class="btn small ghost">先散啦</button>
+    </section>
     <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
       <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
       <div id="picnicPlans"></div>
@@ -464,6 +527,43 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   <h3>入住申请</h3>
   <div id="applicationList"></div>
   <button id="btnRandomResident" class="btn small ghost">邀请一位新朋友</button>
+</dialog>
+<dialog id="homeDialog" class="paper-dialog home-dialog" aria-labelledby="homeTitle">
+  <header class="paper-head">
+    <div><small class="home-eyebrow">把日子，过成我们的故事</small><h2 id="homeTitle">小屋时光</h2></div>
+    <form method="dialog"><button class="btn small ghost" aria-label="关闭小屋时光">关闭</button></form>
+  </header>
+  <nav class="home-tabs" aria-label="小屋时光内容">
+    <button class="btn small on" id="homeToday" aria-pressed="true">一起做点什么</button>
+    <button class="btn small ghost" id="homeAlbum" aria-pressed="false">我们的相册</button>
+  </nav>
+  <div id="homeTodayPanel">
+    <p class="home-intro">不是每个月都要发生大事。有人在等一顿饭，有人想把故事讲给你听。</p>
+    <div id="homeWishes" class="home-wishes"></div>
+    <section class="home-invite" aria-label="邀请家人一起活动">
+      <h3>给彼此留一小段时间</h3>
+      <div id="homeKinds" class="home-kinds"></div>
+      <p id="homeKindHint" class="hint"></p>
+      <fieldset class="home-people"><legend>这次和谁一起？</legend><div id="homePeople"></div></fieldset>
+      <p id="homePlanStatus" class="hint" role="status"></p>
+      <button class="btn" id="homeStart">把大家叫过来</button>
+    </section>
+    <p class="hint home-gentle">没有期限，也没有必须完成的清单。随时来，慢慢过。</p>
+  </div>
+  <div id="homeAlbumPanel" hidden>
+    <div class="home-album-head"><p class="hint">留住那时候的样子。</p><button id="homeFavorites" class="btn small ghost" aria-pressed="false">只看珍藏</button></div>
+    <div id="homeMemories" class="home-memories"></div>
+  </div>
+</dialog>
+<dialog id="saveDialog" class="paper-dialog" aria-labelledby="saveTitle">
+  <header class="paper-head"><h2 id="saveTitle">把小屋好好收起来</h2><form method="dialog"><button class="btn small ghost" aria-label="关闭存档管理">关闭</button></form></header>
+  <p id="saveState" role="status"></p>
+  <p class="hint">进度自动保存在这台设备的浏览器里。下载一份备份，就可以把小屋带到另一台设备。</p>
+  <div class="home-save-actions"><button id="saveExport" class="btn">下载存档备份</button><label class="btn ghost" for="saveFile" tabindex="0">选择备份文件</label><input id="saveFile" type="file" accept=".json,application/json" hidden></div>
+  <section id="savePreview" class="home-import-preview" hidden><p id="savePreviewText"></p><button id="saveImport" class="btn">恢复这份小屋</button><button id="saveImportCancel" class="btn ghost">取消</button></section>
+  <p id="saveFeedback" class="hint" role="status"></p>
+  <button id="saveUndo" class="btn small ghost" hidden>撤销上次导入</button>
+  <p class="hint">恢复前会保留当前进度，可以撤销。正式版与测试版的备份分别使用。</p>
 </dialog>
 <section id="buildBar" hidden>
   <div class="shop-bar">
@@ -1787,6 +1887,7 @@ function shareMeal(host, guest, food, gain) {
 }
 
 const PAPER_EVENTS = [
+  [/在家一起吃顿饭|在家围坐讲故事|在家开了一场小小音乐会/, '小屋时光', '🏡', 81],
   [/分手|变心/, '关系转折', '💔', 105],
   [/撞见|闹翻/, '关系转折', '💢', 100],
   [/在一起了/, '感情动态', '💕', 95],
@@ -2127,6 +2228,7 @@ const HOOK = { refresh() {}, select() {}, toast() {}, logged() {}, community() {
 // 像模拟人生那样的生活日志：每条记下年月、几点、发生了什么
 function addLog(text) {
   G.log.push({ d: G.day, t: Math.floor(G.time), text });
+  if (typeof rememberHomeLog === 'function') rememberHomeLog(text);
   if (G.log.length > 300) G.log.shift();
   HOOK.logged();
 }
@@ -2154,7 +2256,7 @@ function houseSaveData() {
   return {
     cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    keepsakes: G.keepsakes,
+    keepsakes: G.keepsakes, home: G.home,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
       .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
@@ -2165,9 +2267,13 @@ function houseSaveData() {
   };
 }
 function save() {
+  let ok = false;
   try {
-    return SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
-  } catch (e) { /* 无痕模式等情况下存不了也没关系 */ }
+    ok = SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
+  } catch (e) { /* The toolbar offers an export if browser storage is unavailable. */ }
+  G.saveOk = ok;
+  HOOK.saved?.(ok);
+  return ok;
 }
 // v1 存档没有信任、醋意和搭子记录：补上空表，其余照旧读取
 function migrateHouseSave(s, from) {
@@ -2252,6 +2358,7 @@ function applySave(s) {
     }
   }
   G.keepsakes = restoreKeepsakes(s.keepsakes);
+  G.home = restoreHomeStories(s.home);
   G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
@@ -2456,7 +2563,7 @@ function decide(d) {
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
+    if (!F.use || homeFurnitureReserved(f) || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
     const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
     if (f.users.length >= cap) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
@@ -2496,7 +2603,7 @@ function decide(d) {
   // 只有闲着、闲逛、或在做不重要的小事的人可以被拉去聊天；表演中的人只能被围观
   const others = G.dolls.filter(o => o !== d && (o.state === 'idle' || (o.state === 'walk' && o.act && o.act.type === 'wander') ||
     (o.state === 'act' && o.act && !o.act.onFurn && !Object.hasOwn(ROUTINES, o.act.type) && !JOIN[o.act.type] && o.act.type !== 'chat' && o.act.type !== 'join' && o.act.type !== 'visitStay'))
-    && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
+    && !inHomeTime(o) && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
     opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.23 + (canSee(d, p) && Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) <= 4 ? 10 : 0) + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
@@ -2549,7 +2656,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
-  if (G.keepsakes.project?.bench === f.key) return false;
+  if (G.keepsakes.project?.bench === f.key || homeFurnitureReserved(f)) return false;
   const capacity=F.cap ?? (f.id==='sofa'||f.id==='bigbed'?2:1);
   if(f.users.length>=capacity)return false;
   const distinct = F.cap > 1;
@@ -2568,6 +2675,7 @@ function startAct(d, o) {
 
 function arrive(d) {
   const a = d.act;
+  if (a?.type === 'homeTime') { arriveHomeTime(d); return; }
   if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
   if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
@@ -2579,7 +2687,7 @@ function arrive(d) {
   if (!a || a.type === 'wander') { d.act = null; d.state = 'idle'; d.think = 0.5 + Math.random() * 2; return; }
   if (a.type === 'chat') {
     const p = a.partner;
-    if (!G.dolls.includes(p) || ['lift', 'away'].includes(p.state) || (p.act && p.act.onFurn) ||
+    if (!G.dolls.includes(p) || inHomeTime(p) || ['lift', 'away'].includes(p.state) || (p.act && p.act.onFurn) ||
         (a.exchange && (!['idle', 'wait'].includes(p.state) || !canSee(d, p) || !canDisturb(d, p) ||
           Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) !== 1))) { endAct(d); return; }
     if (p.act && (p.act.type === 'visitStay' || Object.hasOwn(ROUTINES, p.act.type) || (p.act.type === 'chat' && p.act.partner !== d))) { say(d, '在忙呢，下次吧'); endAct(d); return; }
@@ -2693,7 +2801,7 @@ function updateDoll(d, dt) {
     const a = d.act;
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
-    if (a.type === 'visitStay') {
+    if (a.type === 'visitStay' || (a.type === 'homeTime' && a.homeKind === 'music')) {
       d.ft += dt;
       if (a.dance) { d.frame = Math.floor(d.ft * 5) % 4; d.hop = d.frame % 2; }
       if (a.theme === 'music' && G.community.active?.hostPid === d.pid && Math.random() < dt * .8) SFX.play('piano');
@@ -2702,7 +2810,7 @@ function updateDoll(d, dt) {
     if (a.exchange) tickHouseExchange(d, dt);
     if (a.type === 'chat') tickSocial(d, dt);
     if (a.type === 'join') { tickJoin(d, dt); if (!d.act) return; }
-    if (a.type !== 'chat' && a.type !== 'join' && a.type !== 'sleep' && !houseExchangeActive(d) && Math.random() < dt * 0.12) say(d, pick(ACT_LINES[a.type] || ['♪']));
+    if (a.type !== 'homeTime' && a.type !== 'chat' && a.type !== 'join' && a.type !== 'sleep' && !houseExchangeActive(d) && Math.random() < dt * 0.12) say(d, pick(ACT_LINES[a.type] || ['♪']));
     if (a.type === 'sleep' && Math.random() < dt * 0.15) { d.bubble = { text: 'Zzz…', t: 2, id: Math.random() }; SFX.play('snore'); }
     if (a.type === 'sleep' && a.furn.id === 'bigbed') {
       const mate = a.furn.users.find(u => u !== d && lying(u));
@@ -2733,7 +2841,7 @@ function updateDoll(d, dt) {
   if (Math.random() < dt * 0.04) {
     const low = Object.entries(N).sort((a, b) => a[1] - b[1])[0];
     const sad = { bladder: '想去一下洗手间…', energy: '好困……', hunger: '肚子咕咕叫', fun: '好无聊～', social: '有点寂寞' };
-    say(d, low[1] < 25 ? sad[low[0]] : (Math.random() < 0.3 && wishLine(d)) || pick(P.lines));
+    say(d, low[1] < 25 ? sad[low[0]] : (Math.random() < 0.3 && (homeWishLine(d) || wishLine(d))) || pick(P.lines));
   }
   if (d.think <= 0) decide(d);
 }
@@ -2783,7 +2891,7 @@ let saveT = 0;
 function update(realDt) {
   const dt = realDt * G.speed;
   G.t += realDt;
-  const running = dt > 0 && (catchingUp || !document.getElementById('paperDialog')?.open);
+  const running = dt > 0 && (catchingUp || (!document.getElementById('paperDialog')?.open && !document.getElementById('homeDialog')?.open && !document.getElementById('saveDialog')?.open));
   if (running) {
     if (G.monthEvents !== G.day) {
       startHouseMonth();
@@ -2809,6 +2917,7 @@ function update(realDt) {
     // 有小人被拎在手里时，其他人先定住不动：落点目标不会自己跑开
     const carrying = G.dolls.some(d => d.state === 'lift');
     if (!carrying) tickKeepsakes(dt);
+    if (!carrying) tickHomeStories(dt);
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
@@ -3144,7 +3253,7 @@ function caught(L, cheater, third) {
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
 const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act && x.act.type === 'wander') ||
-  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && !['visitStay', 'makeKeepsake', 'rainTea'].includes(x.act.type));
+  (x.state === 'act' && x.act && !x.act.onFurn && !Object.hasOwn(ROUTINES, x.act.type) && x.act.type !== 'chat' && x.act.type !== 'leave' && !['homeTime', 'visitStay', 'makeKeepsake', 'rainTea'].includes(x.act.type));
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
@@ -4848,7 +4957,7 @@ function newcomerProfile() {
 }
 
 function availableHosts() {
-  return residents().filter(d => d.state !== 'away' && d.state !== 'lift' && !lying(d));
+  return residents().filter(d => d.state !== 'away' && d.state !== 'lift' && !lying(d) && !inHomeTime(d));
 }
 
 function friendFor(host) {
@@ -5914,7 +6023,7 @@ function sendKeepsakePair(pair, routes, type, key) {
 
 function readyForKeepsake(d) {
   return d && d.state !== 'away' && d.state !== 'lift' && !takingStairs(d) && !takingYardPath(d) &&
-    !lying(d) && d.needs.energy >= 25 && d.needs.bladder >= 18 && !['leave', 'neighborLeave', 'visitLeave', 'makeKeepsake', 'rainTea'].includes(d.act?.type);
+    !lying(d) && d.needs.energy >= 25 && d.needs.bladder >= 18 && !['homeTime', 'leave', 'neighborLeave', 'visitLeave', 'makeKeepsake', 'rainTea'].includes(d.act?.type);
 }
 
 function startKeepsakeProject(a, b, finish) {
@@ -6077,6 +6186,400 @@ ACT_LINES.makeKeepsake = ['漆快干了，再等一会儿。'];
 ACT_LINES.rainTea = ['雨声和上次一样。'];
 </script>
 <script>
+// Shared time is earned by being together, never by pressing the invitation button.
+const HOME_TIMES = {
+  supper: { name: '一起吃顿饭', icon: '🍲', title: '热饭要一起吃', furniture: ['table'], cost: 30,
+    hint: '围着餐桌，聊聊各自的一天。家庭基金准备一桌饭，没人需要自己付钱。',
+    need: { hunger: 32, fun: 12, social: 22 } },
+  stories: { name: '围坐讲故事', icon: '📖', title: '再讲一个就睡', furniture: ['sofa', 'shelf'], cost: 0,
+    hint: '沙发或书架旁，一人讲一点，故事会变成谁也没想到的样子。',
+    need: { fun: 20, social: 22 } },
+  music: { name: '小小音乐会', icon: '🎵', title: '只唱给家里听', furniture: ['piano', 'recordPlayer', 'ukulele'], cost: 0,
+    hint: '不必表演得完美。有人唱跑调，有人打拍子，有人安静听完。',
+    need: { fun: 24, social: 18 } },
+};
+const HOME_WISHES = {
+  foodie: ['supper', '想做一桌热乎的饭，大家都来尝一口。'],
+  lazy: ['stories', '想窝在家里，听你们讲点有意思的事。'],
+  nerd: ['stories', '读到了一个好故事，想找人一起往下编。'],
+  social: ['supper', '想让大家坐在一桌，慢慢聊聊最近的事。'],
+  maker: ['stories', '想听大家说说，小时候最珍惜的东西。'],
+  stylist: ['music', '想穿喜欢的衣服，办一场家里的音乐会。'],
+  active: ['music', '想给大家打拍子，跑调也没关系。'],
+  tidy: ['supper', '想把餐桌收拾好，等大家回来吃饭。'],
+  genki: ['music', '想在家里开音乐会！观众只有你们也行。'],
+};
+const HOME_LINES = {
+  supper: {
+    foodie: ['这口先尝尝，我特意少放了盐。', '锅里还有，今天谁都不许饿着。'],
+    lazy: ['我负责吃得干干净净。', '能坐着等开饭，也太幸福了。'],
+    nerd: ['书里说，饭桌是一个家的中心。', '先不看书了，听你们讲。'],
+    social: ['今天有什么值得讲的小事？', '能凑在一桌，比吃什么都重要。'],
+    maker: ['下次我给餐桌做个小托盘。', '这碗边缺了一点，我改天补好。'],
+    stylist: ['这一桌颜色真好看。', '我想给今天拍一张照片。'],
+    active: ['回来一闻到这个味道，就饿了！', '吃完我来收碗，你们坐着。'],
+    tidy: ['热汤放中间，小心烫。', '剩下的装好，晚回家的人也有份。'],
+    genki: ['我有件好笑的事，等我咽下这口！', '下次还要坐在一起！'],
+  },
+  stories: {
+    nerd: ['故事要从一把找不到门的钥匙讲起。', '最后，那扇门一直就在家里。'],
+    lazy: ['我猜门后面是一张很软的床。', '还没讲完吗？我没有睡，我在听。'],
+    foodie: ['钥匙能不能打开点心柜？', '那里面一定要有刚烤好的面包。'],
+    maker: ['也许钥匙是自己做的，世上只有一把。', '做它的人，一直在等主人回来。'],
+    social: ['那我们每个人接一句吧。', '同一个故事，听出了好多种结局。'],
+    tidy: ['等等，钥匙会不会在外套口袋？', '下次我做一个专门放钥匙的盒子。'],
+    stylist: ['那扇门一定是很漂亮的莓果色。', '我已经把画面想好了。'],
+    active: ['找到门以后，我们一起去探险！', '但是天黑以前得回家。'],
+    genki: ['门后面不会住着一只会说话的猫吧！', '好，这个结尾我喜欢！'],
+  },
+  music: {
+    nerd: ['我选了一首很轻的曲子。', '刚才那段，有点像雨落在窗台上。'],
+    lazy: ['我可以坐着当观众吗？', '这首好听，听着就想打个盹。'],
+    foodie: ['我来当端点心的观众。', '散场以后，还有一小块蛋糕。'],
+    maker: ['我拿小木盒给你们打拍子。', '这样也算一件乐器吧？'],
+    social: ['会唱的都跟一句，不会也没关系。', '这一首就是我们家的歌了。'],
+    tidy: ['声音刚好，隔壁应该不会嫌吵。', '结束以后，我来把东西收好。'],
+    stylist: ['今天客厅就是我们的舞台。', '刚才那个转身，是我临时想的。'],
+    active: ['一、二、三，我给你们数拍子！', '再来一小段吧！'],
+    genki: ['跑调了！没事，我们一起跑！', '只给你们听，安可！'],
+  },
+};
+
+function restoreHomeStories(saved) {
+  return { wishes: Array.isArray(saved?.wishes) ? saved.wishes.slice(-8) : [],
+    album: Array.isArray(saved?.album) ? saved.album.slice(-120) : [],
+    next: Math.max(1, Number(saved?.next) || 1), lastWishMonth: saved?.lastWishMonth || 0,
+    active: saved?.active && Object.hasOwn(HOME_TIMES, saved.active.kind)
+      ? { ...saved.active, resume: true, elapsed: 0, line: 0, phase: 'gather' } : null };
+}
+function homePortrait(d) { return { pid: d.pid, name: d.name, look: { ...d.look } }; }
+function addHomeMemory(kind, title, text, people, key) {
+  const home = G.home;
+  if (!home || home.album.some(m => m.key === key)) return;
+  home.album.push({ id: home.next++, key, kind, title, text, month: G.day,
+    weather: G.weather, people: people.map(homePortrait), favorite: false });
+  while (home.album.length > 120) {
+    const oldest = home.album.findIndex(m => !m.favorite);
+    home.album.splice(oldest < 0 ? 0 : oldest, 1);
+  }
+  HOOK.home?.();
+}
+function rememberHomeLog(text) {
+  if (!G.home || !G.dolls?.length) return;
+  const theme = /在一起了|确认了恋人/.test(text) ? ['love', '心意相通的那个月']
+    : /一起做成了.+花架/.test(text) ? ['craft', '我们一起做的']
+    : /有了自己的.+角/.test(text) ? ['corner', '家里有我的位置了']
+    : /搬进来啦|搬进来了/.test(text) ? ['welcome', '又多了一个家人']
+    : /又下雨了.+书房/.test(text) ? ['rain', '雨声里的老地方'] : null;
+  if (!theme) return;
+  const people = G.dolls.filter(d => text.includes(d.name));
+  if (!people.length) return;
+  addHomeMemory(theme[0], theme[1], text.replace(/^[^\p{L}\p{N}]+/u, ''), people,
+    `${theme[0]}:${G.day}:${people.map(d => d.pid).sort().join(':')}`);
+}
+function ensureHomeWishes() {
+  const home = G.home;
+  home.wishes = home.wishes.filter(w => residents().some(d => d.pid === w.pid));
+  if (home.lastWishMonth === G.day) return;
+  home.lastWishMonth = G.day;
+  home.wishes = home.wishes.filter(w => !w.done || w.done >= G.day - 2);
+  const candidates = residents().filter(d => !home.wishes.some(w => w.pid === d.pid));
+  for (const d of candidates.slice(0, Math.max(0, 2 - home.wishes.filter(w => !w.done).length))) {
+    const [kind, text] = HOME_WISHES[d.persona] || HOME_WISHES.genki;
+    home.wishes.push({ pid: d.pid, kind, text, since: G.day, done: 0 });
+  }
+}
+function homeWishLine(d) {
+  return G.home?.wishes.find(w => w.pid === d.pid && !w.done)?.text || null;
+}
+const inHomeTime = d => d?.act?.type === 'homeTime';
+const homeFurnitureReserved = f => G.home?.active?.anchor === f.key;
+function homeAvailability(d, kind) {
+  if (!d || d.guest || d.state === 'away') return '还没回家';
+  if (inHomeTime(d)) return '正在一起活动';
+  if (!readyForKeepsake(d) || ['visitGather', 'visitStay', 'tryst'].includes(d.act?.type)) return '正忙着，晚点再约';
+  const leave = leaveAbs(d);
+  if (leave !== null && leave <= absNow() + 130 && leave + 180 > absNow()) return '快到出门时间了';
+  if (d.needs.hunger < 15 && kind !== 'supper') return '先让 TA 吃点东西';
+  return '';
+}
+function homeRoutes(group, anchor) {
+  const F = FURNITURE[anchor.id], occupied = new Set();
+  const spots = [];
+  for (let y = anchor.y - 1; y <= anchor.y + F.h + 1; y++) {
+    for (let x = anchor.x - 2; x <= anchor.x + F.w; x++) {
+      if (!free(x, y) || isDoorTile(x, y) || x === stairsColumn() ||
+          roomOf({ tx: x, ty: y }) !== cornerRoom(anchor) ||
+          G.dolls.some(d => !group.includes(d) && d.state !== 'away' && d.tx === x && d.ty === y)) continue;
+      spots.push({ x, y });
+    }
+  }
+  const routes = [];
+  for (const d of group) {
+    const options = spots.filter(t => !occupied.has(`${t.x},${t.y}`))
+      .map(t => ({ tile: t, path: findPath(d.tx, d.ty, [t]) }))
+      // Prefer a visible front row, instead of hiding heads behind a sofa or appliance.
+      .filter(r => r.path).sort((a, b) =>
+        Math.abs(a.tile.y - anchor.y - F.h - 1) * 12 + a.path.length * .1 -
+        Math.abs(b.tile.y - anchor.y - F.h - 1) * 12 - b.path.length * .1);
+    if (!options.length) return null;
+    const chosen = options[0];
+    occupied.add(`${chosen.tile.x},${chosen.tile.y}`);
+    routes.push(chosen.path);
+  }
+  return routes;
+}
+function prepareHomeTime(kind, pids) {
+  const theme = HOME_TIMES[kind];
+  if (!theme) return { reason: '这个活动还没有准备好。' };
+  const group = [...new Set(pids)].map(communityDoll);
+  if (group.length < 2 || group.length > 4 || group.some(d => !d || d.guest)) return { reason: '选两到四位住户，一起留一点空闲。' };
+  for (const d of group) {
+    const reason = homeAvailability(d, kind);
+    if (reason) return { reason: `${d.name}${reason}。` };
+  }
+  for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
+    if (tensionBetween(group[i], other)) return { reason: `${group[i].name}和${other.name}还需要一点空间，这次先分别约吧。` };
+  }
+  if (!TEST_MODE && G.fund < theme.cost) return { reason: `这顿饭需要家庭基金 ¥${theme.cost}，也可以先约免费的故事会。` };
+  const anchors = G.furniture.filter(f => theme.furniture.includes(f.id));
+  if (!anchors.length) return { reason: `先摆好${theme.furniture.map(id => FURNITURE[id]?.name).filter(Boolean).join('或')}。` };
+  for (const anchor of anchors) {
+    if (anchor.users.some(d => !group.includes(d))) continue;
+    const routes = homeRoutes(group, anchor);
+    if (routes) return { group, anchor, routes };
+  }
+  return { reason: '家具旁要给每个人留一个能走到的位置；也可以等正在使用的人结束。' };
+}
+function sendHomeGroup(active, group, routes) {
+  group.forEach((d, i) => {
+    if (d.act) endAct(d);
+    d.path = routes[i]; d.state = d.path.length ? 'walk' : 'arrive';
+    d.act = { type: 'homeTime', homeId: active.id, homeKind: active.kind,
+      dance: active.kind === 'music' && ['genki', 'stylist', 'active'].includes(d.persona), t: 90 };
+    say(d, ['我来啦。', '给我留个位置～', '好，等我一下。'][i % 3]);
+  });
+}
+function startHomeTime(kind, pids) {
+  if (G.home.active) return '家里的活动已经开始啦，等这次结束再约。';
+  const plan = prepareHomeTime(kind, pids);
+  if (plan.reason) return plan.reason;
+  const active = G.home.active = { id: G.home.next++, kind, people: plan.group.map(d => d.pid),
+    anchor: plan.anchor.key, started: absNow(), deadline: absNow() + 180,
+    phase: 'gather', elapsed: 0, line: 0, paid: false };
+  sendHomeGroup(active, plan.group, plan.routes);
+  HOOK.home?.(); save();
+  return null;
+}
+function arriveHomeTime(d) {
+  const active = G.home.active, anchor = G.furniture.find(f => f.key === active?.anchor);
+  if (!active || !anchor || d.act.homeId !== active.id) { endAct(d); return; }
+  d.state = 'act'; d.act.t = 90;
+  face(d, (anchor.x + FURNITURE[anchor.id].w / 2) * T, d.y - 5);
+  say(d, '位置留好了，等你们。');
+}
+function cancelHomeTime(message = '这次先忙各自的，有空再聚。') {
+  const active = G.home.active;
+  if (!active) return;
+  for (const d of G.dolls) if (inHomeTime(d) && d.act.homeId === active.id) { endAct(d); d.path = []; }
+  G.home.active = null;
+  HOOK.toast(message, true); HOOK.home?.(); save();
+}
+function finishHomeTime(active, group) {
+  const theme = HOME_TIMES[active.kind];
+  const text = `${group.map(d => d.name).join('、')}在家${active.kind === 'music' ? '开了一场小小音乐会' : theme.name}。${active.kind === 'supper' ? '饭慢慢吃，话慢慢讲。' : active.kind === 'stories' ? '每人接了一句，编出了只属于小屋的结尾。' : '有人跑调，有人打拍子，谁也没有提前离场。'}`;
+  addHomeMemory(active.kind, theme.title, text, group, `gather:${active.id}`);
+  const perceptions = [];
+  for (const d of group) {
+    for (const [key, gain] of Object.entries(theme.need)) d.needs[key] = Math.min(100, d.needs[key] + gain);
+    d.happy = 3;
+    const companion = group.find(o => o !== d);
+    perceptions.push({ person: d.pid, subject: companion.pid, emotion: .75, impact: 75, interpretation: text });
+    const wish = G.home.wishes.find(w => !w.done && w.pid === d.pid && w.kind === active.kind);
+    if (wish) { wish.done = G.day; say(d, '这就是我一直想和你们做的事。', 4); }
+    else say(d, active.kind === 'supper' ? '吃饱了，心里也暖暖的。' : '这一小段时间，我会记得的。', 4);
+  }
+  for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
+    bump(group[i], other, 4); addTrust(group[i], other, 2); addTrust(other, group[i], 2);
+    if (active.kind === 'supper') countTogether('meal', group[i], other);
+  }
+  NPCMemory.record(G, { type: 'home-time', time: absNow(), participants: group.map(d => d.pid), outcome: active.kind }, perceptions);
+  addLog(`${theme.icon} ${text}`);
+  group.forEach(d => { endAct(d); d.path = []; d.think = 4; });
+  G.home.active = null; HOOK.home?.(); HOOK.refresh(); save();
+}
+function tickHomeStories(dt) {
+  ensureHomeWishes();
+  const a = G.home.active;
+  if (!a) return;
+  const anchor = G.furniture.find(f => f.key === a.anchor);
+  if (!anchor) { cancelHomeTime('家具挪走了，这次先暂停；重新摆好以后再约。'); return; }
+  let group = a.people.map(communityDoll).filter(Boolean);
+  if (a.resume) {
+    // Rebuild paths from saved positions; never award time that happened off-screen without simulation.
+    const available = group.filter(d => !homeAvailability(d, a.kind));
+    const routes = available.length >= 2 && homeRoutes(available, anchor);
+    if (!routes || absNow() > a.deadline) { cancelHomeTime(); return; }
+    a.people = available.map(d => d.pid); a.resume = false; group = available;
+    sendHomeGroup(a, group, routes);
+  }
+  const assigned = group.filter(d => inHomeTime(d) && d.act.homeId === a.id);
+  const together = assigned.filter(d => d.state === 'act');
+  if (assigned.length < 2 || group.some((d, i) => group.slice(i + 1).some(o => tensionBetween(d, o)))) { cancelHomeTime(); return; }
+  if (a.phase === 'gather') {
+    if (together.length !== assigned.length && absNow() < a.deadline) return;
+    if (together.length < 2) { cancelHomeTime('这次没能凑齐，大家有空时再约。'); return; }
+    for (const d of assigned.filter(d => d.state !== 'act')) { endAct(d); d.path = []; }
+    a.people = together.map(d => d.pid);
+    if (!a.paid && !TEST_MODE) {
+      if (G.fund < HOME_TIMES[a.kind].cost) { cancelHomeTime('家庭基金不够准备这顿饭了，下次再约。'); return; }
+      G.fund -= HOME_TIMES[a.kind].cost;
+    }
+    a.paid = true; a.phase = 'sharing'; a.elapsed = 0;
+    HOOK.refresh(); HOOK.home?.();
+  }
+  if (together.length < a.people.length) {
+    // Interruptions restart the shared-time clock, so running away cannot complete a wish.
+    a.people = together.map(d => d.pid); a.elapsed = 0; a.line = 0;
+    if (together.length < 2) { cancelHomeTime(); return; }
+  }
+  a.elapsed += dt;
+  const turn = Math.floor(a.elapsed / 3.3);
+  if (turn >= a.line) {
+    const d = together[a.line % together.length];
+    const listener = together[(a.line + 1) % together.length];
+    face(d, listener.x, listener.y); face(listener, d.x, d.y);
+    const round = Math.floor(a.line / together.length) % 2;
+    say(d, (HOME_LINES[a.kind][d.persona] || HOME_LINES[a.kind].genki)[round], 3.2);
+    if (a.kind === 'music') SFX.play('piano');
+    a.line++;
+  }
+  if (a.elapsed >= Math.max(14, together.length * 6.6)) finishHomeTime(a, together);
+}
+function drawHomeTable(c, f, x, y) {
+  const a = G.home?.active;
+  if (!a || a.anchor !== f.key || a.phase !== 'sharing') return;
+  if (a.kind === 'music') {
+    const by = y - 14 - Math.floor(G.t * 2) % 4;
+    R(c, x + 13, by, 1, 5, '#d49a62'); R(c, x + 10, by + 4, 3, 2, '#d49a62');
+    R(c, x + 14, by, 3, 1, '#d49a62'); return;
+  }
+  if (a.kind !== 'supper') return;
+  R(c, x + 4, y + 2, 24, 8, '#f2dcb7');
+  for (const px of [x + 7, x + 23]) {
+    R(c, px, y + 3, 6, 4, '#fff7e4'); R(c, px + 1, y + 4, 4, 2, '#c58d62');
+  }
+  R(c, x + 15, y - 1, 6, 5, '#cb8b82'); R(c, x + 16, y - 2, 4, 2, '#f5dbad');
+  if (Math.floor(G.t * 2) % 2) R(c, x + 17, y - 5, 1, 2, '#fff3db');
+}
+ACT_NAMES.homeTime = '共度小屋时光';
+</script>
+<script>
+// Portable saves are inspected before applying; the previous home remains recoverable.
+const HOME_IMPORT_BACKUP = SAVE_KEY + ':before-import';
+const HOME_FILE_LIMIT = 5 * 1024 * 1024;
+function homeChecksum(text) {
+  let value = 2166136261;
+  for (let i = 0; i < text.length; i++) value = Math.imul(value ^ text.charCodeAt(i), 16777619);
+  return (value >>> 0).toString(16).padStart(8, '0');
+}
+function exportHomeSave() {
+  const data = JSON.parse(JSON.stringify({ ...houseSaveData(), saveVersion: SaveManager.version }));
+  return JSON.stringify({ game: 'DollHouse', format: 1, mode: TEST_MODE ? 'test' : 'normal',
+    checksum: homeChecksum(JSON.stringify(data)), data }, null, 2);
+}
+function validatePortableHome(data) {
+  if (!data || typeof data !== 'object' || !validHouseSave(data)) throw Error('这份文件里没有完整的小屋。');
+  let nodes = 0;
+  function inspect(value, depth = 0) {
+    if (++nodes > 150000 || depth > 40) throw Error('这份存档内容异常复杂，无法恢复。');
+    if (typeof value === 'number' && !Number.isFinite(value)) throw Error('存档里的数值已损坏。');
+    if (!value || typeof value !== 'object') return;
+    for (const [key, item] of Object.entries(value)) {
+      if (['__proto__', 'constructor', 'prototype'].includes(key)) throw Error('这份存档包含不支持的字段。');
+      inspect(item, depth + 1);
+    }
+  }
+  inspect(data);
+  const list = (v, max) => Array.isArray(v) && v.length <= max;
+  const object = v => v && typeof v === 'object' && !Array.isArray(v);
+  if (!Number.isInteger(data.day) || data.day < 1 || !Number.isFinite(data.time) || data.time < 0 || data.time >= 1440 ||
+      !Number.isInteger(data.level) || !LEVELS[data.level] || !Number.isFinite(data.fund) ||
+      !list(data.dolls, 16) || !data.dolls.length || !list(data.furniture, 1000)) throw Error('日期、住户或房屋数据不完整。');
+  const ids = new Set();
+  for (const d of data.dolls) {
+    if (!d || typeof d.pid !== 'string' || !d.pid || ids.has(d.pid) || typeof d.name !== 'string' || !d.name.trim() ||
+        !Object.hasOwn(PERSONAS, d.persona) || !Object.hasOwn(JOBS, d.job) || !object(d.look) || !object(d.needs) ||
+        !Number.isFinite(d.money)) throw Error('有一位住户的数据不完整。');
+    ids.add(d.pid);
+    for (const key of ['energy', 'hunger', 'fun', 'social', 'bladder']) {
+      if (!Number.isFinite(d.needs[key]) || d.needs[key] < 0 || d.needs[key] > 100) throw Error('住户的状态数值不正确。');
+    }
+  }
+  for (const f of data.furniture) if (!f || !Object.hasOwn(FURNITURE, f.id) || !Number.isInteger(f.x) ||
+    !Number.isInteger(f.y) || f.x < 0 || f.x >= 24 || f.y < UPPER_WALL || f.y >= YARD_END) throw Error('有一件家具的数据不完整。');
+  for (const key of ['rel', 'trust', 'jealousy', 'inv']) if (data[key] !== undefined && !object(data[key])) throw Error('人际关系或仓库数据损坏了。');
+  for (const key of ['log', 'paper', 'paperMoments']) if (data[key] !== undefined && !list(data[key], 1000)) throw Error('日志或月报数据损坏了。');
+  if (data.home) {
+    if (!list(data.home.album, 120) || !list(data.home.wishes, 8)) throw Error('小屋相册数据不完整。');
+    for (const memory of data.home.album) if (!object(memory) || typeof memory.text !== 'string' || typeof memory.title !== 'string' ||
+      !Number.isInteger(memory.month) || !list(memory.people, 16) || memory.people.some(p => !object(p?.look) || typeof p.name !== 'string')) throw Error('有一张回忆卡的数据不完整。');
+    for (const wish of data.home.wishes) if (!object(wish) || typeof wish.pid !== 'string' || typeof wish.text !== 'string' ||
+      !Object.hasOwn(HOME_TIMES, wish.kind)) throw Error('住户的心愿数据不完整。');
+    const active = data.home.active;
+    if (active && (!Object.hasOwn(HOME_TIMES, active.kind) || !list(active.people, 4) || active.people.some(p => typeof p !== 'string') ||
+      typeof active.anchor !== 'string' || !Number.isFinite(active.deadline))) throw Error('正在进行的活动数据不完整。');
+  }
+  if (data.community && (!object(data.community) || !list(data.community.friends, 1000) || !list(data.community.applications, 1000))) throw Error('访客资料不完整。');
+  if (data.keepsakes && (!object(data.keepsakes) || !list(data.keepsakes.pieces, 1000) || !object(data.keepsakes.corners) || !object(data.keepsakes.traditions))) throw Error('手作与小角落资料不完整。');
+  if (data.npcMemory) {
+    if (!object(data.npcMemory.people) || !object(data.npcMemory.events)) throw Error('住户的记忆资料不完整。');
+    for (const memory of Object.values(data.npcMemory.people)) if (!list(memory.short, 1000) || !list(memory.long, 1000)) throw Error('住户的记忆资料不完整。');
+  }
+  return data;
+}
+function readPortableHome(raw) {
+  if (typeof raw !== 'string' || raw.length > HOME_FILE_LIMIT) throw Error('请选择小于 5 MB 的小屋备份文件。');
+  let file;
+  try { file = JSON.parse(raw); } catch { throw Error('这不是可以读取的 JSON 存档文件。'); }
+  if (file?.game !== 'DollHouse' || file.format !== 1) throw Error('请选择由「下载存档备份」保存的小屋文件。');
+  if (file.mode !== (TEST_MODE ? 'test' : 'normal')) throw Error(TEST_MODE ? '这是正式版的小屋，请到正式版恢复。' : '这是测试模式的小屋，请到测试模式恢复。');
+  if (file.data?.saveVersion > SaveManager.version) throw Error('这份备份来自更新的版本，请先刷新游戏。');
+  if (file.checksum !== homeChecksum(JSON.stringify(file.data))) throw Error('文件似乎不完整或被改过，当前小屋没有变化。');
+  return validatePortableHome(migrateHouseSave(file.data, file.data.saveVersion || 1));
+}
+function importPortableHome(data, undo = false) {
+  validatePortableHome(data);
+  const previous = JSON.parse(JSON.stringify(houseSaveData()));
+  let previousRaw, previousSnapshots, restoredSnapshots;
+  // A failed backup must abort before any in-memory state changes.
+  try {
+    previousRaw = localStorage.getItem(SAVE_KEY);
+    previousSnapshots = localStorage.getItem(SAVE_KEY + ':snapshots') || '[]';
+    restoredSnapshots = localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') || '[]';
+    if (!undo) {
+      localStorage.setItem(HOME_IMPORT_BACKUP, exportHomeSave());
+      localStorage.setItem(HOME_IMPORT_BACKUP + ':snapshots', previousSnapshots);
+    }
+  } catch { throw Error('无法保留当前进度，恢复已取消。请先下载一份备份。'); }
+  try {
+    applySave(JSON.parse(JSON.stringify(data))); rebuild();
+    G.paperPending = false; lastSavedAt = Date.now();
+    if (!save()) throw Error('浏览器没有保存成功。');
+    localStorage.setItem(SAVE_KEY + ':snapshots', undo ? restoredSnapshots : '[]');
+    if (!undo) snapshotHouseMonth();
+  } catch (error) {
+    applySave(previous); rebuild();
+    try {
+      if (previousRaw !== null) localStorage.setItem(SAVE_KEY, previousRaw);
+      localStorage.setItem(SAVE_KEY + ':snapshots', previousSnapshots);
+    } catch { /* Export remains available if storage itself has stopped accepting writes. */ }
+    throw Error('恢复没有完成，已回到原来的小屋。' + error.message);
+  }
+  return true;
+}
+</script>
+<script>
 // 画面渲染 + 指针交互（拎小人、摆家具）
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
@@ -6105,7 +6608,7 @@ function dollPose(d) {
   if (d.state === 'walk') return 'walk';
   if (d.act && d.state === 'act' && d.act.type === 'exercise') return 'walk';
   if (d.state === 'act' && (['yoga', 'boxPractice'].includes(d.act?.type) || ROUTINES[d.act?.type]?.motion === 'stretch')) return 'dance';
-  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (['join', 'visitStay'].includes(d.act.type) && d.act.dance))) return 'dance';
+  if (d.act && d.state === 'act' && (d.act.type === 'dance' || (['join', 'visitStay', 'homeTime'].includes(d.act.type) && d.act.dance))) return 'dance';
   if (d.act && d.act.onFurn && d.state === 'act') return 'sit';
   return 'stand';
 }
@@ -6308,6 +6811,7 @@ function drawHouseFurniture(c, f, t) {
     return;
   }
   drawFurnitureArt(c, f.id, x, y, f, t);
+  drawHomeTable(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
@@ -6726,7 +7230,7 @@ function drawHousePaperCard(issue) {
   ctx.fillStyle = '#ce718e';
   for (let x = 12; x < W - 12; x += 8) { ctx.fillRect(x, 10, 4, 3); ctx.fillRect(x, H - 13, 4, 3); }
   ctx.fillStyle = '#583c4b'; ctx.textAlign = 'center';
-  ctx.font = `700 28px ${sans}`; ctx.fillText('小屋月报', W / 2, 53);
+  ctx.font = `700 28px ${sans}`; ctx.fillText(issue.title || '小屋月报', W / 2, 53);
   ctx.font = `14px ${sans}`; ctx.fillText(issue.month, W / 2, 76);
   ctx.textAlign = 'left';
   issue.stories.forEach((story, i) => {
@@ -6737,7 +7241,7 @@ function drawHousePaperCard(issue) {
     if (hero) {
       ctx.textAlign = 'center';
       for (const [index, person] of people.entries()) {
-        const x = W / 2 + (index - (people.length - 1) / 2) * 84;
+        const x = W / 2 + (index - (people.length - 1) / 2) * Math.min(84, 280 / people.length);
         ctx.fillStyle = '#e9bacb'; ctx.fillRect(x - 28, y + 75, 56, 5);
         ctx.drawImage(paperPortrait(person), x - 30, y + 8, 60, 72);
         ctx.fillStyle = '#583c4b'; ctx.font = `12px ${sans}`; ctx.fillText(person.name, x, y + 98, 80);
@@ -6754,7 +7258,7 @@ function drawHousePaperCard(issue) {
     const left = hero ? 38 : 104;
     const baseline = y + (hero || 0);
     ctx.fillStyle = '#8a3d59'; ctx.font = `700 12px ${sans}`;
-    ctx.fillText(paperStoryTitle(story, i), left, baseline + 16);
+    ctx.fillText(issue.title ? story.label : paperStoryTitle(story, i), left, baseline + 16);
     ctx.fillStyle = '#3d2733'; ctx.font = `${i === 0 ? '700 16px' : '14px'} ${sans}`;
     let row = '', line = 0;
     for (const char of story.text) {
@@ -6773,7 +7277,7 @@ function saveHousePaperCard(issue) {
   drawHousePaperCard(issue).toBlob(blob => {
     if (!blob) return;
     const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob); link.download = `小屋月报-${issue.month}.png`; link.click();
+    link.href = URL.createObjectURL(blob); link.download = `${issue.title || '小屋月报'}-${issue.month}.png`; link.click();
     setTimeout(() => URL.revokeObjectURL(link.href), 1000);
   }, 'image/png');
 }
@@ -6792,6 +7296,7 @@ HOOK.toast = (msg, quiet) => {
 
 /* ---------- 住户列表 + 状态卡 ---------- */
 function doingText(d) {
+  if (inHomeTime(d)) return (d.state === 'walk' ? '去参加' : G.home.active?.phase === 'gather' ? '等大家来，准备' : '') + (HOME_TIMES[G.home.active?.kind]?.name || '小屋活动');
   if (d.act?.type === 'visitStay') {
     if (d.act.theme === 'quiet') return '在二楼书房聊天';
     if (d.act.theme === 'umbrella') return '撑着伞野餐';
@@ -6979,6 +7484,7 @@ $('#btnReset').onclick = () => {
   const s = defaultHouseSave(); s.dolls = keepDolls; s.time = G.time; s.day = G.day; s.monthEvents = G.monthEvents;
   s.paperMoments = G.paperMoments;
   s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
+  s.home = { ...G.home, active: null };
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -7505,6 +8011,183 @@ document.addEventListener('visibilitychange', () => {
 window.addEventListener('pagehide', leaveHouse);
 window.addEventListener('pageshow', returnToHouse);
 returnToHouse();
+</script>
+<script>
+let homeKind = 'supper', homeOnlyFavorites = false, pendingHomeImport = null;
+function homeCast(people, small = false) {
+  const cast = el('div', small ? 'home-mini-cast' : 'home-memory-cast');
+  for (const d of people) {
+    const figure = el('figure'), c = paperPortrait(d), name = el('figcaption');
+    name.textContent = d.name; c.setAttribute('aria-hidden', 'true');
+    figure.append(c, name); cast.append(figure);
+  }
+  return cast;
+}
+function showHomePage(page) {
+  const album = page === 'album';
+  $('#homeTodayPanel').hidden = album; $('#homeAlbumPanel').hidden = !album;
+  for (const [id, selected] of [['homeToday', !album], ['homeAlbum', album]]) {
+    $('#' + id).classList.toggle('on', selected);
+    $('#' + id).setAttribute('aria-pressed', String(selected));
+  }
+  if (album) renderHomeAlbum();
+}
+function renderHomeWishes() {
+  ensureHomeWishes();
+  $('#homeWishes').replaceChildren(...G.home.wishes.slice(-4).map(w => {
+    const d = communityDoll(w.pid), card = el('article', 'home-wish' + (w.done ? ' fulfilled' : ''));
+    const body = el('div'), title = el('small'), quote = el('p');
+    title.textContent = w.done ? `${d.name} · 已经一起做过啦` : `${d.name}悄悄惦记着`;
+    quote.textContent = `“${w.text}”`;
+    body.append(title, quote);
+    if (!w.done) {
+      const button = el('button', 'btn small ghost', '就做这件事');
+      button.onclick = () => { homeKind = w.kind; renderHomeInvitation(d.pid); };
+      body.append(button);
+    }
+    card.append(homeCast([d], true), body); return card;
+  }));
+}
+function selectedHomePeople() { return [...document.querySelectorAll('#homePeople input:checked')].map(n => n.value); }
+function updateHomePlan() {
+  const pids = selectedHomePeople();
+  const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids).reason;
+  $('#homePlanStatus').textContent = reason || `约好 ${pids.length} 个人${HOME_TIMES[homeKind].name}。${HOME_TIMES[homeKind].cost && !TEST_MODE ? '开饭时使用家庭基金 ¥30。' : '不用花钱。'}`;
+  $('#homeStart').disabled = !!reason;
+}
+function renderHomeInvitation(ownerPid) {
+  $('#homeKinds').replaceChildren(...Object.entries(HOME_TIMES).map(([key, theme]) => {
+    const button = el('button', 'btn small' + (key === homeKind ? ' on' : ' ghost'));
+    button.textContent = `${theme.icon} ${theme.name}`;
+    button.setAttribute('aria-pressed', String(key === homeKind));
+    button.onclick = () => { homeKind = key; renderHomeInvitation(); };
+    return button;
+  }));
+  $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint;
+  const previous = new Set(selectedHomePeople());
+  const owner = communityDoll(ownerPid);
+  const available = residents().filter(d => !homeAvailability(d, homeKind));
+  const recommended = owner ? [owner, ...available.filter(d => d !== owner && !tensionBetween(owner, d))].slice(0, 2)
+    : available.slice(0, 2);
+  const chosen = ownerPid || !previous.size ? new Set(recommended.map(d => d.pid)) : previous;
+  $('#homePeople').replaceChildren(...residents().map(d => {
+    const label = el('label'), check = el('input'), body = el('span'), reason = homeAvailability(d, homeKind);
+    check.type = 'checkbox'; check.value = d.pid; check.checked = chosen.has(d.pid) && !reason;
+    check.disabled = !!reason; check.onchange = updateHomePlan;
+    body.textContent = d.name + (reason ? ` · ${reason}` : ` · ${PERSONAS[d.persona].name}`);
+    label.append(check, paperPortrait(d), body); return label;
+  }));
+  updateHomePlan();
+}
+function renderHomeAlbum() {
+  const memories = G.home.album.filter(m => !homeOnlyFavorites || m.favorite).slice().reverse();
+  const nodes = memories.map(memory => {
+    const card = el('article', 'home-memory'), date = el('small'), title = el('h3'), body = el('p');
+    date.textContent = `${monthLabel(memory.month)} · ${WEATHER[memory.weather]?.name || '在家'}`;
+    title.textContent = memory.title; body.textContent = memory.text;
+    const actions = el('div', 'home-memory-actions');
+    const star = el('button', 'btn small ghost', memory.favorite ? '♥ 已珍藏' : '♡ 珍藏');
+    star.setAttribute('aria-pressed', String(memory.favorite));
+    star.onclick = () => {
+      if (!memory.favorite && G.home.album.filter(m => m.favorite).length >= 60) {
+        HOOK.toast('已经珍藏了 60 个时刻。可以下载纪念卡，或先取消一个珍藏。', true); return;
+      }
+      memory.favorite = !memory.favorite; save(); renderHomeAlbum();
+    };
+    const download = el('button', 'btn small ghost', '保存纪念卡');
+    download.onclick = () => saveHousePaperCard({ title: '我们的小屋', month: monthLabel(memory.month), stories: [
+      { label: memory.title, text: memory.text, icon: HOME_TIMES[memory.kind]?.icon || '🏡', people: memory.people }
+    ] });
+    actions.append(star, download);
+    card.append(date, homeCast(memory.people), title, body, actions);
+    return card;
+  });
+  if (!nodes.length) {
+    const empty = el('div', 'home-album-empty');
+    empty.append(homeCast(residents().slice(0, 4)));
+    const text = el('p'); text.textContent = homeOnlyFavorites ? '喜欢的时刻，点一下「珍藏」就会留在这里。' : '相册的第一页，还在等我们一起写。';
+    const sub = el('small'); sub.textContent = '一起吃饭、讲故事、做手作，回忆会带着当时的小人模样留在这里。';
+    empty.append(text, sub); nodes.push(empty);
+  }
+  $('#homeMemories').replaceChildren(...nodes);
+}
+function updateHomeNow() {
+  const active = G.home.active;
+  $('#homeNow').hidden = !active;
+  if (!active) return;
+  const theme = HOME_TIMES[active.kind];
+  $('#homeNowText').textContent = `${theme.icon} ${active.phase === 'gather' ? '正在等大家过来' : theme.name + '，慢慢来'}`;
+  $('#homeNowCast').replaceChildren(homeCast(active.people.map(communityDoll).filter(Boolean), true));
+}
+HOOK.home = updateHomeNow;
+$('#btnHome').onclick = () => {
+  renderHomeWishes(); renderHomeInvitation(); showHomePage('today'); $('#homeDialog').showModal();
+};
+$('#homeToday').onclick = () => showHomePage('today');
+$('#homeAlbum').onclick = () => showHomePage('album');
+$('#homeFavorites').onclick = () => {
+  homeOnlyFavorites = !homeOnlyFavorites;
+  $('#homeFavorites').setAttribute('aria-pressed', String(homeOnlyFavorites)); renderHomeAlbum();
+};
+$('#homeStart').onclick = () => {
+  const reason = startHomeTime(homeKind, selectedHomePeople());
+  if (reason) { $('#homePlanStatus').textContent = reason; return; }
+  $('#homeDialog').close(); HOOK.toast('约好啦，大家正走过来。', true);
+};
+$('#homeStop').onclick = () => cancelHomeTime();
+
+function showHomeSaveStatus() {
+  $('#saveState').textContent = G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
+    : `✓ ${monthLabel(G.day)} · ${residents().length} 位住户 · ${TEST_MODE ? '测试小屋' : '正式小屋'}`;
+  try { $('#saveUndo').hidden = !localStorage.getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
+}
+function downloadHomeFile(text, filename) {
+  const blob = new Blob([text], { type: 'application/json' }), url = URL.createObjectURL(blob), a = el('a');
+  a.href = url; a.download = filename; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function refreshImportedHome() {
+  pendingHomeImport = null; $('#savePreview').hidden = true; $('#saveFile').value = '';
+  HOOK.select(); updateClock(); renderLog(); renderShopBar(); updateHousePaperButton();
+  updateHomeNow(); showHomeSaveStatus();
+  awaySince = 0; // Importing an old file never adds the time since it was exported.
+}
+$('#btnSaveHome').onclick = () => { save(); showHomeSaveStatus(); $('#saveFeedback').textContent = ''; $('#saveDialog').showModal(); };
+$('#saveExport').onclick = () => {
+  downloadHomeFile(exportHomeSave(), `DollHouse-${TEST_MODE ? 'test-' : ''}${G.day}.json`);
+  $('#saveFeedback').textContent = '备份已准备好，请在浏览器下载中保留这份文件。';
+};
+document.querySelector('label[for="saveFile"]').onkeydown = e => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#saveFile').click(); }
+};
+$('#saveFile').onchange = async () => {
+  const file = $('#saveFile').files[0]; pendingHomeImport = null; $('#savePreview').hidden = true;
+  if (!file) return;
+  try {
+    if (file.size > HOME_FILE_LIMIT) throw Error('备份文件不能超过 5 MB。');
+    pendingHomeImport = readPortableHome(await file.text());
+    $('#savePreviewText').textContent = `准备恢复：${monthLabel(pendingHomeImport.day)}，${pendingHomeImport.dolls.filter(d => !d.guest).map(d => d.name).join('、')}的小屋。当前进度会先保留一份。`;
+    $('#savePreview').hidden = false; $('#saveFeedback').textContent = '';
+  } catch (error) { $('#saveFeedback').textContent = error.message; }
+};
+$('#saveImportCancel').onclick = () => { pendingHomeImport = null; $('#savePreview').hidden = true; $('#saveFile').value = ''; };
+$('#saveImport').onclick = () => {
+  if (!pendingHomeImport) return;
+  try { importPortableHome(pendingHomeImport); refreshImportedHome(); $('#saveFeedback').textContent = '小屋恢复好了。需要时可以撤销这次导入。'; }
+  catch (error) { $('#saveFeedback').textContent = error.message; }
+};
+$('#saveUndo').onclick = () => {
+  if (!confirm('回到上次导入前的小屋？导入后发生的事将不再保留。')) return;
+  try {
+    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP));
+    importPortableHome(previous, true); refreshImportedHome(); $('#saveFeedback').textContent = '已经回到导入前的小屋。';
+  } catch (error) { $('#saveFeedback').textContent = error.message; }
+};
+HOOK.saved = success => {
+  $('#btnSaveHome').textContent = success ? '💾' : '⚠️';
+  $('#btnSaveHome').title = success ? '存档备份与恢复' : '保存失败，点击下载备份';
+  if ($('#saveDialog').open) showHomeSaveStatus();
+};
+ensureHomeWishes(); updateHomeNow();
 </script>
 </body>
 </html>

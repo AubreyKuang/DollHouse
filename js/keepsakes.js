@@ -94,7 +94,7 @@ function sendKeepsakePair(pair, routes, type, key) {
 
 function readyForKeepsake(d) {
   return d && d.state !== 'away' && d.state !== 'lift' && !takingStairs(d) && !takingYardPath(d) &&
-    !lying(d) && d.needs.energy >= 25 && d.needs.bladder >= 18 && !['leave', 'neighborLeave', 'visitLeave', 'makeKeepsake', 'rainTea'].includes(d.act?.type);
+    !lying(d) && d.needs.energy >= 25 && d.needs.bladder >= 18 && !['homeTime', 'leave', 'neighborLeave', 'visitLeave', 'makeKeepsake', 'rainTea'].includes(d.act?.type);
 }
 
 function startKeepsakeProject(a, b, finish) {
