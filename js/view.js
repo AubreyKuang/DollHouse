@@ -251,12 +251,13 @@ function drawBuildOverlay(c, t) {
     const h = F.h * (wall ? T : rect.storey.step || FLOOR_STEP);
     const y = bottom - h;
     const ok = canPlace(id, hv.x, hv.y, null);
-    c.globalAlpha = .75;
-    drawHouseFurniture(c, f, t);
-    c.globalAlpha = 1;
+    c.save();
     R(c, x, y, w, h, ok ? '#7cc57659' : '#e26d6d73');
     c.strokeStyle = ok ? '#4f9a4a' : '#c24d4d';
     c.strokeRect(x + .5, y + .5, w - 1, h - 1);
+    c.globalAlpha = ok ? .85 : .55;
+    drawHouseFurniture(c, f, t);
+    c.restore();
   } else if (hv?.furn) {
     const { x, w, top, bottom } = houseFurnitureRect(hv.furn);
     R(c, x, top, w, bottom - top, B.trash ? '#e26d6d66' : '#ffd35c4d');

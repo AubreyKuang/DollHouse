@@ -8,10 +8,8 @@ const COTTAGE_SPRITES = {
   shelf: [0, 128, 78, 112], window: [128, 128, 124, 105], oak: [256, 128, 128, 128],
   desk: [0, 256, 112, 90], arcade: [128, 256, 74, 112], plant: [256, 256, 82, 112],
   toilet: [0, 384, 88, 100], washstand: [128, 384, 78, 112], shower: [256, 384, 62, 112], cloudBed: [384, 384, 99, 110],
-  bed: [0, 512, 99, 110], table: [128, 512, 126, 87], fridge: [256, 512, 80, 120], stove: [384, 512, 88, 116],
+  bed: [0, 512, 99, 110], table: [128, 512, 126, 87],
   chair: [0, 640, 72, 112], tv: [128, 640, 103, 119], bath: [256, 640, 126, 78], lamp: [384, 640, 51, 120],
-  gardenSwing: [0, 768, 126, 100], gardenBench: [128, 768, 121, 95],
-  flowerBox: [256, 768, 126, 87], picnicTable: [384, 768, 126, 84],
   door: [0, 896, 84, 120], mirror: [128, 896, 58, 120], rug: [256, 896, 126, 63], shelfwall: [384, 896, 126, 80],
   moonLamp: [0, 1024, 69, 108], cloudMobile: [128, 1024, 91, 114],
   bunnyPicture: [256, 1024, 86, 99], tulips: [384, 1024, 78, 114],
@@ -114,14 +112,29 @@ const DRAW = {
     drawCottageSprite(c, 'table', x, y - 6, 32, 21);
   },
   fridge(c, x, y) {
-    drawCottageSprite(c, 'fridge', x, y - 18, 16, 33);
+    contactShadow(c, x + 1, y + 14, 14);
+    bevel(c, x + 1, y - 18, 14, 33, '#eae8df', '#8e7d83');
+    R(c, x + 3, y - 17, 9, 1, '#fffbec');
+    R(c, x + 12, y - 16, 2, 29, '#cfc3c2');
+    R(c, x + 2, y - 7, 12, 1, '#ad9ea1');
+    for (const [py, h] of [[y - 15, 5], [y - 4, 7]]) {
+      detail(c, x + 10.5, py, 1.5, h, '#a49598');
+      detail(c, x + 10.5, py, .5, h - 1, '#f9efdf');
+    }
+    R(c, x + 4, y - 15, 3, 3, '#ca8290');
+    detail(c, x + 4, y - 15, 2, .5, '#f3b5ad');
+    R(c, x + 5, y - 2, 3, 2, '#efd189');
   },
   stove(c, x, y, f, t) {
-    drawCottageSprite(c, 'stove', x, y - 10, 16, 25);
-    if (f?.active) {
+    box(c, x + 1, y - 6, 14, 21, '#d8d0c4'); R(c, x + 2, y - 5, 12, 3, '#4e4557');
+    R(c, x + 3, y - 4, 3, 1, '#666'); R(c, x + 10, y - 4, 3, 1, '#666');
+    box(c, x + 3, y + 1, 10, 7, '#4e4557', '#8a8278'); R(c, x + 4, y + 2, 8, 2, '#675a6e');
+    R(c, x + 3, y + 10, 2, 2, '#ca8290'); R(c, x + 7, y + 10, 2, 2, '#ca8290');
+    if (f && f.active) {
       const k = Math.floor(t * 8) % 2;
-      detail(c, x + 3, y - 7, 4, 1, k ? '#efd189' : '#e1ad71');
-      detail(c, x + 10 + k, y - 10 - k, 1, 2, '#ffffffaa');
+      R(c, x + 3, y - 7, 4, 2, k ? '#efd189' : '#e1ad71');
+      box(c, x + 8, y - 9, 7, 4, '#675a6e'); R(c, x + 14, y - 8, 3, 1, INK);
+      R(c, x + 10 + k, y - 12 - k, 1, 2, '#ffffffaa');
     }
   },
   shelf(c, x, y) {
