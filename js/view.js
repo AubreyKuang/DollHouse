@@ -2,14 +2,17 @@
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+// Keep the artwork grid independent of the display buffer. Sloped edges are
+// rasterized at higher resolution; CSS can then downsample at any zoom.
+const SCENE_SCALE = 4;
 const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
-  cv.width = lightCv.width = (W + HOUSE_MARGIN) * PIXEL_SCALE;
-  cv.height = lightCv.height = HOUSE_HEIGHT * PIXEL_SCALE;
-  ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
-  lctx.scale(PIXEL_SCALE, PIXEL_SCALE);
+  cv.width = lightCv.width = (W + HOUSE_MARGIN) * SCENE_SCALE;
+  cv.height = lightCv.height = HOUSE_HEIGHT * SCENE_SCALE;
+  ctx.scale(SCENE_SCALE, SCENE_SCALE);
+  lctx.scale(SCENE_SCALE, SCENE_SCALE);
   ctx.imageSmoothingEnabled = false;
   document.getElementById('stage').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
@@ -100,12 +103,14 @@ function drawWindowLight(c) {
     c.save();
     housePath(c, [[left, front], [left + 9, back], [right - 9, back], [right, front]]);
     c.clip();
-    const lean = afternoon ? -1 : 1;
-    for (let row = 0; row < front - back - 2; row += 1) {
-      const px = center - 9 + Math.round(row * .65) * lean, y = back + row + 1;
-      R(c, px - 2, y, 21, 1, pale);
-      R(c, px, y, 8, 1, bright);
-      R(c, px + 10, y, 7, 1, bright);
+    const direction = afternoon ? -1 : 1;
+    const start = center - 12, depth = front - back, end = start + direction * depth * .58;
+    const light = c.createLinearGradient(0, back, 0, front);
+    light.addColorStop(0, bright);
+    light.addColorStop(1, pale);
+    for (const [offset, width] of [[0, 10], [12, 10]]) {
+      housePoly(c, light, [start + offset, back], [start + offset + width, back],
+        [end + offset + width + 2, front], [end + offset - 1, front]);
     }
     c.restore();
   }

@@ -284,11 +284,20 @@ const DRAW = {
     R(c, x + 5, y + 5, 3, 1, '#d88a34');
   },
   rug(c, x, y) {
-    const col = '#d8a4ad';
-    R(c, x + 4, y + 1, 40, 30, '#b88f9b'); R(c, x + 1, y + 4, 46, 24, '#b88f9b');
-    R(c, x + 5, y + 2, 38, 28, col); R(c, x + 2, y + 5, 44, 22, col);
-    R(c, x + 8, y + 6, 32, 20, '#efccd0'); R(c, x + 6, y + 8, 36, 16, '#efccd0');
-    R(c, x + 14, y + 11, 20, 10, col);
+    bevel(c, x + 1, y + 2, 46, 28, '#cc929a', '#a56e7d');
+    bevel(c, x + 4, y + 5, 40, 22, '#ebbbb5', '#f2d2c3');
+    bevel(c, x + 8, y + 8, 32, 16, '#e0a7a4', '#c88791');
+    for (const a of [14, 24, 34]) {
+      for (let i = -3; i <= 3; i++) {
+        const half = 4 - Math.abs(i);
+        R(c, x + a - half, y + 16 + i, half * 2, 1, '#f3c9b6');
+      }
+      R(c, x + a - 1, y + 15, 2, 2, '#b97b86');
+    }
+    for (let i = 3; i < 30; i += 4) {
+      detail(c, x, y + i, 2, .5, '#f0c9b6');
+      detail(c, x + 46, y + i, 2, .5, '#f0c9b6');
+    }
   },
   rug2(c, x, y) {
     box(c, x + 1, y + 1, 30, 30, '#f6ead6');
@@ -309,21 +318,40 @@ const DRAW = {
     R(c, x, y + 33, 16, 3, '#be816e'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
   },
   window(c, x, y) {
-    box(c, x + 2, y + 4, 28, 24, '#ffffff');
-    R(c, x + 4, y + 6, 24, 20, G.sky || '#a5ccdc');
-    if (G.night) { R(c, x + 21, y + 9, 4, 4, '#fff6c8'); R(c, x + 22, y + 9, 3, 1, G.sky); R(c, x + 8, y + 10, 1, 1, '#fff'); R(c, x + 13, y + 18, 1, 1, '#fff'); }
-    else { R(c, x + 7, y + 11, 8, 2, '#ffffff'); R(c, x + 9, y + 10, 4, 1, '#ffffff'); R(c, x + 19, y + 17, 6, 2, '#ffffffcc'); }
-    if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 4, y + 6, 24, 20);
-    R(c, x + 15, y + 5, 2, 22, '#ffffff'); R(c, x + 3, y + 15, 26, 2, '#ffffff');
-    R(c, x, y + 1, 32, 3, WOOD_D);                            // 窗帘杆
-    for (const px of [x + 1, x + 26]) {
-      R(c, px, y + 3, 5, 24, '#cc8794');
-      detail(c, px + .5, y + 4, .5, 22, '#f2b0b1');
-      R(c, px + 2, y + 4, 1, 22, '#aa687c');
-      R(c, px, y + 25, 5, 1, '#e7a6a7');
-      R(c, px + 2, y + 1, 1, 2, '#efc38c');
+    const walnut = '#925f57', pine = '#bf8a65', cream = '#fff0d4';
+    bevel(c, x + 2, y + 3, 28, 26, '#d5a183', walnut);
+    bevel(c, x + 4, y + 5, 24, 22, cream, '#d3ab89');
+    R(c, x + 6, y + 7, 20, 18, G.sky || '#a5ccdc');
+    if (G.night) {
+      R(c, x + 21, y + 9, 3, 3, '#fff6c8');
+      R(c, x + 22, y + 9, 2, 1, G.sky);
+      detail(c, x + 10, y + 10, .5, .5, '#fff');
+      detail(c, x + 20, y + 19, .5, .5, '#fff');
+    } else {
+      R(c, x + 7, y + 11, 8, 2, '#fff3de');
+      R(c, x + 9, y + 10, 4, 1, '#fff3de');
+      R(c, x + 19, y + 17, 6, 2, '#fff3decc');
+      detail(c, x + 7, y + 23, 18, .5, '#e6f4eb');
     }
-    R(c, x + 2, y + 28, 28, 2, WOOD_L);
+    if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 6, y + 7, 20, 18);
+    detail(c, x + 15.5, y + 6, 1.5, 20, cream);
+    detail(c, x + 6, y + 14, 20, 1.5, cream);
+    detail(c, x + 16.5, y + 7, .5, 18, '#d0ac91');
+    bevel(c, x, y + 1, 32, 3, pine, walnut);
+    for (const [px, dir] of [[x + 2, 1], [x + 30, -1]]) {
+      c.save();
+      c.translate(px, y + 3);
+      c.scale(dir, 1);
+      bevel(c, -1, 0, 6, 13, '#ce8992', '#a65d72');
+      bevel(c, -1, 11, 4, 13, '#ca7d8a', '#a65d72');
+      detail(c, 0, 1, .5, 22, '#efafb0');
+      detail(c, 2, 2, .5, 20, '#ab6379');
+      detail(c, -.5, 11, 4, 1, '#f0ca97');
+      R(c, 0, 22, 2, 1, '#e6a2a3');
+      c.restore();
+    }
+    bevel(c, x + 1, y + 27, 30, 3, pine, walnut);
+    detail(c, x + 3, y + 27, 26, .5, '#f4c6a0');
   },
   painting(c, x, y) {
     box(c, x + 1, y + 2, 14, 12, '#d9a640');
