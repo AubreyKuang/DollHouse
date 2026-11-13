@@ -161,9 +161,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 #readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
-#readingSeatControls select,#soloReading,#readingNotes{min-height:48px}
+#readingSeatControls select,#soloReading,#readingNotes,#bookSeat{min-height:48px}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
-:is(#soloReading,#readingNotes)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+:is(#soloReading,#readingNotes,#bookSeat)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}
@@ -606,6 +606,8 @@ body{
           aria-describedby="readingSeatHint">安静席</button>
         <button type="button" class="btn small" id="readingNotes" aria-pressed="false"
           aria-describedby="readingSeatHint" hidden>读完再聊</button>
+        <button type="button" class="btn small" id="bookSeat" aria-pressed="false"
+          aria-describedby="readingSeatHint" hidden>留座 1 小时</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
       </div>
     </div>
@@ -3165,9 +3167,8 @@ function decide(d) {
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use || homeFurnitureReserved(f) || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
-    const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
-    if (f.users.length >= cap) continue;
+    if (!F.use || (d.guest && F.use === 'sleep')) continue;
+    if (furnitureInUse(f, d)) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
@@ -3262,7 +3263,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
-  if (furnitureInUse(f)) return false;
+  if (furnitureInUse(f, d) || f.users.includes(d)) return false;
   const path = o.path ?? furniturePath(d, f);
   if (!path) return false;
   f.users.push(d);
@@ -3481,6 +3482,8 @@ function petDoll(d) {
 
 function furnitureInUse(f, resident) {
   if (G.keepsakes.project?.bench === f.key || homeFurnitureReserved(f)) return true;
+  const reader = reservedBookReader(f);
+  if (reader && reader !== resident) return true;
   const capacity = FURNITURE[f.id].cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
   return f.users.length - Number(f.users.includes(resident)) >= capacity;
 }
@@ -3494,6 +3497,8 @@ function furnitureOrderBlock(d, f) {
     return `${d.name}正在忙，等这件事做完再安排吧`;
   }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
+  const reader = reservedBookReader(f);
+  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} 读荐书`;
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }
@@ -6962,6 +6967,24 @@ function bookRecommendation(chair) {
   return note;
 }
 
+const BOOK_SEAT_MINUTES = 60;
+function reservedBookReader(chair) {
+  if (!chair.readingNotes || !isWindowChair(chair)) return null;
+  const note = bookRecommendation(chair);
+  return Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
+}
+
+function toggleBookSeat(chair) {
+  const note = bookRecommendation(chair);
+  if (!note || !chair.readingNotes || !isWindowChair(chair)) return false;
+  if (reservedBookReader(chair)) delete note.seatUntil;
+  else {
+    if (furnitureInUse(chair, communityDoll(note.to))) return false;
+    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, note.until * 1440);
+  }
+  return true;
+}
+
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;
@@ -9064,10 +9087,17 @@ const studyQuietTimer = $('#studyQuietTimer');
 const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
+const bookSeatButton = $('#bookSeat');
 let readingSeatOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 readingSeat.onchange = refreshReadingSeats;
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+bookSeatButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
+  refreshReadingSeats();
+  save();
+};
 soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -9112,7 +9142,12 @@ function refreshReadingSeats() {
   if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
   const recommendation = bookRecommendation(chair);
-  const text = chair.soloReading ? chair.readingNotes
+  const reader = reservedBookReader(chair);
+  bookSeatButton.hidden = !recommendation;
+  bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
+  if (bookSeatButton.getAttribute('aria-pressed') !== String(!!reader)) bookSeatButton.setAttribute('aria-pressed', String(!!reader));
+  const text = reader ? `已给${reader.name}留座至 ${recommendation.seatUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(recommendation.seatUntil)}，再点一次可取消。`
+    : chair.soloReading ? chair.readingNotes
     ? (recommendation ? `${communityDoll(recommendation.to).name}有一条荐书便条，在这里读完一段就能回应。`
       : quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '读完时，熟人还在附近就聊几句，走开了就留条荐书便条。')
     : '此席适合独处，路过的住户会让读者继续看书。'

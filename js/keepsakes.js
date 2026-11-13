@@ -122,6 +122,24 @@ function bookRecommendation(chair) {
   return note;
 }
 
+const BOOK_SEAT_MINUTES = 60;
+function reservedBookReader(chair) {
+  if (!chair.readingNotes || !isWindowChair(chair)) return null;
+  const note = bookRecommendation(chair);
+  return Number.isInteger(note?.seatUntil) && note.seatUntil > absNow() ? communityDoll(note.to) : null;
+}
+
+function toggleBookSeat(chair) {
+  const note = bookRecommendation(chair);
+  if (!note || !chair.readingNotes || !isWindowChair(chair)) return false;
+  if (reservedBookReader(chair)) delete note.seatUntil;
+  else {
+    if (furnitureInUse(chair, communityDoll(note.to))) return false;
+    note.seatUntil = Math.min(Math.floor(absNow()) + BOOK_SEAT_MINUTES, note.until * 1440);
+  }
+  return true;
+}
+
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;

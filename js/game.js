@@ -373,9 +373,8 @@ function decide(d) {
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
   for (const f of G.furniture) {
     const F = FURNITURE[f.id];
-    if (!F.use || homeFurnitureReserved(f) || (G.keepsakes.project && G.keepsakes.project.bench === f.key) || (d.guest && F.use === 'sleep')) continue;
-    const cap = F.cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
-    if (f.users.length >= cap) continue;
+    if (!F.use || (d.guest && F.use === 'sleep')) continue;
+    if (furnitureInUse(f, d)) continue;
     if (PRICES[F.use] && !canAfford(d, PRICES[F.use])) continue;   // 买不起就不去了
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
@@ -470,7 +469,7 @@ function startAct(d, o) {
     return true;
   }
   const f = o.furn, F = FURNITURE[f.id];
-  if (furnitureInUse(f)) return false;
+  if (furnitureInUse(f, d) || f.users.includes(d)) return false;
   const path = o.path ?? furniturePath(d, f);
   if (!path) return false;
   f.users.push(d);
@@ -689,6 +688,8 @@ function petDoll(d) {
 
 function furnitureInUse(f, resident) {
   if (G.keepsakes.project?.bench === f.key || homeFurnitureReserved(f)) return true;
+  const reader = reservedBookReader(f);
+  if (reader && reader !== resident) return true;
   const capacity = FURNITURE[f.id].cap ?? (f.id === 'sofa' || f.id === 'bigbed' ? 2 : 1);
   return f.users.length - Number(f.users.includes(resident)) >= capacity;
 }
@@ -702,6 +703,8 @@ function furnitureOrderBlock(d, f) {
     return `${d.name}正在忙，等这件事做完再安排吧`;
   }
   if (d.guest && spec.use === 'sleep') return '访客不在这里睡觉哦';
+  const reader = reservedBookReader(f);
+  if (reader && reader !== d) return `「${spec.name}」暂时留给 ${reader.name} 读荐书`;
   if (furnitureInUse(f, d)) return `「${spec.name}」正在使用中`;
   return '';
 }

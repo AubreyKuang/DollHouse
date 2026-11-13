@@ -302,6 +302,34 @@ test('a missed reading chat leaves one recommendation until the end of the next 
   assert.equal(finishBookRecommendation(reader,seat),false);
 `));
 
+test('holding a recommendation seat blocks other residents, persists and expires automatically', () => game(`
+  const [author,reader,other]=residents();
+  const window=addFurniture('window',9,UPPER_WALL);
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[window,seat];rebuild();
+  G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:reader.pid,until:G.day+1};
+  other.state='idle';reader.state='idle';
+  placeDollAt(other,10,17);placeDollAt(reader,10,17);
+  assert.ok(startAct(other,{furn:seat}));arrive(other);
+  assert.equal(toggleBookSeat(seat),false);
+  endAct(other);
+  G.time=23*60+40;
+  assert.equal(toggleBookSeat(seat),true);
+  assert.equal(reservedBookReader(seat),reader);
+  assert.match(furnitureOrderBlock(other,seat),/暂时留给/);
+  assert.equal(startAct(other,{furn:seat}),false);
+  assert.ok(startAct(reader,{furn:seat}));arrive(reader);endAct(reader);
+  save();load();
+  const chair=G.furniture.find(f=>f.key===seat.key);
+  assert.equal(reservedBookReader(chair).pid,reader.pid);
+  G.day++;G.time=40;
+  assert.equal(reservedBookReader(chair),null);
+  assert.equal(bookRecommendation(chair).to,reader.pid);
+  assert.equal(toggleBookSeat(chair),true);
+  assert.equal(toggleBookSeat(chair),true);
+  assert.equal(reservedBookReader(chair),null);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

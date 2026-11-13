@@ -173,10 +173,17 @@ const studyQuietTimer = $('#studyQuietTimer');
 const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
+const bookSeatButton = $('#bookSeat');
 let readingSeatOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
 readingSeat.onchange = refreshReadingSeats;
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+bookSeatButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
+  refreshReadingSeats();
+  save();
+};
 soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -221,7 +228,12 @@ function refreshReadingSeats() {
   if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
   const recommendation = bookRecommendation(chair);
-  const text = chair.soloReading ? chair.readingNotes
+  const reader = reservedBookReader(chair);
+  bookSeatButton.hidden = !recommendation;
+  bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
+  if (bookSeatButton.getAttribute('aria-pressed') !== String(!!reader)) bookSeatButton.setAttribute('aria-pressed', String(!!reader));
+  const text = reader ? `已给${reader.name}留座至 ${recommendation.seatUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(recommendation.seatUntil)}，再点一次可取消。`
+    : chair.soloReading ? chair.readingNotes
     ? (recommendation ? `${communityDoll(recommendation.to).name}有一条荐书便条，在这里读完一段就能回应。`
       : quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '读完时，熟人还在附近就聊几句，走开了就留条荐书便条。')
     : '此席适合独处，路过的住户会让读者继续看书。'
