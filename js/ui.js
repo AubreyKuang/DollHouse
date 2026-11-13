@@ -274,26 +274,43 @@ $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
 
 /* ---------- 衣橱 ---------- */
-let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0;
+let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0, wdPage = 'look', wdPose = 'stand';
+const wdOriginalLooks = new Map();
 const wdDoll = () => G.dolls.find(d => d.uid === wdUid);
 
 function openWardrobe(uid) {
   const resident = residents().find(d => d.uid === uid) || residents()[0];
   if (!resident) return;
   wdUid = resident.uid;
+  wdPage = 'look';
+  wdOriginalLooks.clear();
+  for (const d of residents()) wdOriginalLooks.set(d.uid, { ...d.look });
   $('#wardrobe').hidden = false; SFX.play('open');
+  document.querySelector('.wd-body').scrollTop = 0;
   renderWardrobe();
 }
 function closeWardrobe() { $('#wardrobe').hidden = true; HOOK.select(); save(); }
 $('#wdClose').onclick = closeWardrobe;
 $('#wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardrobe') closeWardrobe(); });
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#wardrobe').hidden) closeWardrobe(); });
-document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); });
+document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); drawWdPreview(); });
+document.querySelectorAll('[data-wd-page]').forEach(b => b.onclick = () => {
+  wdPage = b.dataset.wdPage; document.querySelector('.wd-body').scrollTop = 0; renderWardrobe();
+});
+$('#wdPose').onchange = e => { wdPose = e.target.value; wdFrame = 0; drawWdPreview(); };
 $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.value.trim() || '无名'; renderWdTabs(); } };
 $('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
   d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
+};
+$('#wdShuffle').onclick = () => {
+  const d = wdDoll(); if (!d) return;
+  d.look = wearOutfit(d.look, pick(OUTFIT_SETS).id); SFX.play('pop'); renderWardrobe(); wdSaved();
+};
+$('#wdUndo').onclick = () => {
+  const d = wdDoll(), original = wdOriginalLooks.get(d?.uid); if (!original) return;
+  d.look = { ...original }; renderWardrobe(); wdSaved();
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -319,12 +336,23 @@ function renderWardrobe() {
   const d = wdDoll(); if (!d) return;
   renderWdTabs();
   $('#wdName').value = d.name;
+  document.querySelectorAll('[data-wd-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wdPage === wdPage)));
+  $('#wdUndo').disabled = JSON.stringify(d.look) === JSON.stringify(wdOriginalLooks.get(d.uid));
+  const scrollArea = document.querySelector('.wd-body'), scrollTop = scrollArea.scrollTop;
   const box = $('#wdOptions'); box.innerHTML = '';
   const section = (title, node) => { const s = el('div', 'opt'); s.append(el('h4', null, title), node); box.append(s); };
   const chips = (obj, key) => {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
-      const b = el('button', 'chip' + (d.look[key] === k ? ' on' : ''), name);
+      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : '')) === k;
+      const b = el('button', 'chip' + (selected ? ' on' : ''), name);
+      b.setAttribute('aria-pressed', String(selected));
+      if (key === 'hair') {
+        b.classList.add('wd-hair');
+        const cv = document.createElement('canvas'); cv.width = 20; cv.height = 24;
+        cv.setAttribute('aria-hidden', 'true'); b.prepend(cv);
+        dollPortrait(cv, { ...d.look, hair: k, acc: 'none' });
+      }
       b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     }
@@ -334,12 +362,39 @@ function renderWardrobe() {
     const w = el('div', 'chips');
     cols.forEach((col, i) => {
       const b = el('button', 'swatch' + (d.look[key] === i ? ' on' : ''));
-      b.style.background = col; b.setAttribute('aria-label', col);
+      b.style.background = col; b.setAttribute('aria-label', `${{ skin: '肤色', hairColor: '发色', topColor: '上衣颜色', bottomColor: '下装颜色', shoes: '鞋子颜色' }[key]} ${i + 1}`);
+      b.setAttribute('aria-pressed', String(d.look[key] === i));
       b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     });
     return w;
   };
+  if (wdPage === 'look') {
+    const sets = el('div', 'wd-sets');
+    for (const set of OUTFIT_SETS) {
+      const selected = Object.entries(set.look).every(([key, value]) => d.look[key] === value);
+      const b = el('button', 'wd-set' + (selected ? ' on' : ''));
+      b.setAttribute('aria-pressed', String(selected));
+      const cv = document.createElement('canvas'); cv.width = 20; cv.height = 24;
+      cv.setAttribute('aria-hidden', 'true');
+      b.append(cv, el('span', null, set.name));
+      dollPortrait(cv, wearOutfit(d.look, set.id));
+      b.onclick = () => { d.look = wearOutfit(d.look, set.id); SFX.play('pop'); renderWardrobe(); wdSaved(); };
+      sets.append(b);
+    }
+    section('今日穿什么 · 只换衣服，保留你的发型', sets);
+    section('发型', chips(OUTFIT.hair, 'hair'));
+    section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
+    section('肤色', swatches(OUTFIT.skin, 'skin'));
+    section('上衣', chips(OUTFIT.top, 'top'));
+    section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
+    if (!['dress', 'pinafore'].includes(d.look.top)) section('下装', chips(OUTFIT.bottom, 'bottom'));
+    if (!['dress', 'pinafore'].includes(d.look.top)) section(d.look.top === 'overall' ? '背带颜色' : '下装颜色', swatches(OUTFIT.clothColor, 'bottomColor'));
+    section('鞋款', chips(OUTFIT.shoeStyle, 'shoeStyle'));
+    section('鞋子颜色', swatches(OUTFIT.shoes, 'shoes'));
+    section('头上配饰', chips(OUTFIT.acc, 'acc'));
+    section('随身小物', chips(OUTFIT.extra, 'extra'));
+  } else {
   const pers = el('div', 'chips');
   for (const [k, P] of Object.entries(PERSONAS)) {
     const b = el('button', 'chip' + (d.persona === k ? ' on' : ''), `${P.icon} ${P.name}<small>${P.desc}</small>`);
@@ -392,18 +447,15 @@ function renderWardrobe() {
     hearts.append(b);
   }
   section('感情观', hearts);
-  section('肤色', swatches(OUTFIT.skin, 'skin'));
-  section('发型', chips(OUTFIT.hair, 'hair'));
-  section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
-  section('上衣', chips(OUTFIT.top, 'top'));
-  section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
-  if (d.look.top !== 'dress') section('下装', chips(OUTFIT.bottom, 'bottom'));
-  section(d.look.top === 'overall' ? '背带颜色' : '下装颜色', swatches(OUTFIT.clothColor, 'bottomColor'));
-  section('鞋子', swatches(OUTFIT.shoes, 'shoes'));
-  section('配饰', chips(OUTFIT.acc, 'acc'));
+  }
+  scrollArea.scrollTop = scrollTop;
   drawWdPreview();
 }
-function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, 'walk'); }
+function drawWdPreview() {
+  const d = wdDoll();
+  document.querySelectorAll('.wd-dir button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dir === wdDir)));
+  if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, wdPose);
+}
 
 // 衣橱里每次换装都在预览下方显示一句确认，1.5 秒后消失
 let wdSavedTimer = 0;

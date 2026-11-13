@@ -159,14 +159,42 @@ const ACT_NAMES = {
 // 服装
 const OUTFIT = {
   skin:  ['#ffe0c7', '#f6c9a4', '#e0a77e', '#b97a52', '#8a5638'],
-  hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头' },
-  hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a'],
-  top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫' },
-  bottom:{ pants: '长裤', shorts: '短裤', skirt: '短裙' },
-  clothColor: ['#e26d7d', '#f0a64a', '#f2d16b', '#7cc576', '#5bb8b0', '#6aa9ec', '#8a7fe0', '#d8d0c4', '#3b3a4a', '#ffffff', '#c26a9a', '#8a5a3c'],
+  hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头',
+    pixie: '短碎发', sidepart: '偏分短发', curl: '自然卷', pony: '高马尾', lowpony: '低马尾',
+    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发' },
+  hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a', '#61534b', '#a77763', '#c5a68b', '#505d76'],
+  top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫',
+    sweater: '软软毛衣', vest: '衬衫马甲', sailor: '海军领', apron: '小围裙', jacket: '短外套', raincoat: '雨衣', pinafore: '背带裙', pajamas: '睡衣' },
+  bottom:{ pants: '长裤', shorts: '短裤', skirt: '短裙', cropped: '九分裤', pleated: '百褶裙', denim: '牛仔裤' },
+  // 新颜色只追加，旧存档的颜色编号不变。
+  clothColor: ['#e26d7d', '#f0a64a', '#f2d16b', '#7cc576', '#5bb8b0', '#6aa9ec', '#8a7fe0', '#d8d0c4', '#3b3a4a', '#ffffff', '#c26a9a', '#8a5a3c', '#98b6a1', '#f1dfb9', '#879ab5', '#bc8390', '#b6a4c9', '#b88160'],
   shoes: ['#3b2a2f', '#ffffff', '#e26d7d', '#6aa9ec', '#8a5a3c', '#f2d16b'],
-  acc:   { none: '无', cap: '鸭舌帽', bow: '蝴蝶结', glasses: '眼镜', phones: '耳机', cat: '猫耳', flower: '小花', crown: '王冠' },
+  acc:   { none: '无', cap: '鸭舌帽', bow: '蝴蝶结', glasses: '眼镜', phones: '耳机', cat: '猫耳', flower: '小花', crown: '王冠',
+    beret: '贝雷帽', beanie: '毛线帽', headband: '发箍', starclip: '星星发夹', ribbon: '小缎带', roundglasses: '圆眼镜' },
+  extra: { none: '无', scarf: '小围巾', satchel: '斜挎包', backpack: '双肩包' },
+  shoeStyle: { classic: '原版小鞋', sneakers: '运动鞋', boots: '短靴', maryjanes: '搭扣鞋' },
 };
+
+// 穿搭只包含衣物，不改肤色、头发或人物设定；随机来客也从协调的配色中挑选。
+const OUTFIT_SETS = [
+  { id: 'mint', name: '薄荷漫步', look: { top: 'sweater', topColor: 12, bottom: 'cropped', bottomColor: 13, shoes: 1, shoeStyle: 'sneakers', acc: 'none', extra: 'satchel' } },
+  { id: 'bakery', name: '奶油面包师', look: { top: 'apron', topColor: 17, bottom: 'pants', bottomColor: 11, shoes: 4, shoeStyle: 'classic', acc: 'ribbon', extra: 'none' } },
+  { id: 'library', name: '莓果图书馆', look: { top: 'vest', topColor: 15, bottom: 'pleated', bottomColor: 8, shoes: 0, shoeStyle: 'maryjanes', acc: 'roundglasses', extra: 'none' } },
+  { id: 'tea', name: '暖茶开衫', look: { top: 'cardigan', topColor: 17, bottom: 'denim', bottomColor: 14, shoes: 4, shoeStyle: 'boots', acc: 'none', extra: 'scarf' } },
+  { id: 'sea', name: '海风假日', look: { top: 'sailor', topColor: 14, bottom: 'shorts', bottomColor: 13, shoes: 1, shoeStyle: 'sneakers', acc: 'headband', extra: 'none' } },
+  { id: 'rain', name: '雨后散步', look: { top: 'raincoat', topColor: 2, bottom: 'pants', bottomColor: 14, shoes: 3, shoeStyle: 'boots', acc: 'none', extra: 'none' } },
+  { id: 'cloud', name: '午睡棉云', look: { top: 'pajamas', topColor: 16, bottom: 'pants', bottomColor: 16, shoes: 1, shoeStyle: 'classic', acc: 'none', extra: 'none' } },
+  { id: 'lemon', name: '柠檬运动', look: { top: 'jacket', topColor: 2, bottom: 'shorts', bottomColor: 12, shoes: 1, shoeStyle: 'sneakers', acc: 'cap', extra: 'none' } },
+  { id: 'music', name: '星夜听歌', look: { top: 'hoodie', topColor: 14, bottom: 'denim', bottomColor: 8, shoes: 1, shoeStyle: 'sneakers', acc: 'phones', extra: 'none' } },
+  { id: 'garden', name: '花园手作', look: { top: 'pinafore', topColor: 12, bottom: 'skirt', bottomColor: 12, shoes: 4, shoeStyle: 'maryjanes', acc: 'flower', extra: 'none' } },
+  { id: 'artist', name: '秋日画家', look: { top: 'stripe', topColor: 17, bottom: 'cropped', bottomColor: 8, shoes: 0, shoeStyle: 'classic', acc: 'beret', extra: 'satchel' } },
+  { id: 'trail', name: '周末探险', look: { top: 'jacket', topColor: 12, bottom: 'denim', bottomColor: 14, shoes: 4, shoeStyle: 'boots', acc: 'beanie', extra: 'backpack' } },
+];
+
+function wearOutfit(look, id) {
+  const outfit = OUTFIT_SETS.find(set => set.id === id);
+  return outfit ? { ...look, ...outfit.look } : { ...look };
+}
 
 const WALLS = [
   { id: 'cream',  name: '奶油', base: '#f6e3c3', alt: '#edd3a8', pat: 'stripe' },
