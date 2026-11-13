@@ -177,6 +177,7 @@ const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
+const bookPaperReadingOnlyButton = $('#bookPaperReadingOnly');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
@@ -241,21 +242,27 @@ bookPublicButton.onclick = () => {
   if (!chair || G.mode !== 'live' || !togglePublicBook(chair)) return;
   refreshReadingSeats();
 };
-bookPaperButton.onclick = () => {
+function submitSelectedBook(includeConversation) {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
   const readers = bookPaperReaders(chair);
   if (!readers.length) return;
+  const note = bookRecommendation(chair);
+  const hasConversation = note.question && readers.length === BOOK_PUBLIC_READERS;
+  if (!includeConversation && !hasConversation) return;
   const draft = bookPaperDraft();
   if (draft) {
-    const note = bookRecommendation(chair), author = communityDoll(note.from);
-    if (!confirm(`原稿：${draft.result[2]}\n新稿：${bookPaperText(author, readers, note)}。\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
+    const author = communityDoll(note.from);
+    const scope = hasConversation ? includeConversation ? '一并刊出对话。' : '只刊阅读经过。' : '';
+    if (!confirm(`原稿：${draft.result[2]}\n新稿：${bookPaperText(author, readers, note)}。${scope}\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
   }
-  if (!submitBookToPaper(chair, draft)) return;
+  if (!submitBookToPaper(chair, draft, includeConversation)) return;
   bookMoveStatus.textContent = draft ? '本期月报已换稿，新便条已收起。' : '书摘已交给本期月报，窗边的便条已收起。';
   refreshReadingSeats();
   readingSeat.focus();
-};
+}
+bookPaperButton.onclick = () => submitSelectedBook(true);
+bookPaperReadingOnlyButton.onclick = () => submitSelectedBook(false);
 bookKeepForPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !keepSharedBookForPaper(chair)) return;
@@ -340,8 +347,13 @@ function refreshReadingSeats() {
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
   bookPaperButton.hidden = !publicReaders?.length;
   const draft = bookPaperDraft();
-  const paperAction = draft ? '替换本期书摘' : '收起便条，交给月报';
+  const hasConversation = publicReaders?.length === BOOK_PUBLIC_READERS && recommendation.question === true;
+  const paperAction = hasConversation ? draft ? '刊出对话并换稿' : '连同对话交稿'
+    : draft ? '替换本期书摘' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
+  bookPaperReadingOnlyButton.hidden = !hasConversation;
+  const readingOnlyAction = draft ? '只刊阅读经过并换稿' : '只刊阅读经过';
+  if (bookPaperReadingOnlyButton.textContent !== readingOnlyAction) bookPaperReadingOnlyButton.textContent = readingOnlyAction;
   const firstReader = firstPublicBookReader(chair);
   const completed = publicReaders?.length === BOOK_PUBLIC_READERS;
   bookKeepForPaperButton.hidden = publicReaders?.length !== 1;
@@ -383,6 +395,7 @@ function refreshReadingSeats() {
   bookNextReader.disabled = !firstReader;
   bookPickReaderButton.disabled = !firstReader || bookNextReader.value === (pickedReader?.pid || '');
   bookPaperButton.disabled = !bookPaperReaders(chair).length;
+  bookPaperReadingOnlyButton.disabled = bookPaperButton.disabled;
   bookReplyButton.hidden = publicReaders?.length !== 1;
   bookReplyButton.disabled = !firstReader;
   const sharing = String(!!publicReaders);
@@ -409,7 +422,7 @@ function refreshReadingSeats() {
     return `${d.name}${room ? '在' + room : ''}读完`;
   }).join('，');
   const publicChoice = completed
-    ? `两位读者的记录已留在便条上，可在空座时${draft ? '替换月报原稿' : '交给月报'}。${deadline}`
+    ? `两位读者的记录已留在便条上。空座时可${draft ? '替换月报原稿' : '交给月报'}。${hasConversation ? '只刊阅读经过会省略问答和当面聊天。' : ''}${deadline}`
     : publicReaders?.length
     ? `${pickHint}${keeping === 'true' ? '第二位读完后会留下便条供交稿。移到另一间房可记录两处阅读地点。' : '可等两位读完再交稿。'}等待期间月报版位仍可被占用。${deadline}空座时也可立即交稿，或给推荐人留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`
     : '座位空闲时可改回私下荐书。';

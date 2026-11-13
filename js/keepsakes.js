@@ -251,7 +251,7 @@ function bookPaperText(author, readers, note) {
   return `${readers.map(d => d.name).join('和')}读完了${author.name}推荐的书摘`;
 }
 
-function submitBookToPaper(chair, replacing) {
+function submitBookToPaper(chair, replacing, includeConversation = true) {
   const readers = bookPaperReaders(chair);
   if (!readers.length || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
@@ -263,9 +263,9 @@ function submitBookToPaper(chair, replacing) {
     steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => {
       const room = bookReadingRoom(note, d);
       return `${d.name}${room ? '在' + room : ''}读完了这段书摘。`;
-    }), ...(note.question && readers.length === BOOK_PUBLIC_READERS
+    }), ...(includeConversation && note.question && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
-    ...(note.followup && readers.length === BOOK_PUBLIC_READERS
+    ...(includeConversation && note.followup && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}和${readers[1].name}在窗边聊起了这句答复。`] : []),
     '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
