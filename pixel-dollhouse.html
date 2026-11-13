@@ -732,7 +732,7 @@ const DEFAULT_SAVE = {
   furniture: [
     // 二楼：卫生间、卧室、书房。
     { id: 'shower', x: 0, y: 13 }, { id: 'washstand', x: 1, y: 13 }, { id: 'toilet', x: 2, y: 13 },
-    { id: 'window', x: 1, y: -3 }, { id: 'moonLamp', x: 6, y: -2 },
+    { id: 'window', x: 1, y: -3 }, { id: 'window', x: 5, y: -3 }, { id: 'moonLamp', x: 7, y: -2 },
     { id: 'cloudBed', x: 4, y: 13 }, { id: 'lamp', x: 7, y: 13 }, { id: 'pawRug', x: 5, y: 17 },
     { id: 'window', x: 10, y: -3 }, { id: 'painting', x: 14, y: -2 },
     { id: 'shelf', x: 8, y: 12 }, { id: 'desk', x: 11, y: 13 },
@@ -832,13 +832,29 @@ function drawFloor(c, floor, y0 = WALL_ROWS * T + 1, end = H) {
 /* ---------------- 家具 ----------------
    每个函数参数：(c, px, py, f, t)，px/py 是占地格子左上角像素，
    高家具会往上画超出占地格；f 是家具实例（f.active 表示有人在用，f.occ 是躺/坐上去的小人回调） */
-const WOOD = '#ae7856', WOOD_L = '#d7a77a', WOOD_D = '#785247';
+// Shared materials for every furniture collection. Characters keep their own ink.
+const FURNITURE_STYLE = Object.freeze({
+  edge: '#79655f', wood: '#bc9271', woodLight: '#e0b98d', woodDark: '#8e6d58',
+  cream: '#f8edda', creamShade: '#dfd0bb', ceramicEdge: '#94877c',
+  mint: '#a6c2ab', mintLight: '#d1dfc5', mintDark: '#6e8c77',
+  rose: '#d9a3a4', roseLight: '#f1cbc0', roseDark: '#ac7d84',
+  blue: '#9abac7', lavender: '#b3a5c7', brass: '#c6a16c',
+});
+const WOOD = FURNITURE_STYLE.wood, WOOD_L = FURNITURE_STYLE.woodLight, WOOD_D = FURNITURE_STYLE.woodDark;
+const furnitureBox = (c, x, y, w, h, fill, edge = FURNITURE_STYLE.edge) => bevel(c, x, y, w, h, fill, edge);
+
+// Icons, placement previews and the scene all use the same baseline and shadow.
+function drawFurnitureArt(c, id, x, y, f, t) {
+  const spec = FURNITURE[id];
+  if (!spec.layer) contactShadow(c, x + 2, y + spec.h * T - 2, spec.w * T - 4);
+  DRAW[id](c, x, y, f, t);
+}
 
 function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
   const w = double ? 48 : 32;
-  const edge = '#623f46', walnut = '#a06d58', honey = '#d9a386';
+  const edge = FURNITURE_STYLE.edge, walnut = WOOD, honey = WOOD_L;
   const hi = shade(linen, .13), dark = shade(linen, -.15);
-  contactShadow(c, x + 1, y + 30, w - 2);
+
   bevel(c, x + 2, y + 3, w - 4, 26, walnut, edge);
   bevel(c, x + 6, y + 5, w - 12, 11, '#b48369', edge);
   R(c, x + 8, y + 6, w - 16, 1, honey);
@@ -855,12 +871,10 @@ function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
   }
   bevel(c, x + 2, y + 20, w - 4, 10, linen, dark);
   R(c, x + 4, y + 21, w - 8, 1, hi);
-  for (let row = 0; row < 6; row++) {
-    for (let px = 4; px < w - 4; px++) {
-      const phase = (px + row) % 8, opposite = (px - row + 8) % 8;
-      if (phase === 0 || opposite === 0) R(c, x + px, y + 22 + row, 1, 1, dark);
-      else if (phase === 1 || opposite === 7) detail(c, x + px, y + 22 + row, .5, .5, hi);
-    }
+  // A few broad stitches remain legible at the house scale.
+  for (let px = 8; px < w - 6; px += 10) {
+    R(c, x + px, y + 23, 1, 4, hi);
+    R(c, x + px - 1, y + 24, 3, 1, hi);
   }
   R(c, x + 4, y + 29, w - 8, 1, dark);
   R(c, x + 4, y + 30, w - 8, 1, honey);
@@ -870,21 +884,21 @@ const DRAW = {
   bed(c, x, y, f) { drawBed(c, x, y, f, false); },
   bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
-    const edge = '#46615d', body = '#6b9e91', shadow = '#507e72', light = '#bad2bc';
-    contactShadow(c, x, y + 14, 32);
+    const edge = FURNITURE_STYLE.mintDark, body = FURNITURE_STYLE.mint, shadow = FURNITURE_STYLE.mintDark, light = FURNITURE_STYLE.mintLight;
+
     for (const foot of [x + 4, x + 26]) {
       R(c, foot, y + 11, 3, 4, WOOD_D);
       detail(c, foot, y + 13, 2, .5, WOOD_L);
     }
     R(c, x + 7, y - 10, 18, 15, edge);
     bevel(c, x + 4, y - 9, 24, 15, body, edge);
-    bevel(c, x + 6, y - 8, 20, 11, '#8db4a4', shadow);
+    bevel(c, x + 6, y - 8, 20, 11, FURNITURE_STYLE.mint, shadow);
     R(c, x + 8, y - 7, 16, 1, light);
     detail(c, x + 15.5, y - 6, .5, 6, shadow);
     bevel(c, x + 3, y + 2, 26, 11, shadow, edge);
     for (const seat of [x + 6, x + 16]) {
-      bevel(c, seat, y + 1, 10, 7, '#a8c5b3', shadow);
-      detail(c, seat + 2, y + 2, 6, .5, '#d4dfc6');
+      bevel(c, seat, y + 1, 10, 7, FURNITURE_STYLE.mint, shadow);
+      detail(c, seat + 2, y + 2, 6, .5, FURNITURE_STYLE.mintLight);
       R(c, seat + 1, y + 6, 8, 1, body);
     }
     for (const arm of [x, x + 25]) {
@@ -892,18 +906,18 @@ const DRAW = {
       bevel(c, arm, y - 3, 7, 8, body, edge);
       bevel(c, arm + 1, y - 2, 5, 6, light, shadow);
       detail(c, arm + 2, y - .5, 3, 2.5, shadow);
-      detail(c, arm + 2.5, y, 2, .5, '#d4dfc6');
+      detail(c, arm + 2.5, y, 2, .5, FURNITURE_STYLE.mintLight);
       detail(c, arm + 3.5, y + .5, .5, 1, body);
     }
     R(c, x + 6, y + 9, 20, 1, body);
   },
   chair(c, x, y) {
-    box(c, x + 3, y - 9, 10, 12, WOOD); R(c, x + 5, y - 7, 6, 1, WOOD_L); R(c, x + 5, y - 4, 6, 1, WOOD_L);
-    box(c, x + 2, y + 2, 12, 6, WOOD_L);
+    furnitureBox(c, x + 3, y - 9, 10, 12, WOOD); R(c, x + 5, y - 7, 6, 1, WOOD_L); R(c, x + 5, y - 4, 6, 1, WOOD_L);
+    furnitureBox(c, x + 2, y + 2, 12, 6, WOOD_L);
     R(c, x + 3, y + 8, 2, 7, WOOD_D); R(c, x + 11, y + 8, 2, 7, WOOD_D);
   },
   table(c, x, y) {
-    contactShadow(c, x + 1, y + 14, 30);
+
     for (const px of [x + 3, x + 27]) {
       R(c, px, y + 5, 2, 10, WOOD_D);
       detail(c, px, y + 6, .5, 8, WOOD_L);
@@ -919,34 +933,42 @@ const DRAW = {
     detail(c, x + 22, y - 5, 2, .5, '#f0bcab');
   },
   fridge(c, x, y) {
-    contactShadow(c, x + 1, y + 14, 14);
-    bevel(c, x + 1, y - 18, 14, 33, '#eae8df', '#8e7d83');
+
+    bevel(c, x + 1, y - 18, 14, 33, FURNITURE_STYLE.cream, FURNITURE_STYLE.ceramicEdge);
     R(c, x + 3, y - 17, 9, 1, '#fffbec');
-    R(c, x + 12, y - 16, 2, 29, '#cfc3c2');
+    R(c, x + 12, y - 16, 2, 29, FURNITURE_STYLE.creamShade);
     R(c, x + 2, y - 7, 12, 1, '#ad9ea1');
     for (const [py, h] of [[y - 15, 5], [y - 4, 7]]) {
       detail(c, x + 10.5, py, 1.5, h, '#a49598');
       detail(c, x + 10.5, py, .5, h - 1, '#f9efdf');
     }
-    R(c, x + 4, y - 15, 3, 3, '#ca8290');
+    R(c, x + 4, y - 15, 3, 3, FURNITURE_STYLE.rose);
     detail(c, x + 4, y - 15, 2, .5, '#f3b5ad');
     R(c, x + 5, y - 2, 3, 2, '#efd189');
   },
   stove(c, x, y, f, t) {
-    box(c, x + 1, y - 6, 14, 21, '#d8d0c4'); R(c, x + 2, y - 5, 12, 3, '#4e4557');
-    R(c, x + 3, y - 4, 3, 1, '#666'); R(c, x + 10, y - 4, 3, 1, '#666');
-    box(c, x + 3, y + 1, 10, 7, '#4e4557', '#8a8278'); R(c, x + 4, y + 2, 8, 2, '#675a6e');
-    R(c, x + 3, y + 10, 2, 2, '#ca8290'); R(c, x + 7, y + 10, 2, 2, '#ca8290');
-    if (f && f.active) {
+    const P = FURNITURE_STYLE;
+    furnitureBox(c, x + 1, y - 6, 14, 21, P.cream, P.ceramicEdge);
+    R(c, x + 2, y - 5, 12, 4, P.creamShade);
+    for (const px of [x + 3, x + 9]) {
+      R(c, px, y - 4, 4, 2, P.edge);
+      R(c, px + 1, y - 4, 2, 1, P.ceramicEdge);
+    }
+    R(c, x + 3, y, 2, 1, P.brass); R(c, x + 11, y, 2, 1, P.brass);
+    furnitureBox(c, x + 3, y + 3, 10, 8, '#687278', P.ceramicEdge);
+    R(c, x + 4, y + 4, 8, 1, '#a9b9b7');
+    R(c, x + 5, y + 12, 6, 1, P.creamShade);
+    if (f?.active) {
       const k = Math.floor(t * 8) % 2;
       R(c, x + 3, y - 7, 4, 2, k ? '#efd189' : '#e1ad71');
-      box(c, x + 8, y - 9, 7, 4, '#675a6e'); R(c, x + 14, y - 8, 3, 1, INK);
-      R(c, x + 10 + k, y - 12 - k, 1, 2, '#ffffffaa');
+      furnitureBox(c, x + 8, y - 9, 7, 4, P.mint, P.mintDark);
+      R(c, x + 14, y - 8, 2, 1, P.mintDark);
+      R(c, x + 10 + k, y - 12 - k, 1, 2, '#fff5e5aa');
     }
   },
   shelf(c, x, y) {
     const covers = ['#b97482', '#7899aa', '#dcb278', '#81a48b', '#9583aa', '#c28867'];
-    contactShadow(c, x + 1, y + 14, 30);
+
     bevel(c, x, y - 22, 32, 37, WOOD, WOOD_D);
     R(c, x + 2, y - 21, 28, 1, WOOD_L);
     for (let row = 0; row < 3; row++) {
@@ -969,27 +991,27 @@ const DRAW = {
     detail(c, x + 30, y - 19, .5, 32, '#96634f');
   },
   tv(c, x, y, f, t) {
-    box(c, x, y, 32, 15, WOOD); R(c, x + 2, y + 4, 13, 8, WOOD_D); R(c, x + 17, y + 4, 13, 8, WOOD_D);
-    R(c, x + 15, y - 2, 2, 3, INK);
-    box(c, x + 3, y - 17, 26, 16, '#4e4557', INK);
+    furnitureBox(c, x, y, 32, 15, WOOD); R(c, x + 2, y + 4, 13, 8, WOOD_D); R(c, x + 17, y + 4, 13, 8, WOOD_D);
+    R(c, x + 15, y - 2, 2, 3, FURNITURE_STYLE.edge);
+    furnitureBox(c, x + 3, y - 17, 26, 16, '#4e4557', FURNITURE_STYLE.edge);
     if (f && f.active) {
-      const cols = ['#7e9fbd', '#88ab83', '#efd189', '#ca8290'];
+      const cols = [FURNITURE_STYLE.blue, FURNITURE_STYLE.mint, '#efd189', FURNITURE_STYLE.rose];
       const k = Math.floor(t * 1.5) % 4;
       R(c, x + 5, y - 15, 22, 12, cols[k]); R(c, x + 8, y - 10, 6, 5, shade(cols[(k + 1) % 4], -0.1));
       R(c, x + 17, y - 13, 7, 3, '#ffffff99');
     } else { R(c, x + 5, y - 15, 22, 12, '#4c5a68'); R(c, x + 6, y - 14, 4, 1, '#ffffff44'); }
   },
   arcade(c, x, y, f, t) {
-    box(c, x + 1, y - 18, 14, 33, '#9582b1'); R(c, x + 2, y - 17, 12, 3, '#efd189');
-    box(c, x + 3, y - 13, 10, 9, '#1d1b2a');
-    if (f && f.active) { const k = Math.floor(t * 6) % 3; R(c, x + 5 + k * 2, y - 10, 2, 2, '#88ab83'); R(c, x + 9 - k, y - 7, 2, 1, '#ca8290'); }
-    else R(c, x + 6, y - 9, 4, 1, '#88ab83');
-    R(c, x + 2, y - 3, 12, 4, shade('#9582b1', -0.2)); R(c, x + 5, y - 5, 1, 3, INK); R(c, x + 4, y - 6, 3, 2, '#ca8290');
-    R(c, x + 9, y - 3, 2, 2, '#7e9fbd'); R(c, x + 12, y - 3, 1, 2, '#efd189');
+    furnitureBox(c, x + 1, y - 18, 14, 33, FURNITURE_STYLE.lavender); R(c, x + 2, y - 17, 12, 3, '#efd189');
+    furnitureBox(c, x + 3, y - 13, 10, 9, '#1d1b2a');
+    if (f && f.active) { const k = Math.floor(t * 6) % 3; R(c, x + 5 + k * 2, y - 10, 2, 2, FURNITURE_STYLE.mint); R(c, x + 9 - k, y - 7, 2, 1, FURNITURE_STYLE.rose); }
+    else R(c, x + 6, y - 9, 4, 1, FURNITURE_STYLE.mint);
+    R(c, x + 2, y - 3, 12, 4, shade(FURNITURE_STYLE.lavender, -0.2)); R(c, x + 5, y - 5, 1, 3, FURNITURE_STYLE.edge); R(c, x + 4, y - 6, 3, 2, FURNITURE_STYLE.rose);
+    R(c, x + 9, y - 3, 2, 2, FURNITURE_STYLE.blue); R(c, x + 12, y - 3, 1, 2, '#efd189');
   },
   piano(c, x, y, f, t) {
     const edge = '#493441', walnut = '#725057', glint = '#a97a72';
-    contactShadow(c, x + 1, y + 14, 30);
+
     bevel(c, x, y - 14, 32, 29, walnut, edge);
     R(c, x + 2, y - 13, 28, 2, glint);
     bevel(c, x + 2, y - 10, 28, 10, '#644650', edge);
@@ -1011,17 +1033,25 @@ const DRAW = {
     R(c, x + 2, y + 12, 3, 3, edge); R(c, x + 27, y + 12, 3, 3, edge);
   },
   bath(c, x, y, f) {
-    box(c, x, y - 4, 32, 18, '#ffffff', '#7a8a96'); R(c, x + 2, y - 2, 28, 6, '#9fd8f0');
-    R(c, x + 28, y - 9, 2, 6, '#a9b6c0'); R(c, x + 25, y - 9, 4, 2, '#a9b6c0');
-    if (f && f.occ) f.occ(0, x + 14, y + 2);
-    R(c, x + 1, y + 3, 30, 10, '#ffffff'); R(c, x + 1, y + 3, 30, 1, '#dbe6ec');
-    if (f && f.active) for (let i = 0; i < 5; i++) { R(c, x + 4 + i * 5, y + 1 - (i % 2), 4, 3, '#ffffff'); R(c, x + 5 + i * 5, y + 1 - (i % 2), 2, 1, '#cfeaf7'); }
-    R(c, x + 2, y + 13, 3, 3, '#a9b6c0'); R(c, x + 27, y + 13, 3, 3, '#a9b6c0');
+    const P = FURNITURE_STYLE;
+    furnitureBox(c, x, y - 4, 32, 18, P.cream, P.ceramicEdge);
+    R(c, x + 3, y - 2, 26, 6, '#b6d8d8');
+    R(c, x + 4, y - 1, 24, 1, '#dfefdf');
+    R(c, x + 28, y - 9, 2, 6, P.brass); R(c, x + 25, y - 9, 4, 2, P.brass);
+    f?.occ?.(0, x + 14, y + 2);
+    R(c, x + 1, y + 3, 30, 10, P.cream);
+    R(c, x + 2, y + 3, 28, 2, '#fff8e9');
+    R(c, x + 3, y + 11, 26, 2, P.creamShade);
+    if (f?.active) for (let i = 0; i < 5; i++) {
+      R(c, x + 4 + i * 5, y + 1 - (i % 2), 4, 3, '#fff8e9');
+      R(c, x + 5 + i * 5, y + 1 - (i % 2), 2, 1, '#dfefdf');
+    }
+    for (const px of [x + 3, x + 26]) R(c, px, y + 13, 3, 2, P.brass);
   },
   plant(c, x, y, f, t) {
     const sway = f?.active ? Math.round(Math.sin(t * 6)) : 0;
     const leaf = '#83aa80', edge = '#52765f', glint = '#a8c59a';
-    contactShadow(c, x + 3, y + 13, 10);
+
     R(c, x + 7, y - 8, 2, 12, edge);
     for (const [dx, dy, w] of [[1, -14, 8], [7, -12, 8], [4, -18, 8]]) {
       bevel(c, x + dx + sway, y + dy, w, 8, leaf, edge);
@@ -1035,7 +1065,7 @@ const DRAW = {
   },
   lamp(c, x, y) {
     const brass = '#a5795b', edge = '#74545b';
-    contactShadow(c, x + 3, y + 14, 10);
+
     R(c, x + 7, y - 12, 2, 24, edge);
     detail(c, x + 7.5, y - 12, .5, 24, '#d9ae78');
     bevel(c, x + 4, y + 11, 8, 4, brass, edge);
@@ -1045,12 +1075,12 @@ const DRAW = {
     R(c, x + 3, y - 13, 10, 1, '#d7a774');
   },
   catbed(c, x, y, f, t) {
-    box(c, x, y + 4, 16, 11, '#e27fa6'); R(c, x + 2, y + 6, 12, 6, '#f6c1d4');
+    furnitureBox(c, x, y + 4, 16, 11, FURNITURE_STYLE.rose); R(c, x + 2, y + 6, 12, 6, FURNITURE_STYLE.roseLight);
     // 卷成一团的橘猫，尾巴会摇
     const tail = Math.round(Math.sin(t * (f && f.active ? 10 : 3)) * 1.5);
-    box(c, x + 3, y + 3, 10, 7, '#e1ad71'); box(c, x + 9, y + 1, 6, 6, '#e1ad71');
+    furnitureBox(c, x + 3, y + 3, 10, 7, '#e1ad71'); furnitureBox(c, x + 9, y + 1, 6, 6, '#e1ad71');
     R(c, x + 9, y, 2, 2, '#e1ad71'); R(c, x + 13, y, 2, 2, '#e1ad71');
-    R(c, x + 11, y + 3, 1, 1, INK); R(c, x + 13, y + 3, 1, 1, INK);
+    R(c, x + 11, y + 3, 1, 1, FURNITURE_STYLE.edge); R(c, x + 13, y + 3, 1, 1, FURNITURE_STYLE.edge);
     R(c, x + 2 + tail, y + 6, 2, 4, '#d88a34');
     R(c, x + 5, y + 5, 3, 1, '#d88a34');
   },
@@ -1071,18 +1101,18 @@ const DRAW = {
     }
   },
   rug2(c, x, y) {
-    box(c, x + 1, y + 1, 30, 30, '#f6ead6');
-    for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, ['#7e9fbd', '#efd189', '#88ab83', '#ca8290', '#9582b1'][i]);
+    furnitureBox(c, x + 1, y + 1, 30, 30, '#f6ead6');
+    for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, [FURNITURE_STYLE.blue, '#efd189', FURNITURE_STYLE.mint, FURNITURE_STYLE.rose, FURNITURE_STYLE.lavender][i]);
     for (let i = 0; i < 7; i++) { R(c, x + 3 + i * 4, y - 1, 1, 2, '#cbbfae'); R(c, x + 3 + i * 4, y + 31, 1, 2, '#cbbfae'); }
   },
   door(c, x, y, f) {
-    box(c, x + 1, y + 2, 14, 30, WOOD_D);
+    furnitureBox(c, x + 1, y + 2, 14, 30, WOOD_D);
     if (f && f.openT > 0) {
       R(c, x + 2, y + 3, 12, 29, '#2a2230'); R(c, x + 2, y + 3, 12, 6, G.sky || '#a5ccdc');   // 打开时看到外面
       R(c, x + 2, y + 3, 3, 29, WOOD);                                                         // 往里开的门板
     } else {
       R(c, x + 2, y + 3, 12, 29, WOOD); R(c, x + 3, y + 4, 10, 1, WOOD_L);
-      box(c, x + 4, y + 6, 8, 7, G.sky || '#a5ccdc', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
+      furnitureBox(c, x + 4, y + 6, 8, 7, G.sky || '#a5ccdc', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
       R(c, x + 4, y + 16, 8, 6, shade(WOOD, -0.08)); R(c, x + 4, y + 24, 8, 6, shade(WOOD, -0.08));
       R(c, x + 11, y + 19, 2, 2, '#e8ba75');
     }
@@ -1125,26 +1155,26 @@ const DRAW = {
     detail(c, x + 3, y + 27, 26, .5, '#f4c6a0');
   },
   painting(c, x, y) {
-    box(c, x + 1, y + 2, 14, 12, '#d9a640');
-    R(c, x + 3, y + 4, 10, 8, '#a5ccdc'); R(c, x + 3, y + 9, 10, 3, '#88ab83');
-    R(c, x + 5, y + 7, 3, 3, '#5fae5a'); R(c, x + 10, y + 5, 2, 2, '#fff6a0');
+    furnitureBox(c, x + 1, y + 2, 14, 12, FURNITURE_STYLE.brass);
+    R(c, x + 3, y + 4, 10, 8, '#a5ccdc'); R(c, x + 3, y + 9, 10, 3, FURNITURE_STYLE.mint);
+    R(c, x + 5, y + 7, 3, 3, FURNITURE_STYLE.mintDark); R(c, x + 10, y + 5, 2, 2, '#fff6a0');
   },
   clock(c, x, y) {
-    R(c, x + 4, y + 2, 8, 12, INK); R(c, x + 2, y + 4, 12, 8, INK);
+    R(c, x + 4, y + 2, 8, 12, FURNITURE_STYLE.edge); R(c, x + 2, y + 4, 12, 8, FURNITURE_STYLE.edge);
     R(c, x + 5, y + 3, 6, 10, '#fffaf0'); R(c, x + 3, y + 5, 10, 6, '#fffaf0');
     const m = G.time % 60, h = (G.time / 60) % 12;
     const ang = (v, n) => v / n * Math.PI * 2 - Math.PI / 2;
     const hx = Math.round(Math.cos(ang(h, 12)) * 2), hy = Math.round(Math.sin(ang(h, 12)) * 2);
     const mx = Math.round(Math.cos(ang(m, 60)) * 3), my = Math.round(Math.sin(ang(m, 60)) * 3);
-    R(c, x + 8 + hx, y + 8 + hy, 1, 1, INK); R(c, x + 8 + Math.round(hx / 2), y + 8 + Math.round(hy / 2), 1, 1, INK);
-    R(c, x + 8 + mx, y + 8 + my, 1, 1, '#ca8290'); R(c, x + 8 + Math.round(mx * 2 / 3), y + 8 + Math.round(my * 2 / 3), 1, 1, '#ca8290');
-    R(c, x + 8, y + 8, 1, 1, INK);
+    R(c, x + 8 + hx, y + 8 + hy, 1, 1, FURNITURE_STYLE.edge); R(c, x + 8 + Math.round(hx / 2), y + 8 + Math.round(hy / 2), 1, 1, FURNITURE_STYLE.edge);
+    R(c, x + 8 + mx, y + 8 + my, 1, 1, FURNITURE_STYLE.rose); R(c, x + 8 + Math.round(mx * 2 / 3), y + 8 + Math.round(my * 2 / 3), 1, 1, FURNITURE_STYLE.rose);
+    R(c, x + 8, y + 8, 1, 1, FURNITURE_STYLE.edge);
   },
   poster(c, x, y) {
-    box(c, x + 2, y + 3, 12, 24, '#3d3a66');
+    furnitureBox(c, x + 2, y + 3, 12, 24, '#3d3a66');
     R(c, x + 7, y + 8, 2, 6, '#efd189'); R(c, x + 5, y + 10, 6, 2, '#efd189'); R(c, x + 6, y + 9, 4, 4, '#efd189');
-    R(c, x + 4, y + 18, 8, 1, '#ca8290'); R(c, x + 5, y + 21, 6, 1, '#ffffff'); R(c, x + 5, y + 23, 4, 1, '#ffffff');
-    R(c, x + 7, y + 2, 2, 2, '#ca8290');
+    R(c, x + 4, y + 18, 8, 1, FURNITURE_STYLE.rose); R(c, x + 5, y + 21, 6, 1, '#ffffff'); R(c, x + 5, y + 23, 4, 1, '#ffffff');
+    R(c, x + 7, y + 2, 2, 2, FURNITURE_STYLE.rose);
   },
 };
 
@@ -1165,7 +1195,7 @@ function furnitureIcon(id, size = 56, props = {}) {
   tmp.height = ph * PIXEL_SCALE;
   const tc = tmp.getContext('2d');
   tc.scale(PIXEL_SCALE, PIXEL_SCALE);
-  DRAW[id](tc, 0, top, { color: null, ...props }, 0);
+  drawFurnitureArt(tc, id, 0, top, { color: null, ...props }, 0);
   const s = Math.min(size / pw, size / ph);
   const scale = s >= 1 ? Math.floor(s) : s;
   const w = Math.round(pw * PIXEL_SCALE * scale), h = Math.round(ph * PIXEL_SCALE * scale);
@@ -1772,6 +1802,7 @@ const PAPER_EVENTS = [
   [/派对|邀请.+来玩|参加院子野餐/, '串门聚会', '🎉', 68],
   [/迎了迎刚回家的/, '回家聊聊', '🏠', 48],
   [/给饿着的|帮忙付了|终于去找了份工作|画卖出去了/, '生活片段', '🌷', 63],
+  [/碰面时.+尴尬|谈起了那段感情/, '相处余波', '😶', 69],
   [/听成了|吵了一架/, '小屋插曲', '💬', 58],
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
 ];
@@ -1969,7 +2000,7 @@ function trustWord(v) {
 
 /* ---------- 搭子：一起吃饭、一起打游戏会慢慢变成习惯 ---------- */
 function countTogether(kind, a, b) {
-  if (!a || !b || a === b || a.guest || b.guest) return;
+  if (!a || !b || a === b || a.guest || b.guest || (typeof tensionBetween === 'function' && tensionBetween(a, b))) return;
   G.habits ||= {};
   const store = G.habits[kind] ||= {};
   const k = relKey(a, b);
@@ -2005,6 +2036,7 @@ function noteSharedMeal(d, table) {
 }
 // 有搭子正在用这件家具时，更想凑过去
 function companionBonus(d, f, use) {
+  if (typeof tensionBetween === 'function' && f.users.some(o => o !== d && tensionBetween(d, o))) return -45;
   const kind = use === 'meal' ? 'meal' : use === 'game' ? 'game' : null;
   if (!kind) return 0;
   return f.users.some(o => o !== d && bondTagged(d, o, kind)) ? 22 : 0;
@@ -2120,7 +2152,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    cottageLooksV: 2, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -2234,6 +2266,7 @@ function applySave(s) {
     if(canPlace(id,x,y))addFurniture(id,x,y);
   }
   fitHouseFurniture();
+  if (!s.houseWindowsV) addMissingUpperWindows();
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) {
     if (d.guest && d.pid !== G.community.active?.guestPid) continue;
@@ -2414,6 +2447,7 @@ function endAct(d) {
   }
   if (a && a.partner && a.partner.act && a.partner.act.partner === d) { a.partner.act = null; a.partner.state = 'idle'; a.partner.think = 1; }
   d.act = null; d.state = 'idle'; d.hop = 0; d.ft = 0; d.think = 1 + Math.random() * 2;
+  if (a?.tension && a.t <= 0 && a.partner) stepAwayAfterTension(d, a.partner);
 }
 
 function decide(d) {
@@ -2611,7 +2645,7 @@ function arrive(d) {
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (mealMate && !houseExchangeActive(mealMate) && mealMate.act.t > 3.2) {
-    startHouseExchange(d, mealMate, ['坐下吃饭啦，你今天怎么样？', '现在能一起吃顿饭，挺好的。', '那我们慢慢吃。']);
+    startHouseExchange(d, mealMate, tensionLines(d, mealMate) || ['坐下吃饭啦，你今天怎么样？', '现在能一起吃顿饭，挺好的。', '那我们慢慢吃。']);
   }
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
   if (mate && !(f.coupleLogAt > absNow() - 600)) { f.coupleLogAt = absNow(); addLog(`🛏 ${mate.name} 和 ${d.name} 一起睡了`); }   // 一晚只记一次
@@ -2807,6 +2841,8 @@ const SOCIAL = {
   hug:   { verb: '和{n}抱抱', a: ['抱一个！', '🤗'], b: ['嘿嘿～', '❤'] },
   flirt: { verb: '向{n}表白', a: ['我……我有话想说', '你今天真好看……', '要不要一起看星星？'], b: [] },
   kiss:  { verb: '和{n}亲亲', a: ['💋', '最喜欢你了'], b: ['❤ ❤', '我也是～'] },
+  awkward: { verb: '和{n}尴尬地打照面', a: ['……'], b: ['嗯。'] },
+  confront: { verb: '和{n}谈起感情里的心结', a: ['我还需要时间。'], b: ['好。'] },
   argue: { verb: '和{n}吵架', a: ['💢 哼！', '都怪你！', '你才是！'], b: ['💢 不理你了', '明明是你！', '哼！'] },
 };
 
@@ -2822,8 +2858,10 @@ const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
   if (r.secret) return '🤫 偷偷暧昧';
+  const tension = activeTension(r);
+  if (tension) return (tension.kind === 'rival' ? '😶 心结未解' : '💔 前任 · 相处尴尬') + ' · ' + levelOf(r.f, REL_LEVELS);
   const love = levelOf(r.l, LOVE_LEVELS), tags = typeof bondTagsText === 'function' ? bondTagsText(r) : '';
-  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
+  return (r.ex ? '💔 前任 · ' : '') + levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
 }
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
@@ -2832,7 +2870,7 @@ function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || n
 const isStudent = d => d.job === 'student';
 const canRomance = (a, b) => !a.guest && !b.guest && !isStudent(a) && !isStudent(b);
 function clearRomance(d) {
-  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; }
+  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; delete r.ex; delete r.tension; }
   for (const o of G.dolls) if (o.jealousOf && o.jealousOf.who === d) o.jealousOf = null;
   d.jealousOf = null;
 }
@@ -2840,6 +2878,7 @@ function clearRomance(d) {
 function bump(a, b, df, dl = 0) {
   if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
+  if (df > 0 && tensionBetween(a, b)) { df *= .15; dl = 0; }
   const cp = compat(a, b);                                    // 星座 + MBTI 缘分
   if (df < 0 && !isF(a) && !isF(b)) df *= 0.7;                // 两个 T 型吵完架不太记仇
   r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem * cp : df)));
@@ -2847,7 +2886,7 @@ function bump(a, b, df, dl = 0) {
   const after = levelOf(r.f, REL_LEVELS);
   if (after !== before && df > 0 && ['朋友', '好友', '挚友'].includes(after)) HOOK.toast(`🤝 ${a.name} 和 ${b.name} 成为${after}了`);
   if (after === '不和' && before !== '不和') HOOK.toast(`💢 ${a.name} 和 ${b.name} 闹翻了……`);
-  if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 分手了……`); }
+  if (r.lovers && r.l < 30) { markBreakup(a, b); HOOK.toast(`💔 ${a.name} 和 ${b.name} 分手了……`); addLog(`💔 ${a.name} 和 ${b.name} 分手了，暂时还不知怎么面对彼此`); }
 }
 
 function weighted(list) {
@@ -2864,7 +2903,7 @@ function pickPartner(d, others) {
     const r = rel(d, o);
     let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
     if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
-    return [o, Math.max(1, w + 5 * NPCMemory.influence(G, d.pid, o.pid)) * compat(d, o)];
+    return [o, Math.max(1, w + 5 * NPCMemory.influence(G, d.pid, o.pid)) * compat(d, o) * (tensionBetween(d, o) ? .08 : 1)];
   }));
 }
 
@@ -2927,6 +2966,7 @@ function tickHouseExchange(d, dt) {
 
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p, introduced = false) {
+  if (tensionBetween(d, p)) { startTenseExchange(d, p); return; }
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
   let kind = (d.act && d.act.kind) || chooseKind(d, p);
   if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
@@ -2977,17 +3017,7 @@ function startSocial(d, p, introduced = false) {
         // 新欢比旧爱更喜欢了：花心的一方干脆变心
         for (const [x, old] of [[d, ld], [p, lp]]) {
           if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
-            const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
-            HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
-            const rival = x === d ? p : d;
-            NPCMemory.record(G,{type:'breakup',time:absNow(),participants:[x.pid,old.pid],outcome:'left'},[
-              {person:old.pid,subject:x.pid,emotion:-1,impact:100,interpretation:`我被${x.name}抛下了`}
-            ]);
-            NPCMemory.record(G,{type:'rival',time:absNow(),participants:[old.pid,rival.pid,x.pid],outcome:'remembered'},[
-              {person:old.pid,subject:rival.pid,emotion:-.9,impact:95,interpretation:`${rival.name}抢走了${x.name}`}
-            ]);
-            addTrust(old, x, -35); addTrust(old, rival, -30); addJealousy(old, rival, 60);
-            say(old, '……怎么会这样'); spawnHeart(old, '💔');
+            announceChangedHeart(x, old, x === d ? p : d);
           }
         }
         if (r.l >= 70 && !loverOf(d) && !loverOf(p)) { r.lovers = true; r.secret = false; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); }
@@ -3084,7 +3114,7 @@ function jealous(L, cheater, third) {
 function caught(L, cheater, third) {
   const r = rel(L, cheater), r3 = rel(cheater, third);
   r.f = Math.max(-100, r.f - 35); r.l = Math.max(0, r.l - 45);
-  const t3 = rel(L, third); t3.f = Math.max(-100, t3.f - 40); t3.l = 0;
+  recordRivalFallout(L, cheater, third, true);
   r3.secret = false;
   L.needs.fun = Math.max(0, L.needs.fun - 40);
   face(L, cheater.x, cheater.y);
@@ -3094,7 +3124,7 @@ function caught(L, cheater, third) {
   setTimeout(() => say(third, pick(['……', '对不起……', '我先走了'])), 2200);
   SFX.play('deny');
   if (r.l < 30 && r.lovers) {
-    r.lovers = false;
+    markBreakup(L, cheater, L);
     HOOK.toast(`💔 ${L.name} 撞见 ${cheater.name} 和 ${third.name}，两人分手了！`);
   } else HOOK.toast(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 在一起！`);
   NPCMemory.record(G, {
@@ -3108,14 +3138,8 @@ function caught(L, cheater, third) {
     { person: third.pid, subject: L.pid,
       interpretation: `${L.name}撞见了我和${cheater.name}`, emotion: -.7, impact: 80 }
   ]);
-  // 恋人单独记下“第三者”：这份记忆的主角是抢走恋人的人
-  NPCMemory.record(G, {
-    type: 'rival', time: absNow(), participants: [L.pid, third.pid, cheater.pid], outcome: 'remembered'
-  }, [
-    { person: L.pid, subject: third.pid, channel: 'witness',
-      interpretation: `${third.name}想抢走${cheater.name}`, emotion: -.95, impact: 95 }
-  ]);
-  addTrust(L, cheater, -40); addTrust(L, third, -30); addJealousy(L, third, 60);
+  addTrust(L, cheater, -40);
+  addLog(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 亲密${r.lovers ? '，三个人之间有了心结' : '，两人分手了'}`);
 }
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
@@ -3124,9 +3148,10 @@ const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act &&
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
+  tickRelationshipTension();
   // 保险：学生和任何人之间都不留恋爱关系
   for (const d of G.dolls) if (isStudent(d)) for (const o of G.dolls) if (o !== d) {
-    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; }
+    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; delete r.ex; delete r.tension; }
   }
   // 吃醋的人：等双方都有空，就立刻去找恋人算账
   for (const d of G.dolls) {
@@ -3147,14 +3172,14 @@ function socialTick(dt) {
     const fickle = (a.heart === 'fickle') + (b.heart === 'fickle');
     if (r.lovers && fickle) r.l = Math.max(0, r.l - 0.05 * fickle * dt);
     if (r.lovers && !fickle && a.heart === 'loyal' && b.heart === 'loyal') r.l = Math.min(100, r.l + 0.02 * dt);
-    if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); }
+    if (r.lovers && r.l < 30) { markBreakup(a, b); HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); addLog(`💔 ${a.name} 和 ${b.name} 感情淡了，分手后还有些尴尬`); }
   }
 }
 
 // 互动进行中：偶尔再说一句、冒爱心
 function tickSocial(d, dt) {
   const a = d.act, S = SOCIAL[a.kind] || SOCIAL.chat;
-  if (a.passive || a.exchange || Math.random() > dt * 0.45) return;
+  if (a.passive || a.exchange || a.tension || Math.random() > dt * 0.45) return;
   const who = Math.random() < 0.5 ? d : a.partner;
   const lines = who === d ? S.a : (S.b.length ? S.b : S.a);
   say(who, pick(lines), 1.8);
@@ -3255,6 +3280,129 @@ function socialDoing(d) {
 }
 </script>
 <script>
+// Romantic changes affect the whole triangle, with saved, time-limited tension.
+// Private flirting alone does not inform an absent partner: only a witnessed
+// affair or an announced change of partner reaches this module.
+function activeTension(r) {
+  return r?.tension && r.tension.until > absNow() ? r.tension : null;
+}
+function tensionBetween(a, b) {
+  return a !== b && canRomance(a, b) ? activeTension(G.rel[relKey(a, b)]) : null;
+}
+function setRelationshipTension(a, b, kind, hurt, through) {
+  const r = rel(a, b), current = activeTension(r);
+  if (current?.kind === kind && current.through === (through?.pid || null)) return false;
+  r.tension = { kind, hurt: hurt.pid, through: through?.pid || null,
+    since: absNow(), until: absNow() + 3 * 1440, lastEncounter: -10000, encounters: 0 };
+  return true;
+}
+function markBreakup(a, b, hurt = a) {
+  const r = rel(a, b);
+  r.lovers = false; r.secret = false; r.ex = true;
+  setRelationshipTension(a, b, 'ex', hurt);
+}
+function recordRivalFallout(hurt, cheater, other, witnessed = false) {
+  if (!canRomance(hurt, other) || !setRelationshipTension(hurt, other, 'rival', hurt, cheater)) return false;
+  const r = rel(hurt, other), wereFriends = r.f >= 40;
+  r.f = Math.max(-100, r.f - (wereFriends ? 45 : 35));
+  r.l = 0;
+  addTrust(hurt, other, wereFriends ? -40 : -30);
+  addTrust(other, hurt, -12);
+  addJealousy(hurt, other, 60);
+  hurt.needs.fun = Math.max(0, hurt.needs.fun - 25);
+  other.needs.fun = Math.max(0, other.needs.fun - 10);
+  NPCMemory.record(G, { type: 'rival', time: absNow(),
+    participants: [hurt.pid, other.pid, cheater.pid], outcome: witnessed ? 'witnessed' : 'announced' }, [
+    { person: hurt.pid, subject: other.pid, channel: witnessed ? 'witness' : 'told',
+      emotion: -.95, impact: 95, interpretation: witnessed
+        ? `我撞见${other.name}和${cheater.name}亲密，再碰面会很难受`
+        : `${cheater.name}告诉我选择了${other.name}，我还不知道该怎么面对他们` },
+    { person: other.pid, subject: hurt.pid, emotion: -.6, impact: 85,
+      interpretation: `因为${cheater.name}的事，我和${hurt.name}见面很尴尬` },
+  ]);
+  addLog(`💔 因为 ${cheater.name} 的感情变故，${hurt.name} 和 ${other.name}${wereFriends ? '原本的友情也受了伤' : '之间有了心结'}`);
+  return true;
+}
+function announceChangedHeart(cheater, hurt, other) {
+  const old = rel(cheater, hurt);
+  markBreakup(cheater, hurt, hurt);
+  old.l = Math.max(0, old.l - 40); old.f = Math.max(-100, old.f - 25);
+  addTrust(hurt, cheater, -40);
+  recordRivalFallout(hurt, cheater, other);
+  NPCMemory.record(G, { type: 'breakup', time: absNow(), participants: [cheater.pid, hurt.pid], outcome: 'left' }, [
+    { person: hurt.pid, subject: cheater.pid, channel: 'told', emotion: -1, impact: 100,
+      interpretation: `${cheater.name}告诉我喜欢上了${other.name}，我们分手了` },
+    { person: cheater.pid, subject: hurt.pid, emotion: -.6, impact: 85,
+      interpretation: `我选择了${other.name}，伤害了${hurt.name}` },
+  ]);
+  HOOK.toast(`💔 ${cheater.name} 变心了，和 ${hurt.name} 分手`);
+  addLog(`💔 ${cheater.name} 告诉 ${hurt.name} 自己喜欢上了 ${other.name}，两人分手了`);
+  if (!['away', 'lift'].includes(hurt.state) && !lying(hurt)) {
+    say(hurt, '……让我一个人静一静。', 3); spawnHeart(hurt, '💔');
+  }
+}
+function tensionLines(a, b, confront = false) {
+  const tension = tensionBetween(a, b);
+  if (!tension) return null;
+  const through = G.dolls.find(d => d.pid === tension.through)?.name || '那件事';
+  const hurtFirst = a.pid === tension.hurt;
+  if (tension.kind === 'rival') {
+    if (confront) return hurtFirst
+      ? [`关于${through}的事，我还没办法当作没发生。`, '我知道，现在说什么都很难。', '那就先给彼此一点空间吧。']
+      : ['我知道我们现在见面很尴尬。', `关于${through}的事，我还需要时间。`, '好，我先不打扰你。'];
+    return hurtFirst ? ['……你也在这里。', '嗯，我拿完东西就走。', '我想先安静一会儿。']
+      : ['……我可以从这边过去吗？', '嗯。让我先静一静吧。', '好，我先走了。'];
+  }
+  return hurtFirst ? ['分开以后，我还不知道怎么面对你。', '我知道，我会给你空间。', '嗯，先这样吧。']
+    : ['我们……还好吗？', '我还没准备好像以前那样聊天。', '好，我先不打扰你。'];
+}
+function startTenseExchange(a, b) {
+  const tension = tensionBetween(a, b);
+  const first = tension.encounters === 0;
+  const hurt = a.pid === tension.hurt ? a : b;
+  const confront = first && ['genki', 'social', 'active'].includes(hurt.persona);
+  const kind = confront ? 'confront' : 'awkward';
+  a.state = b.state = 'act'; a.path = []; b.path = [];
+  a.act = { type: 'chat', kind, partner: b, t: 5.4, gain: { social: 3 }, tension: true };
+  b.act = { type: 'chat', kind, partner: a, t: 5.4, gain: { social: 3 }, tension: true, passive: true };
+  face(a, b.x, b.y); face(b, a.x, a.y);
+  a.happy = b.happy = 0;
+  tension.lastEncounter = absNow(); tension.encounters++;
+  if (first) { a.needs.fun = Math.max(0, a.needs.fun - 3); b.needs.fun = Math.max(0, b.needs.fun - 3); }
+  startHouseExchange(a, b, tensionLines(a, b, confront));
+  spawnHeart(hurt, confront ? '💢' : '…');
+  if (first) addLog(`😶 ${a.name} 和 ${b.name} 碰面时${confront ? '谈起了那段感情，决定先给彼此空间' : '有些尴尬，打过照面便各自走开'}`);
+}
+function tickRelationshipTension() {
+  for (const [key, r] of Object.entries(G.rel)) {
+    const tension = activeTension(r);
+    if (!tension || tension.lastEncounter > absNow() - 900) continue;
+    const pair = key.split('|').map(pid => G.dolls.find(d => d.pid === pid));
+    if (pair.some(d => !d || !availableForHouseChat(d))) continue;
+    const [a, b] = pair;
+    if (!canRomance(a, b) || !canSee(a, b) || Math.abs(a.tx - b.tx) + Math.abs(a.ty - b.ty) > 3) continue;
+    const hurt = a.pid === tension.hurt ? a : b, other = hurt === a ? b : a;
+    if (startAct(hurt, { type: 'chat', partner: other, kind: 'awkward' })) {
+      tension.lastEncounter = absNow();
+      break;
+    }
+  }
+}
+function stepAwayAfterTension(d, other) {
+  const goals = [];
+  for (let x = Math.max(0, d.tx - 5); x <= Math.min(COLS - 1, d.tx + 5); x++) {
+    for (let y = d.ty - 3; y <= d.ty + 3; y++) {
+      if (roomOf({ tx: x, ty: y }) !== roomOf(d) || !free(x, y) || isDoorTile(x, y)) continue;
+      if (Math.abs(x - other.tx) + Math.abs(y - other.ty) < 4 || G.dolls.some(o => o !== d && o.tx === x && o.ty === y)) continue;
+      goals.push({ x, y });
+    }
+  }
+  const path = findPath(d.tx, d.ty, goals);
+  if (path?.length) { d.state = 'walk'; d.path = path; d.act = { type: 'wander' }; }
+  else { d.think = 6; d.dir = d.x < other.x ? 'left' : 'right'; }
+}
+</script>
+<script>
 // 职业与作息：到点从大门出门，在外面待一段时间，每月回家的时间都不太一样
 // 绝对分钟跨月连续累计，夜班在次月清晨结束。
 
@@ -3350,7 +3498,7 @@ function comeHome(d) {
 }
 
 function greetAfterWork(d, line, soaked) {
-  const nearby = residents().filter(o => o !== d && canSee(d, o) && canDisturb(d, o) &&
+  const nearby = residents().filter(o => o !== d && !tensionBetween(d, o) && canSee(d, o) && canDisturb(d, o) &&
     Math.abs(o.tx - d.tx) + Math.abs(o.ty - d.ty) <= 7 && availableForHouseChat(o) &&
     (arePartners(d, o) || rel(d, o).f >= 0));
   nearby.sort((a, b) => Number(arePartners(d, b)) - Number(arePartners(d, a)) || rel(d, b).f - rel(d, a).f);
@@ -3514,74 +3662,74 @@ Object.assign(PERSONAS.social.like, { music: 25, pc: 15, paint: 10 });
 Object.assign(DRAW, {
   beanbag(c, x, y) {
     const col = '#e1ad71';
-    R(c, x + 2, y + 3, 12, 12, INK); R(c, x + 1, y + 6, 14, 9, INK); R(c, x + 4, y + 1, 8, 3, INK);
+    R(c, x + 2, y + 3, 12, 12, FURNITURE_STYLE.edge); R(c, x + 1, y + 6, 14, 9, FURNITURE_STYLE.edge); R(c, x + 4, y + 1, 8, 3, FURNITURE_STYLE.edge);
     R(c, x + 3, y + 4, 10, 10, col); R(c, x + 2, y + 7, 12, 7, col); R(c, x + 5, y + 2, 6, 3, col);
     R(c, x + 4, y + 5, 8, 2, shade(col, 0.15)); R(c, x + 3, y + 12, 10, 2, shade(col, -0.18));
   },
   coffee(c, x, y, f, t) {
-    box(c, x + 1, y - 2, 14, 17, WOOD); R(c, x + 2, y + 4, 12, 1, WOOD_D); R(c, x + 7, y + 6, 2, 2, WOOD_L);
-    box(c, x + 3, y - 12, 10, 11, '#4e4557'); R(c, x + 4, y - 11, 8, 2, '#675a6e'); R(c, x + 5, y - 7, 6, 2, '#a9b6c0');
-    box(c, x + 6, y - 4, 4, 3, '#fffaf0');
-    R(c, x + 11, y - 10, 1, 1, f && f.active ? '#ca8290' : '#88ab83');
+    furnitureBox(c, x + 1, y - 2, 14, 17, WOOD); R(c, x + 2, y + 4, 12, 1, WOOD_D); R(c, x + 7, y + 6, 2, 2, WOOD_L);
+    furnitureBox(c, x + 3, y - 12, 10, 11, '#4e4557'); R(c, x + 4, y - 11, 8, 2, '#675a6e'); R(c, x + 5, y - 7, 6, 2, '#a9b6c0');
+    furnitureBox(c, x + 6, y - 4, 4, 3, '#fffaf0');
+    R(c, x + 11, y - 10, 1, 1, f && f.active ? FURNITURE_STYLE.rose : FURNITURE_STYLE.mint);
     if (f && f.active) { const k = Math.floor(t * 4) % 2; R(c, x + 7 + k, y - 7, 1, 2, '#ffffffaa'); R(c, x + 8 - k, y - 10, 1, 2, '#ffffff77'); }
   },
   aquarium(c, x, y, f, t) {
-    box(c, x + 1, y + 2, 30, 13, WOOD_D); R(c, x + 3, y + 5, 26, 2, WOOD);
-    box(c, x + 2, y - 14, 28, 17, '#9fd8f0', '#4e4557'); R(c, x + 3, y - 13, 26, 3, '#c8ecf8');
+    furnitureBox(c, x + 1, y + 2, 30, 13, WOOD_D); R(c, x + 3, y + 5, 26, 2, WOOD);
+    furnitureBox(c, x + 2, y - 14, 28, 17, '#9fd8f0', '#4e4557'); R(c, x + 3, y - 13, 26, 3, '#c8ecf8');
     R(c, x + 3, y - 1, 26, 3, '#e8d8a8');
-    R(c, x + 6, y - 6, 1, 5, '#5fae5a'); R(c, x + 7, y - 8, 1, 7, '#5fae5a'); R(c, x + 24, y - 7, 1, 6, '#3f7d3c'); R(c, x + 25, y - 5, 1, 4, '#5fae5a');
+    R(c, x + 6, y - 6, 1, 5, FURNITURE_STYLE.mintDark); R(c, x + 7, y - 8, 1, 7, FURNITURE_STYLE.mintDark); R(c, x + 24, y - 7, 1, 6, '#3f7d3c'); R(c, x + 25, y - 5, 1, 4, FURNITURE_STYLE.mintDark);
     const fx = x + 5 + Math.round((Math.sin(t * 0.8) + 1) * 9), fy = y - 9 + Math.round(Math.sin(t * 1.7));
-    R(c, fx, fy, 3, 2, '#e1ad71'); R(c, fx - 1, fy, 1, 2, '#ca8290'); R(c, fx + 2, fy, 1, 1, INK);
+    R(c, fx, fy, 3, 2, '#e1ad71'); R(c, fx - 1, fy, 1, 2, FURNITURE_STYLE.rose); R(c, fx + 2, fy, 1, 1, FURNITURE_STYLE.edge);
     const gx = x + 22 - Math.round((Math.sin(t * 0.6 + 1) + 1) * 7);
-    R(c, gx, y - 5, 2, 1, '#ca8290'); R(c, gx + 2, y - 5, 1, 1, '#c24d60');
+    R(c, gx, y - 5, 2, 1, FURNITURE_STYLE.rose); R(c, gx + 2, y - 5, 1, 1, '#c24d60');
     const b = Math.floor(t * 3) % 6; R(c, x + 20, y - 3 - b * 2, 1, 1, '#ffffff');
   },
   desk(c, x, y) {
-    R(c, x + 2, y + 4, 2, 11, WOOD_D); box(c, x + 20, y + 3, 10, 12, WOOD);
+    R(c, x + 2, y + 4, 2, 11, WOOD_D); furnitureBox(c, x + 20, y + 3, 10, 12, WOOD);
     R(c, x + 22, y + 7, 6, 1, WOOD_D); R(c, x + 22, y + 11, 6, 1, WOOD_D);
-    box(c, x, y - 3, 32, 7, WOOD_L);
+    furnitureBox(c, x, y - 3, 32, 7, WOOD_L);
     R(c, x + 4, y - 10, 1, 7, '#6b5a52'); R(c, x + 3, y - 12, 5, 3, '#efd189');
-    R(c, x + 10, y - 6, 3, 4, '#7e9fbd'); R(c, x + 13, y - 7, 2, 5, '#ca8290'); R(c, x + 15, y - 5, 2, 3, '#88ab83');
-    box(c, x + 19, y - 5, 8, 4, '#fffaf0', '#cbbfae'); R(c, x + 20, y - 4, 5, 1, '#a9b6c0');
+    R(c, x + 10, y - 6, 3, 4, FURNITURE_STYLE.blue); R(c, x + 13, y - 7, 2, 5, FURNITURE_STYLE.rose); R(c, x + 15, y - 5, 2, 3, FURNITURE_STYLE.mint);
+    furnitureBox(c, x + 19, y - 5, 8, 4, '#fffaf0', '#cbbfae'); R(c, x + 20, y - 4, 5, 1, '#a9b6c0');
   },
   pc(c, x, y, f, t) {
     R(c, x + 2, y + 4, 2, 11, '#675a6e'); R(c, x + 28, y + 4, 2, 11, '#675a6e');
-    box(c, x, y - 2, 32, 7, '#d8d0c4', '#675a6e');
-    box(c, x + 8, y - 16, 16, 12, '#4e4557', INK); R(c, x + 15, y - 4, 2, 2, '#675a6e');
+    furnitureBox(c, x, y - 2, 32, 7, FURNITURE_STYLE.cream, '#675a6e');
+    furnitureBox(c, x + 8, y - 16, 16, 12, '#4e4557', FURNITURE_STYLE.edge); R(c, x + 15, y - 4, 2, 2, '#675a6e');
     const on = f && f.active;
-    R(c, x + 9, y - 15, 14, 9, on ? ['#7e9fbd', '#9582b1', '#88ab83'][Math.floor(t * 2) % 3] : '#2a3a4a');
+    R(c, x + 9, y - 15, 14, 9, on ? [FURNITURE_STYLE.blue, FURNITURE_STYLE.lavender, FURNITURE_STYLE.mint][Math.floor(t * 2) % 3] : '#2a3a4a');
     if (on) { R(c, x + 11, y - 13, 6, 1, '#ffffffaa'); R(c, x + 11, y - 11, 8, 1, '#ffffff77'); R(c, x + 11, y - 9, 4, 1, '#ffffff77'); }
     R(c, x + 9, y, 12, 2, '#675a6e'); R(c, x + 24, y, 3, 2, '#675a6e');
-    box(c, x + 2, y - 12, 5, 10, '#4e4557'); R(c, x + 3, y - 10, 1, 1, '#88ab83');
+    furnitureBox(c, x + 2, y - 12, 5, 10, '#4e4557'); R(c, x + 3, y - 10, 1, 1, FURNITURE_STYLE.mint);
   },
   speaker(c, x, y, f, t) {
-    box(c, x + 2, y - 14, 12, 29, '#4e4557', INK);
+    furnitureBox(c, x + 2, y - 14, 12, 29, '#4e4557', FURNITURE_STYLE.edge);
     const on = f && f.active, p = on ? Math.floor(t * 6) % 2 : 0;
     R(c, x + 5 - p, y - 10 - p, 6 + 2 * p, 6 + 2 * p, '#675a6e'); R(c, x + 7, y - 8, 2, 2, '#2a2230');
     R(c, x + 4 - p, y - 1 - p, 8 + 2 * p, 8 + 2 * p, '#675a6e'); R(c, x + 7, y + 2, 2, 2, '#2a2230');
-    R(c, x + 11, y - 12, 1, 1, on ? '#88ab83' : '#ca8290');
+    R(c, x + 11, y - 12, 1, 1, on ? FURNITURE_STYLE.mint : FURNITURE_STYLE.rose);
     if (on) {
       const ny = y - 16 - Math.round(((t * 1.5) % 1) * 10);
-      R(c, x + 13, ny, 2, 2, '#ca8290'); R(c, x + 14, ny - 3, 1, 3, '#ca8290');
-      R(c, x + 1, ny + 4, 2, 2, '#7e9fbd'); R(c, x + 2, ny + 1, 1, 3, '#7e9fbd');
+      R(c, x + 13, ny, 2, 2, FURNITURE_STYLE.rose); R(c, x + 14, ny - 3, 1, 3, FURNITURE_STYLE.rose);
+      R(c, x + 1, ny + 4, 2, 2, FURNITURE_STYLE.blue); R(c, x + 2, ny + 1, 1, 3, FURNITURE_STYLE.blue);
     }
   },
   easel(c, x, y, f, t) {
     R(c, x + 3, y - 12, 1, 27, WOOD_D); R(c, x + 12, y - 12, 1, 27, WOOD_D); R(c, x + 8, y - 14, 1, 22, WOOD); R(c, x + 2, y + 2, 12, 1, WOOD_D);
-    box(c, x + 2, y - 12, 12, 13, '#fffaf0', '#8a7366');
-    R(c, x + 3, y - 11, 10, 5, '#a5ccdc'); R(c, x + 3, y - 6, 10, 4, '#8ccf7a'); R(c, x + 9, y - 10, 2, 2, '#efd189');
-    if (f && f.active) { const k = Math.floor(t * 3) % 3; R(c, x + 4 + k * 2, y - 5, 1, 1, ['#ca8290', '#e1ad71', '#9582b1'][k]); }
+    furnitureBox(c, x + 2, y - 12, 12, 13, '#fffaf0', '#8a7366');
+    R(c, x + 3, y - 11, 10, 5, '#a5ccdc'); R(c, x + 3, y - 6, 10, 4, FURNITURE_STYLE.mint); R(c, x + 9, y - 10, 2, 2, '#efd189');
+    if (f && f.active) { const k = Math.floor(t * 3) % 3; R(c, x + 4 + k * 2, y - 5, 1, 1, [FURNITURE_STYLE.rose, '#e1ad71', FURNITURE_STYLE.lavender][k]); }
   },
   treadmill(c, x, y, f, t) {
-    R(c, x + 1, y + 6, 30, 8, INK); R(c, x + 2, y + 7, 28, 6, '#675a6e');
+    R(c, x + 1, y + 6, 30, 8, FURNITURE_STYLE.edge); R(c, x + 2, y + 7, 28, 6, '#675a6e');
     const off = f && f.active ? Math.floor(t * 12) % 4 : 0;
     for (let i = 0; i < 7; i++) R(c, x + 3 + ((i * 4 + off) % 26), y + 9, 1, 2, '#4e4557');
-    R(c, x + 2, y - 10, 2, 17, '#a9b6c0'); box(c, x, y - 14, 8, 5, '#4e4557');
-    R(c, x + 2, y - 13, 3, 1, f && f.active ? '#88ab83' : '#ca8290');
+    R(c, x + 2, y - 10, 2, 17, '#a9b6c0'); furnitureBox(c, x, y - 14, 8, 5, '#4e4557');
+    R(c, x + 2, y - 13, 3, 1, f && f.active ? FURNITURE_STYLE.mint : FURNITURE_STYLE.rose);
     R(c, x + 2, y - 8, 10, 1, '#a9b6c0');
   },
   garland(c, x, y) {
-    const cols = ['#ca8290', '#efd189', '#88ab83', '#7e9fbd', '#9582b1'], lit = G.dark > 0.1;
+    const cols = [FURNITURE_STYLE.rose, '#efd189', FURNITURE_STYLE.mint, FURNITURE_STYLE.blue, FURNITURE_STYLE.lavender], lit = G.dark > 0.1;
     for (let i = 0; i < 48; i += 2) R(c, x + i, y + 4 + Math.round(Math.sin(i / 48 * Math.PI) * 6), 2, 1, '#4e4557');
     for (let i = 0; i < 8; i++) {
       const xx = x + 3 + i * 6, yy = y + 5 + Math.round(Math.sin((xx - x) / 48 * Math.PI) * 6);
@@ -3590,14 +3738,20 @@ Object.assign(DRAW, {
   },
   shelfwall(c, x, y) {
     R(c, x + 1, y + 10, 30, 2, WOOD_D); R(c, x + 1, y + 12, 30, 1, 'rgba(0,0,0,.15)');
-    box(c, x + 3, y + 4, 6, 6, '#be816e'); R(c, x + 4, y + 1, 4, 3, '#5fae5a'); R(c, x + 5, y - 1, 2, 2, '#8ccf7a');
-    R(c, x + 12, y + 5, 2, 5, '#7e9fbd'); R(c, x + 14, y + 4, 2, 6, '#efd189'); R(c, x + 16, y + 6, 2, 4, '#ca8290');
-    box(c, x + 21, y + 4, 7, 6, '#fffaf0', '#d9a640'); R(c, x + 23, y + 6, 3, 2, '#e27fa6');
+    furnitureBox(c, x + 3, y + 4, 6, 6, '#be816e'); R(c, x + 4, y + 1, 4, 3, FURNITURE_STYLE.mintDark); R(c, x + 5, y - 1, 2, 2, FURNITURE_STYLE.mint);
+    R(c, x + 12, y + 5, 2, 5, FURNITURE_STYLE.blue); R(c, x + 14, y + 4, 2, 6, '#efd189'); R(c, x + 16, y + 6, 2, 4, FURNITURE_STYLE.rose);
+    furnitureBox(c, x + 21, y + 4, 7, 6, '#fffaf0', FURNITURE_STYLE.brass); R(c, x + 23, y + 6, 3, 2, FURNITURE_STYLE.rose);
   },
 });
 
 FURNITURE.mirror={name:"穿衣镜",w:1,h:1,use:"groom",mode:"front",need:{fun:9}};
-DRAW.mirror=(c,x,y)=>{ R(c,x+3,y-8,10,22,INK); R(c,x+5,y-6,6,17,"#add8dc"); R(c,x+6,y-4,1,8,"#f5ffff"); };
+DRAW.mirror = (c, x, y) => {
+  furnitureBox(c, x + 3, y - 8, 10, 22, WOOD_L, WOOD_D);
+  R(c, x + 5, y - 6, 6, 17, '#b6d8d8');
+  R(c, x + 6, y - 5, 1, 8, '#f5f6e5');
+  R(c, x + 9, y + 5, 1, 4, '#d5e9df');
+  R(c, x + 2, y + 13, 12, 2, WOOD_D);
+};
 TALL.mirror=9;
 
 Object.assign(ACT_NAMES,{meal:'用餐',groom:'整理仪容'});
@@ -3637,11 +3791,11 @@ Object.assign(PERSONAS.social.like, { strum: 17, chess: 12 });
 JOIN.strum = { verb: '听{n}弹尤克里里', like: 'strum', dance: .3,
   lines: ['这段真好听', '🎵'], back: ['再来一小段～', '一起唱吧'] };
 
-const FURNITURE_OUTLINE = '#715d67';
+const FURNITURE_OUTLINE = FURNITURE_STYLE.edge;
 Object.assign(DRAW, {
   toilet(c, x, y, f, t) {
-    const ceramic = '#fff2df', edge = '#927b80';
-    contactShadow(c, x + 3, y + 14, 10);
+    const ceramic = FURNITURE_STYLE.cream, edge = FURNITURE_STYLE.ceramicEdge;
+
     bevel(c, x + 3, y - 10, 10, 14, ceramic, edge);
     R(c, x + 4, y - 9, 8, 2, '#fffcf2');
     detail(c, x + 10.5, y - 7, 1.5, 8, '#e7cfc7');
@@ -3654,15 +3808,15 @@ Object.assign(DRAW, {
     if (f?.active && Math.floor(t * 4) % 2) detail(c, x + 6, y + 4, 4, .5, '#e1f3e7');
   },
   washstand(c, x, y, f, t) {
-    const edge = '#607f77', brass = '#b8875e';
-    contactShadow(c, x + 2, y + 14, 12);
+    const edge = FURNITURE_STYLE.mintDark, brass = '#b8875e';
+
     bevel(c, x + 3, y - 14, 10, 11, '#b4d5d2', '#a68b79');
     R(c, x + 5, y - 12, 6, 1, '#eaf6e9');
     detail(c, x + 5, y - 11, .5, 4, '#eaf6e9');
-    bevel(c, x + 2, y + 2, 12, 13, '#87af9d', edge);
-    bevel(c, x + 4, y + 5, 8, 8, '#a5c5ad', '#6e9386');
+    bevel(c, x + 2, y + 2, 12, 13, FURNITURE_STYLE.mint, edge);
+    bevel(c, x + 4, y + 5, 8, 8, FURNITURE_STYLE.mintLight, FURNITURE_STYLE.mintDark);
     detail(c, x + 6.5, y + 8.5, 3, 1, '#f0cc8a');
-    bevel(c, x, y - 1, 16, 6, '#fff1df', FURNITURE_OUTLINE);
+    bevel(c, x, y - 1, 16, 6, FURNITURE_STYLE.cream, FURNITURE_OUTLINE);
     R(c, x + 2, y, 12, 1, '#fffaf0');
     bevel(c, x + 4, y + 1, 8, 3, '#c4dcd2', '#a4c4b9');
     detail(c, x + 7, y - 4.5, 1.5, 4, brass);
@@ -3707,7 +3861,7 @@ Object.assign(DRAW, {
     R(c, x + 12, y + 3, 1, 3, '#fff3ce');
   },
   bunnyPicture(c, x, y) {
-    box(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
+    furnitureBox(c, x + 1, y + 1, 14, 14, '#eec6cf', '#ad7e7d');
     R(c, x + 3, y + 3, 10, 10, '#d5e2cd');
     R(c, x + 5, y + 4, 2, 5, '#fff6e4');
     R(c, x + 9, y + 4, 2, 5, '#fff6e4');
@@ -3733,7 +3887,7 @@ Object.assign(DRAW, {
     R(c, x + 3, y - 6, 4, 3, '#e697a2');
     R(c, x + 7, y - 10, 4, 4, '#f3c1ab');
     R(c, x + 10, y - 5, 4, 3, '#e8adbf');
-    box(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
+    furnitureBox(c, x + 4, y + 4, 9, 11, '#a6c9bc', '#688581');
     R(c, x + 6, y + 6, 1, 6, '#d5efdf');
   },
   pawRug(c, x, y) {
@@ -3745,7 +3899,7 @@ Object.assign(DRAW, {
     }
   },
   recordPlayer(c, x, y, f, t) {
-    box(c, x + 2, y - 10, 28, 12, '#d59a93', FURNITURE_OUTLINE);
+    furnitureBox(c, x + 2, y - 10, 28, 12, FURNITURE_STYLE.rose, FURNITURE_OUTLINE);
     R(c, x + 4, y - 8, 24, 7, '#f0c7b7');
     R(c, x + 8, y - 7, 13, 5, '#77667a');
     R(c, x + 11, y - 8, 7, 7, '#77667a');
@@ -3753,14 +3907,14 @@ Object.assign(DRAW, {
     if (f?.active) R(c, x + 11 + Math.floor(t * 8) % 8, y - 5, 1, 1, '#c3a6be');
     R(c, x + 23, y - 7, 1, 4, '#96757d');
     R(c, x + 20, y - 4, 4, 1, '#96757d');
-    box(c, x + 2, y + 1, 28, 8, '#efb3a7', FURNITURE_OUTLINE);
-    R(c, x + 5, y + 9, 2, 6, '#826667');
-    R(c, x + 25, y + 9, 2, 6, '#826667');
+    furnitureBox(c, x + 2, y + 1, 28, 8, FURNITURE_STYLE.roseLight, FURNITURE_OUTLINE);
+    R(c, x + 5, y + 9, 2, 6, WOOD_D);
+    R(c, x + 25, y + 9, 2, 6, WOOD_D);
   },
   chessTable(c, x, y, f, t) {
-    R(c, x + 4, y + 5, 2, 10, '#846b65');
-    R(c, x + 26, y + 5, 2, 10, '#846b65');
-    box(c, x + 1, y - 5, 30, 12, '#f0d9b8', '#9a7e70');
+    R(c, x + 4, y + 5, 2, 10, WOOD_D);
+    R(c, x + 26, y + 5, 2, 10, WOOD_D);
+    furnitureBox(c, x + 1, y - 5, 30, 12, '#f0d9b8', WOOD_D);
     for (let row = 0; row < 3; row++) for (let col = 0; col < 6; col++) {
       if ((row + col) % 2) R(c, x + 7 + col * 3, y - 3 + row * 2, 3, 2, '#a18ca8');
     }
@@ -3769,9 +3923,9 @@ Object.assign(DRAW, {
     R(c, x + 19, y - 2, 2, 3, '#fff7e3');
   },
   knitting(c, x, y, f, t) {
-    box(c, x + 1, y + 5, 14, 10, '#d3a475', '#967364');
-    R(c, x + 2, y + 8, 12, 2, '#e7bd8b');
-    R(c, x + 2, y + 12, 12, 1, '#ad806d');
+    furnitureBox(c, x + 1, y + 5, 14, 10, WOOD, WOOD_D);
+    R(c, x + 2, y + 8, 12, 2, WOOD_L);
+    R(c, x + 2, y + 12, 12, 1, WOOD_D);
     R(c, x + 3, y + 3, 5, 4, '#da879f');
     R(c, x + 8, y + 2, 5, 5, '#b0cdbb');
     const dy = f?.active ? Math.floor(t * 5) % 2 : 0;
@@ -3781,7 +3935,7 @@ Object.assign(DRAW, {
   ukulele(c, x, y, f, t) {
     R(c, x + 3, y + 6, 1, 8, '#7c686a');
     R(c, x + 11, y + 6, 1, 8, '#7c686a');
-    box(c, x + 4, y - 6, 8, 15, '#e6b175', '#946c5d');
+    furnitureBox(c, x + 4, y - 6, 8, 15, '#e6b175', '#946c5d');
     R(c, x + 5, y + 3, 6, 4, '#f1ca8b');
     R(c, x + 7, y - 14, 2, 17, '#9c735e');
     R(c, x + 6, y - 16, 4, 4, '#bb9072');
@@ -3819,27 +3973,27 @@ Object.assign(TALL, { plushRabbit: 8 });
 Object.assign(PERSONAS.lazy.like, { sipTea: 26 });
 Object.assign(PERSONAS.foodie.like, { sipTea: 21, careHerbs: 17 });
 
-const PASTEL_EDGE = '#78616b';
+const PASTEL_EDGE = FURNITURE_STYLE.edge;
 
 function hobbyTable(c, x, y, color) {
-  R(c, x + 3, y + 5, 2, 10, '#89726b');
-  R(c, x + 27, y + 5, 2, 10, '#89726b');
-  box(c, x + 1, y - 1, 30, 8, color, PASTEL_EDGE);
+  R(c, x + 3, y + 5, 2, 10, WOOD_D);
+  R(c, x + 27, y + 5, 2, 10, WOOD_D);
+  furnitureBox(c, x + 1, y - 1, 30, 8, color, PASTEL_EDGE);
   R(c, x + 3, y + 1, 26, 2, '#fff3db');
 }
 
 Object.assign(DRAW, {
   vanity(c, x, y) {
-    box(c, x + 9, y - 15, 15, 15, '#c3dbdd', '#b4838a');
+    furnitureBox(c, x + 9, y - 15, 15, 15, '#c3dbdd', FURNITURE_STYLE.roseDark);
     R(c, x + 11, y - 13, 2, 9, '#f4fbef');
-    hobbyTable(c, x, y, '#dda7af');
+    hobbyTable(c, x, y, FURNITURE_STYLE.rose);
     R(c, x + 4, y - 5, 3, 5, '#d383a6');
     R(c, x + 25, y - 4, 4, 4, '#a598c8');
-    R(c, x + 9, y + 6, 14, 4, '#c68a9d');
+    R(c, x + 9, y + 6, 14, 4, FURNITURE_STYLE.roseDark);
   },
   laundry(c, x, y, f, t) {
-    box(c, x + 1, y + 4, 14, 11, '#d6ae87', '#a58372');
-    for (let i = 3; i < 15; i += 3) R(c, x + i, y + 7, 1, 6, '#edc99c');
+    furnitureBox(c, x + 1, y + 4, 14, 11, WOOD, WOOD_D);
+    for (let i = 3; i < 15; i += 3) R(c, x + i, y + 7, 1, 6, WOOD_L);
     R(c, x + 3, y + 1, 10, 4, '#e9b5c7');
     R(c, x + 5, y - 2, 7, 3, f?.active && Math.floor(t * 4) % 2 ? '#a9d6c2' : '#fff1db');
   },
@@ -3847,58 +4001,58 @@ Object.assign(DRAW, {
     R(c, x + 1, y + 7, 30, 7, '#689889');
     R(c, x + 2, y + 6, 28, 6, '#a4d2be');
     R(c, x + 4, y + 7, 22, 1, '#d3ead3');
-    box(c, x + 25, y + 3, 6, 8, '#bee2c6', '#689889');
+    furnitureBox(c, x + 25, y + 3, 6, 8, '#bee2c6', '#689889');
   },
   punchingBag(c, x, y, f, t) {
     const dx = f?.active ? Math.round(Math.sin(t * 8) * 2) : 0;
     R(c, x + 11, y - 18, 2, 31, '#8c7180');
     R(c, x + 5, y - 18, 8, 2, '#8c7180');
     R(c, x + 5, y + 11, 11, 4, '#a78a91');
-    box(c, x + 2 + dx, y - 14, 9, 19, '#dea0a2', '#aa707f');
+    furnitureBox(c, x + 2 + dx, y - 14, 9, 19, '#dea0a2', '#aa707f');
     R(c, x + 4 + dx, y - 12, 2, 13, '#f4c2bb');
   },
   craftBench(c, x, y, f, t) {
     R(c, x + 4, y - 10, 24, 10, '#d2b69f');
     R(c, x + 8, y - 8, 1, 6, '#9f7c76');
     R(c, x + 17, y - 7, 4, 4, '#bd8eb0');
-    hobbyTable(c, x, y, '#e3b98b');
+    hobbyTable(c, x, y, WOOD_L);
     R(c, x + 5, y - 4, 8, 4, '#e4aac1');
     R(c, x + 18, y - 3, 8, 4, f?.active && Math.floor(t * 4) % 2 ? '#d6b7d4' : '#a7cbb5');
   },
   toolbox(c, x, y) {
-    box(c, x + 1, y + 4, 14, 10, '#dfb873', '#a18469');
-    box(c, x + 5, y + 1, 6, 5, '#fff0cf', '#9e856d');
+    furnitureBox(c, x + 1, y + 4, 14, 10, '#dfb873', '#a18469');
+    furnitureBox(c, x + 5, y + 1, 6, 5, '#fff0cf', '#9e856d');
     R(c, x + 2, y + 7, 12, 2, '#f6d79e');
     R(c, x + 7, y + 8, 2, 2, '#94748a');
   },
   scrapbook(c, x, y) {
-    hobbyTable(c, x, y, '#bea2ca');
-    box(c, x + 6, y - 6, 15, 7, '#fff3dd', '#a982a3');
+    hobbyTable(c, x, y, FURNITURE_STYLE.lavender);
+    furnitureBox(c, x + 6, y - 6, 15, 7, '#fff3dd', '#a982a3');
     R(c, x + 13, y - 5, 1, 5, '#d5adc9');
     R(c, x + 8, y - 4, 4, 3, '#92bcc0');
     R(c, x + 16, y - 4, 3, 1, '#cf9eb8');
     R(c, x + 24, y - 5, 4, 5, '#d69fb9');
   },
   herbStand(c, x, y, f, t) {
-    R(c, x + 2, y - 9, 2, 24, '#a28b71');
-    R(c, x + 12, y - 9, 2, 24, '#a28b71');
+    R(c, x + 2, y - 9, 2, 24, WOOD_D);
+    R(c, x + 12, y - 9, 2, 24, WOOD_D);
     for (const [i, dy] of [-9, 5].entries()) {
-      R(c, x + 2, y + dy + 4, 12, 2, '#ba9e7b');
-      box(c, x + 5, y + dy, 6, 5, '#d4a098', '#97796e');
+      R(c, x + 2, y + dy + 4, 12, 2, WOOD);
+      furnitureBox(c, x + 5, y + dy, 6, 5, '#d4a098', '#97796e');
       R(c, x + 7, y + dy - 8, 2, 8, '#638d6e');
       R(c, x + 4 + i, y + dy - 5, 7, 2, '#96bf91');
     }
     if (f?.active) R(c, x + 11, y - 10 + Math.floor(t * 9) % 4, 1, 2, '#c4e1e1');
   },
   teaTray(c, x, y, f, t) {
-    hobbyTable(c, x, y, '#d7b48a');
-    box(c, x + 9, y - 5, 8, 6, '#f2ddaa', '#b29886');
+    hobbyTable(c, x, y, WOOD_L);
+    furnitureBox(c, x + 9, y - 5, 8, 6, '#f2ddaa', '#b29886');
     R(c, x + 17, y - 3, 2, 2, '#b29886');
     R(c, x + 21, y - 3, 4, 4, '#f4eadb');
     if (f?.active) R(c, x + 12, y - 7 - Math.floor(t * 3) % 3, 1, 2, '#fff9e4');
   },
   corkboard(c, x, y) {
-    box(c, x + 2, y + 1, 28, 13, '#d5b38d', '#a48372');
+    furnitureBox(c, x + 2, y + 1, 28, 13, '#d5b38d', '#a48372');
     for (const [dx, dy, color] of [[5, 5, '#f7e3b0'], [13, 3, '#e6b2c7'], [22, 6, '#bfdac7']]) {
       R(c, x + dx, y + dy, 5, 5, color);
       R(c, x + dx + 2, y + dy, 1, 1, '#98758a');
@@ -3908,15 +4062,15 @@ Object.assign(DRAW, {
     R(c, x + 4, y - 8, 3, 10, '#f6e4d5');
     R(c, x + 9, y - 7, 3, 10, '#f6e4d5');
     R(c, x + 5, y - 6, 1, 5, '#e5b1c0');
-    box(c, x + 2, y, 12, 9, '#f5e2d4', '#bd9a91');
-    box(c, x + 4, y + 8, 8, 6, '#e9ccbc', '#bd9a91');
+    furnitureBox(c, x + 2, y, 12, 9, '#f5e2d4', '#bd9a91');
+    furnitureBox(c, x + 4, y + 8, 8, 6, '#e9ccbc', '#bd9a91');
     R(c, x + 5, y + 3, 1, 2, '#77596b');
     R(c, x + 10, y + 3, 1, 2, '#77596b');
     R(c, x + 7, y + 6, 2, 1, '#d68fa9');
   },
   paperLantern(c, x, y) {
     R(c, x + 7, y, 2, 4, '#9c808b');
-    box(c, x + 3, y + 4, 10, 10, '#ebafc4', '#b5829b');
+    furnitureBox(c, x + 3, y + 4, 10, 10, '#ebafc4', '#b5829b');
     R(c, x + 5, y + 6, 6, 6, '#f3d0d4');
     R(c, x + 7, y + 6, 2, 6, '#ffebc4');
     R(c, x + 7, y + 14, 2, 2, '#b5829b');
@@ -4100,6 +4254,21 @@ function fitHouseFurniture() {
   }
 }
 
+// Retrofit unoccupied upstairs walls once. These are ordinary movable windows;
+// a later save remembers the upgrade even if the player removes a window.
+function addMissingUpperWindows() {
+  const rooms = G.bathroom ? [[0, BATH_X], [BATH_X, BX], [BX, COLS]] : [[0, BX], [BX, COLS]];
+  for (const [left, right] of rooms) {
+    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && f.x >= left && f.x < right)) continue;
+    const center = (left + right - FURNITURE.window.w) / 2;
+    const positions = [];
+    for (let x = left; x + FURNITURE.window.w <= right; x++) positions.push(x);
+    positions.sort((a, b) => Math.abs(a - center) - Math.abs(b - center));
+    const x = positions.find(x => canPlace('window', x, UPPER_WALL));
+    if (x !== undefined) addFurniture('window', x, UPPER_WALL);
+  }
+}
+
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }
 
 // The dividing wall is shown as a full-height cut edge. Its door and
@@ -4247,23 +4416,23 @@ Object.assign(PERSONAS.genki.like, { party: 25 });
 Object.assign(DRAW, {
   xmastree(c, x, y, f, t) {
     R(c, x + 6, y + 8, 4, 5, '#8a5530');
-    const g = '#3f8f4a', gl = '#5fae5a';
-    const tier = (w, yy) => { R(c, x + 8 - w / 2 - 1, yy - 1, w + 2, 7, INK); R(c, x + 8 - w / 2, yy, w, 5, g); R(c, x + 8 - w / 2, yy, w, 1, gl); };
+    const g = FURNITURE_STYLE.mintDark, gl = FURNITURE_STYLE.mintDark;
+    const tier = (w, yy) => { R(c, x + 8 - w / 2 - 1, yy - 1, w + 2, 7, FURNITURE_STYLE.edge); R(c, x + 8 - w / 2, yy, w, 5, g); R(c, x + 8 - w / 2, yy, w, 1, gl); };
     tier(14, y + 4); tier(10, y - 3); tier(6, y - 10);
     R(c, x + 7, y - 15, 2, 4, '#f2c33a'); R(c, x + 6, y - 14, 4, 2, '#f2c33a');                 // 星星
-    const cols = ['#e26d7d', '#f2d16b', '#6aa9ec', '#ffffff'];
+    const cols = [FURNITURE_STYLE.rose, WOOD_L, FURNITURE_STYLE.blue, '#ffffff'];
     [[4, 6], [11, 7], [6, -1], [10, 0], [8, -7], [5, 2]].forEach(([dx, dy], i) =>
       R(c, x + dx, y + dy, 1, 1, cols[(i + Math.floor(t * 2)) % 4]));                           // 一闪一闪的彩灯
-    box(c, x + 1, y + 10, 5, 5, '#e26d7d'); R(c, x + 3, y + 10, 1, 5, '#f2d16b');               // 礼物盒
-    box(c, x + 10, y + 11, 5, 4, '#6aa9ec'); R(c, x + 12, y + 11, 1, 4, '#ffffff');
+    furnitureBox(c, x + 1, y + 10, 5, 5, FURNITURE_STYLE.rose); R(c, x + 3, y + 10, 1, 5, WOOD_L);               // 礼物盒
+    furnitureBox(c, x + 10, y + 11, 5, 4, FURNITURE_STYLE.blue); R(c, x + 12, y + 11, 1, 4, '#ffffff');
   },
   lantern(c, x, y, f, t) {
     const sway = Math.round(Math.sin(t * 1.5 + x) * 1);
-    R(c, x + 8, y, 1, 3, INK);
-    R(c, x + 4 + sway, y + 3, 9, 2, '#d9a640');
-    R(c, x + 3 + sway, y + 5, 11, 7, INK); R(c, x + 4 + sway, y + 5, 9, 7, '#e05a4a');
+    R(c, x + 8, y, 1, 3, FURNITURE_STYLE.edge);
+    R(c, x + 4 + sway, y + 3, 9, 2, FURNITURE_STYLE.brass);
+    R(c, x + 3 + sway, y + 5, 11, 7, FURNITURE_STYLE.edge); R(c, x + 4 + sway, y + 5, 9, 7, '#e05a4a');
     R(c, x + 5 + sway, y + 6, 2, 5, '#f07a6a'); R(c, x + 8 + sway, y + 5, 1, 7, '#c0443a');
-    R(c, x + 4 + sway, y + 12, 9, 2, '#d9a640');
+    R(c, x + 4 + sway, y + 12, 9, 2, FURNITURE_STYLE.brass);
     R(c, x + 8 + sway, y + 14, 1, 2, '#f2c33a');
   },
 });
@@ -5223,7 +5392,7 @@ function arrivePicnic(d, event) {
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
 const HOUSE_HEIGHT = 310;
-const HOUSE_MARGIN = 60;
+const HOUSE_MARGIN = 76;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
 const STOREYS = [
@@ -5244,10 +5413,10 @@ function stairPoint(progress) {
   const edge = HOUSE_X + W;
   const top = houseY(UPPER_LANDING * T + 14, STOREYS[1]);
   const bottom = houseY(LOWER_LANDING * T + 14, STOREYS[0]);
-  if (progress < .2) return { x: mixNum(x, edge + 8, progress / .2), y: top };
-  if (progress > .8) return { x: mixNum(edge + 28, x, (progress - .8) / .2), y: bottom };
+  if (progress < .2) return { x: mixNum(x, edge + 10, progress / .2), y: top };
+  if (progress > .8) return { x: mixNum(edge + 42, x, (progress - .8) / .2), y: bottom };
   const t = (progress - .2) / .6;
-  return { x: mixNum(edge + 8, edge + 28, t), y: mixNum(top, bottom, t) };
+  return { x: mixNum(edge + 10, edge + 42, t), y: mixNum(top, bottom, t) };
 }
 
 function houseDollPoint(d) {
@@ -5388,87 +5557,23 @@ function drawHouseGarden(c, left, right) {
 }
 
 function drawHouseRoof(c, left, right) {
-  const peak = left + Math.round(W * .58), eave = 70;
-  const pitch = (color, outer, inner) => housePoly(c, color, ...outer, ...[...inner].reverse());
-  const ridge = [[left - 7, eave], [peak, 7], [right + 9, 32]];
-  const rim = [[left - 3, eave + 1], [peak, 13], [right + 8, 38]];
-  const face = [[left + 8, eave + 1], [peak, 20], [right + 1, 44]];
-  const underside = [[left + 17, eave + 1], [peak, 25], [right - 5, 47]];
-  housePoly(c, '#f8ddba', ...ridge, [right + 9, eave]);
-  pitch('#684450', ridge, rim);
-  pitch('#ab6b6d', rim, face);
-  pitch('#dca68d', face, underside);
-  const glint = [[left + 2, eave], [peak, 15], [right + 7, 40]];
-  pitch('#d19488', rim, glint);
-  R(c, right + 1, 37, 8, 32, '#80525a');
-  R(c, right + 1, 43, 2, 26, '#bc8274');
-  c.save();
-  housePath(c, [...underside, [right - 5, eave], [left + 17, eave]]);
-  c.clip();
-  const plaster = c.createLinearGradient(0, 20, 0, eave);
-  plaster.addColorStop(0, '#f1c395');
-  plaster.addColorStop(.65, '#ffe4be');
-  plaster.addColorStop(1, '#edc198');
-  c.fillStyle = plaster;
-  c.fillRect(left, 20, W, eave - 20);
-  housePoly(c, '#ce9b7666', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
-  for (let x = left + 72; x < right; x += 24) detail(c, x, 23, .5, 45, '#bc886818');
-  c.restore();
-  R(c, left + 65, 49, 3, 21, '#a38877');
-  R(c, left + 69, 62, W - 76, 8, '#d7b18c');
-  for (let y = 63; y < eave; y += 2) R(c, left + 69, y, W - 76, 1, '#c5a07f');
-  for (const [x, y, w, h] of [[peak - 48, 52, 24, 14], [peak - 22, 45, 15, 21], [peak - 3, 41, 22, 25], [right - 42, 54, 18, 12], [right - 23, 48, 15, 18]]) {
-    bevel(c, x, y, w, h, '#bb8962', '#9a674f');
-    R(c, x + 1, y + 1, w - 2, 2, '#e4b48a');
-    R(c, x + w - 5, y + 3, 4, h - 4, '#a47455');
-    detail(c, x + 2, y + h - 3, w - 8, .5, '#d29b73');
-    R(c, x + 3, y + 3, w - 10, 1, '#d9b489');
-    R(c, x + w - 9, y + 5, 3, 2, '#a27b62');
-    detail(c, x + w - 9, y + 5, 2.5, .5, '#ebc292');
-  }
-  box(c, peak + 26, 31, 13, 15, '#f5e9d5', '#9b8074');
-  R(c, peak + 28, 33, 9, 10, G.sky);
-  R(c, peak + 32, 33, 1, 10, '#f5e9d5');
-  R(c, peak + 28, 37, 9, 1, '#f5e9d5');
-  R(c, peak + 24, 46, 17, 2, '#b38e76');
-}
+  const center = (left + right) / 2, eave = 70;
+  // The two pitches share one center and one eave height at every house size.
+  housePoly(c, '#76505a', [left - 8, eave], [center, 7], [right + 8, eave]);
+  housePoly(c, '#c18a82', [left - 3, eave], [center, 12], [right + 3, eave]);
+  housePoly(c, '#f4d6b3', [left + 12, eave], [center, 20], [right - 12, eave]);
+  housePoly(c, '#ffe5c3', [left + 20, eave], [center, 24], [right - 20, eave]);
 
-function drawRoomDetails(c, x, right, top, back, storey, i) {
-  if (i === 0) {
-    const upper = storey === STOREYS[1];
-    const start = x + 10, stop = right - 10, y = top + 11;
-    const fabric = upper ? '#4a4963' : '#fff1e5';
-    for (let j = 0; j < 3; j++) {
-      const a = start + (stop - start) * j / 3, b = start + (stop - start) * (j + 1) / 3;
-      housePoly(c, fabric, [a, y], [a + 6, y + 4], [b - 6, y + 4], [b, y],
-        [b - 5, y + 7], [a + 5, y + 7]);
-      R(c, a - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
-    }
-    R(c, stop - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
-    if (!upper) {
-      const lampX = x + Math.floor((right - x) * .5);
-      R(c, lampX, top + 2, 1, 11, '#976b61');
-      R(c, lampX - 8, top + 12, 17, 2, '#976b61');
-      for (const [j, dx] of [-8, 0, 8].entries()) {
-        const drop = j === 1 ? 6 : 3;
-        R(c, lampX + dx, top + 13, 1, drop, '#a77962');
-        bevel(c, lampX + dx - 2, top + 13 + drop, 5, 5, '#ffe4ae', '#c89174');
-        R(c, lampX + dx - 1, top + 14 + drop, 2, 2, '#fff4cf');
-      }
-      R(c, x + 14, back - 31, 42, 4, '#cc8d97');
-      housePoly(c, '#fff2e5', [x + 14, back - 28], [x + 19, back - 28],
-        [x + 18, back - 11], [x + 13, back - 9]);
-      housePoly(c, '#fff2e5', [x + 51, back - 28], [x + 56, back - 28],
-        [x + 57, back - 9], [x + 52, back - 11]);
-    }
-  } else {
-    const ink = storey === STOREYS[1] ? '#f2e0df' : '#fff2db';
-    for (let px = x + 12; px + 19 < right; px += 32) {
-      R(c, px, top + 15, 18, 1, ink);
-      R(c, px, top + 15, 1, 26, ink);
-      R(c, px + 17, top + 15, 1, 26, ink);
-    }
-  }
+  // A single centered attic window keeps the gable light and uncluttered.
+  const x = center - 10, y = 35;
+  bevel(c, x - 2, y - 2, 24, 25, '#b58c75', '#a37b69');
+  bevel(c, x, y, 20, 21, '#fff0d6', '#dfb998');
+  R(c, x + 3, y + 3, 14, 15, G.sky);
+  if (G.night) R(c, x + 12, y + 5, 2, 2, '#fff3c6');
+  else R(c, x + 4, y + 7, 5, 2, '#fff7e7');
+  R(c, center - 1, y + 2, 2, 17, '#fff0d6');
+  R(c, x + 2, y + 10, 16, 2, '#fff0d6');
+  R(c, x - 3, y + 22, 26, 2, '#c69b7c');
 }
 
 function drawRoomFloor(c, x, end, back, front, base, pattern) {
@@ -5567,7 +5672,6 @@ function drawStorey(c, storey, wall, floor) {
     c.fillStyle = ceilingShade;
     c.fillRect(x, top, end - x, 14);
     R(c, x + inset, back - 14, end - x - inset * 2, 1, '#fff0d38e');
-    if (!bath && wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
   }
   for (const x of bathEdge > left ? [bathEdge, mid] : [mid]) {
     R(c, x - 2, top, 5, front - top, '#8a615c');
@@ -5578,22 +5682,32 @@ function drawStorey(c, storey, wall, floor) {
 
 function drawHouseStairs(c) {
   const edge = HOUSE_X + W;
-  const top = stairPoint(0).y, bottom = stairPoint(1).y;
-  R(c, edge + 4, top - 10, 29, bottom - top + 15, '#ad846b');
-  R(c, edge + 33, top - 10, 3, 252 - top + 10, '#80605c');
-  R(c, edge + 33, top - 10, 1, 252 - top + 10, '#d0a386');
-  R(c, edge - 5, top - 1, 17, 4, '#c4a384');
-  R(c, edge - 5, bottom - 1, 38, 4, '#c4a384');
-  housePoly(c, '#a08272', [edge + 2, top], [edge + 14, top],
-    [edge + 33, bottom], [edge + 22, bottom]);
-  for (let i = 0; i <= 16; i++) {
-    const p = stairPoint(.2 + .6 * i / 16);
-    R(c, p.x - 5, p.y - 1, 11, 2, '#f2d1a9');
-    R(c, p.x - 5, p.y + 1, 11, 2, '#957768');
-    if (i % 4 === 0) R(c, p.x + 4, p.y - 9, 1, 9, '#826b63');
+  const start = stairPoint(.2), end = stairPoint(.8);
+  const steps = 12, halfWidth = 9;
+  const rise = (end.y - start.y) / steps;
+  // One continuous stair body replaces the old backboard and floating stripes.
+  housePoly(c, '#a57e67', [start.x - halfWidth, start.y], [start.x + halfWidth, start.y],
+    [end.x + halfWidth, end.y + 4], [end.x - halfWidth, end.y + 4]);
+  for (let i = 0; i < steps; i++) {
+    const p = stairPoint(.2 + .6 * i / steps);
+    const x = Math.round(p.x) - halfWidth, y = Math.round(p.y);
+    R(c, x, y, halfWidth * 2, Math.ceil(rise) + 1, '#b38c70');
+    R(c, x, y, halfWidth * 2, 2, '#eed1aa');
+    R(c, x, y + 2, halfWidth * 2, 1, '#d4ac85');
   }
-  housePoly(c, '#76625e', [edge + 12, top - 10], [edge + 32, bottom - 10],
-    [edge + 32, bottom - 8], [edge + 12, top - 8]);
+  // Landings, posts and rail meet the same stair coordinates used by residents.
+  for (const p of [start, end]) {
+    R(c, edge - 3, Math.round(p.y), p.x + halfWidth - edge + 3, 4, '#b38c70');
+    R(c, edge - 3, Math.round(p.y), p.x + halfWidth - edge + 3, 2, '#eed1aa');
+  }
+  const rail = [start, end].map(p => ({ x: Math.round(p.x) + halfWidth, y: Math.round(p.y) }));
+  for (let i = 0; i <= 3; i++) {
+    const p = stairPoint(.2 + .6 * i / 3);
+    R(c, Math.round(p.x) + halfWidth - 1, Math.round(p.y) - 10, 2, 14, '#98745f');
+  }
+  housePoly(c, '#98745f', [rail[0].x - 1, rail[0].y - 12], [rail[1].x + 1, rail[1].y - 12],
+    [rail[1].x + 1, rail[1].y - 9], [rail[0].x - 1, rail[0].y - 9]);
+  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
 }
 
 function drawHouseShell(c, wall, floor) {
@@ -5602,14 +5716,9 @@ function drawHouseShell(c, wall, floor) {
   drawHouseRoof(c, l, r);
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
   for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
-    R(c, l - 4, y, W + 8, h, '#76504c');
-    R(c, l - 3, y + 1, W + 6, 2, '#dfb18d');
-    detail(c, l - 3, y + 1, W + 6, .5, '#f3c9a2');
-    R(c, l - 3, y + 3, W + 6, 1, '#b47e65');
-    if (h > 5) {
-      for (let x = l + 4; x < r - 12; x += 27) detail(c, x, y + 4.5, 10, .5, '#a36e59');
-      detail(c, l - 2, y + h - 1, W + 4, .5, '#d09170');
-    }
+    R(c, l - 4, y, W + 8, h, '#916953');
+    R(c, l - 3, y + 1, W + 6, h - 2, '#c69d79');
+    R(c, l - 3, y + 1, W + 6, 1, '#ebc9a2');
   }
   for (const x of [l - 4, r]) {
     for (const { wall: y, front } of STOREYS) {
@@ -5644,11 +5753,11 @@ Object.assign(ACT_LINES, {
 const swingOffset = t => Math.round(Math.sin(t * 5) * 3);
 Object.assign(DRAW, {
   gardenSwing(c, x, y, f, t) {
-    contactShadow(c, x + 1, y + 14, 46);
-    housePoly(c, '#82604e', [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
-    housePoly(c, '#82604e', [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
-    bevel(c, x + 6, y - 16, 36, 4, '#bc8968', '#765647');
-    detail(c, x + 8, y - 15, 32, .5, '#e1b48b');
+
+    housePoly(c, WOOD_D, [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
+    housePoly(c, WOOD_D, [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
+    bevel(c, x + 6, y - 16, 36, 4, WOOD, WOOD_D);
+    detail(c, x + 8, y - 15, 32, .5, WOOD_L);
     for (const seat of [0, 1]) {
       const left = x + 10 + seat * 16;
       const active = f.users?.some(d => d.state === 'act' && d.act?.seat === seat);
@@ -5663,17 +5772,17 @@ Object.assign(DRAW, {
     }
   },
   gardenBench(c, x, y) {
-    contactShadow(c, x + 2, y + 14, 28);
-    R(c, x + 5, y + 9, 3, 6, '#63715a'); R(c, x + 24, y + 9, 3, 6, '#63715a');
-    box(c, x + 2, y - 2, 28, 9, '#9bb48c', '#506e58');
+
+    R(c, x + 5, y + 9, 3, 6, FURNITURE_STYLE.mintDark); R(c, x + 24, y + 9, 3, 6, FURNITURE_STYLE.mintDark);
+    furnitureBox(c, x + 2, y - 2, 28, 9, FURNITURE_STYLE.mint, FURNITURE_STYLE.mintDark);
     R(c, x + 3, y + 1, 26, 1, '#c4d2a6'); R(c, x + 3, y + 4, 26, 1, '#6d8b6e');
-    bevel(c, x + 1, y + 6, 30, 4, '#b8c8a0', '#506e58');
+    bevel(c, x + 1, y + 6, 30, 4, FURNITURE_STYLE.mintLight, FURNITURE_STYLE.mintDark);
     detail(c, x + 3, y + 7, 26, .5, '#d6d9b4');
   },
   flowerBox(c, x, y, f, t) {
-    contactShadow(c, x + 1, y + 13, 30);
-    bevel(c, x + 1, y + 5, 30, 9, '#b68063', '#795a4f');
-    R(c, x + 2, y + 6, 28, 2, '#edb38b');
+
+    bevel(c, x + 1, y + 5, 30, 9, WOOD, WOOD_D);
+    R(c, x + 2, y + 6, 28, 2, WOOD_L);
     for (const [i, px] of [5, 11, 17, 23, 27].entries()) {
       const top = y + i % 2 * 3 - 4;
       R(c, x + px, top + 3, 1, 8, '#4a8158');
@@ -5686,18 +5795,18 @@ Object.assign(DRAW, {
     }
   },
   picnicTable(c, x, y, f) {
-    contactShadow(c, x + 4, y + 13, 40);
-    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, '#846552');
-    box(c, x + 2, y + 7, 44, 4, '#c28e63', '#846552');
-    box(c, x + 5, y, 38, 7, '#f1c8a0', '#846552');
+
+    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, WOOD_D);
+    furnitureBox(c, x + 2, y + 7, 44, 4, WOOD, WOOD_D);
+    furnitureBox(c, x + 5, y, 38, 7, WOOD_L, WOOD_D);
     R(c, x + 12, y + 1, 24, 7, '#eeb6b1');
     for (let px = 12; px < 36; px += 4) R(c, x + px, y + 1, 2, 7, '#fff1dd');
     R(c, x + 12, y + 3, 24, 2, '#d991945a');
     if (f.active) { R(c, x + 17, y, 5, 3, '#f8f4dc'); R(c, x + 28, y - 2, 3, 4, '#b77984'); }
   },
   puzzleDesk(c, x, y, f, t) {
-    for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, '#9f765b');
-    box(c, x + 1, y - 2, 30, 10, '#ecc99f', '#9f765b');
+    for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, WOOD_D);
+    furnitureBox(c, x + 1, y - 2, 30, 10, FURNITURE_STYLE.cream, WOOD_D);
     R(c, x + 7, y, 18, 6, '#f9edda');
     const pieces = ['#7da7c8', '#8dac83', '#dc9a9d', '#e6b972'];
     const shown = f.active ? 2 + Math.floor(t * 2) % 3 : 2;
@@ -5950,7 +6059,7 @@ FURNITURE.handmadePlanter = { name: '手作花架', w: 1, h: 1, fixed: true };
 TALL.handmadePlanter = 10;
 DRAW.handmadePlanter = (c, x, y, f) => {
   const finish = KEEPSAKE_FINISHES[keepsakePiece(f?.piece)?.finish] || KEEPSAKE_FINISHES.honey;
-  contactShadow(c, x + 1, y + 13, 14);
+
   for (const px of [x + 2, x + 12]) R(c, px, y - 1, 2, 15, '#785247');
   for (const [i, row] of [-3, 6].entries()) {
     bevel(c, x + 1, y + row + 4, 14, 4, finish[1], '#795b5c');
@@ -6005,7 +6114,7 @@ function drawDollObj(c, d) {
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
     blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
-    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
+    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
   if (d.state !== 'act') return;
   if (d.act?.type === 'rainTea') {
@@ -6194,11 +6303,11 @@ function drawHouseFurniture(c, f, t) {
     c.save();
     c.translate(x, bottom - FURNITURE[f.id].h * FLOOR_STEP);
     c.scale(1, FLOOR_STEP / T);
-    DRAW[f.id](c, 0, 0, f, t);
+    drawFurnitureArt(c, f.id, 0, 0, f, t);
     c.restore();
     return;
   }
-  DRAW[f.id](c, x, y, f, t);
+  drawFurnitureArt(c, f.id, x, y, f, t);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 
