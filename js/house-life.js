@@ -159,7 +159,7 @@ function paperIssue(saved) {
   return { month, stories: selectPaperStories(candidates).map(story => ({ ...story, people: paperCast(story.text) })) };
 }
 
-function finishHouseMonth() {
+function finishHouseMonth(deferPaper = false) {
   const monthLog = G.log.filter(entry => entry.d === G.day);
   const candidates = monthLog.slice().reverse().map(e => paperLogStory(e.text)).filter(Boolean);
   const residents = G.dolls.filter(d => !d.guest && d.state !== 'away');
@@ -184,7 +184,7 @@ function finishHouseMonth() {
   // 月报不要打断正在进行的操作（拖小人、衣橱、别的弹窗）：先挂起，
   // 等玩家空闲时由主循环打开；顶栏按钮会提示有新一期，也可以手动点开
   if (document.getElementById('paperAuto')?.checked) {
-    if (typeof playerBusy === 'function' && playerBusy()) { G.paperPending = true; updateHousePaperButton(); }
+    if (deferPaper || (typeof playerBusy === 'function' && playerBusy())) { G.paperPending = true; updateHousePaperButton(); }
     else showHousePaper();
   }
 }
