@@ -6,26 +6,77 @@ function restoreKeepsakes(saved) {
     pieces: saved?.pieces || [],
     traditions: saved?.traditions || {},
     project: saved?.project || null,
+    readingGreetings: saved?.readingGreetings || null,
   };
 }
 
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
+const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
+  cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
 
 function cornerKind(f) {
   if (G.keepsakes.corners[f.key]?.kind) return G.keepsakes.corners[f.key].kind;
   if (f.id === 'teaTray') return 'tea';
   if (f.id === 'piano') return 'music';
   if (f.id === 'shelf') return 'read';
-  if (f.id === 'chair' && G.furniture.some(w => w.id === 'window' && cornerRoom(w) === cornerRoom(f) &&
-      Math.abs(w.x + 1 - f.x) <= 3)) return 'read';
+  if (isWindowChair(f)) return 'read';
   return null;
 }
 
 const CORNER_NAMES = { tea: '茶角', music: '练琴角', read: '阅读角' };
 const cornerOwner = f => G.keepsakes.corners[f.key]?.owner;
 const cornerRegular = (f, d) => G.keepsakes.corners[f.key]?.regulars?.includes(d.pid);
+
+function greetPassingReader(walker, from) {
+  const activity = walker.act;
+  const leisureWalk = activity?.type === 'wander' || (activity?.furn &&
+    !['sleep', 'toilet'].includes(activity.type) && !CARE_ACTIONS.includes(activity.type));
+  const needs = walker.needs;
+  if (walker.guest || !leisureWalk || needs.bladder < 20 || needs.hunger < 25 || needs.energy < 20) return;
+  const greetings = G.keepsakes.readingGreetings;
+  const greeted = greetings?.month === G.day && Array.isArray(greetings.people) ? greetings.people : [];
+  if (greeted.includes(walker.pid)) return;
+  const to = { x: walker.tx, y: walker.ty };
+  if (cornerDistance(from, to) !== 1) return;
+  const reader = G.dolls.find(d => {
+    const chair = d.act?.furn;
+    return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
+      chair?.id === 'chair' && d.act.t > 1 && !greeted.includes(d.pid) &&
+      roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
+      cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
+      !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
+  });
+  if (!reader) return;
+  // A passerby asks once per month. A reader who declines can be approached by someone else.
+  const people = [...greeted, walker.pid];
+  G.keepsakes.readingGreetings = { month: G.day, people };
+  say(walker, '在看什么书？');
+  if (isE(reader) || reader.needs.social < 85) {
+    people.push(reader.pid);
+    say(reader, '刚读到有意思的地方。');
+    for (const d of [walker, reader]) d.needs.social = Math.min(100, d.needs.social + 6);
+    addLog(`📖 ${walker.name}路过窗边，和${reader.name}聊了几句书。`);
+    return;
+  }
+  if (!reader.act.declinedGreeting) {
+    reader.act.declinedGreeting = true;
+    reader.act.readingPause = 1;
+    say(reader, '等我读完这一页。');
+    addLog(`📖 ${reader.name}请路过的${walker.name}等一等，接着看书。`);
+    return;
+  }
+  people.push(reader.pid);
+  say(reader, '我想找个安静的位置。');
+  addLog(`📖 ${reader.name}被路过的${walker.name}打断了，合上了书。`);
+  const chair = reader.act.furn;
+  endAct(reader);
+  for (const other of G.furniture) {
+    if (other === chair || !isWindowChair(other) || cornerRoom(other) === cornerRoom(chair)) continue;
+    if (startAct(reader, { furn: other, type: 'read' })) break;
+  }
+}
 
 function readingNeighbor(d, f) {
   if (d.guest || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;

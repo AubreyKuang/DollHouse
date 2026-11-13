@@ -55,6 +55,32 @@ function renderDollList() {
   $('#btnAddDoll').textContent = count ? `＋ 邀请新住户 · ${count} 份申请` : '＋ 邀请新住户';
 }
 
+function renderResidentQuick() {
+  const strip = $('#residentQuick');
+  if (!strip) return;
+  const roster = JSON.stringify(G.dolls.map(d => [d.uid, d.name, d.look]));
+  if (strip.dataset.roster === roster) return;
+  strip.dataset.roster = roster;
+  strip.replaceChildren(...G.dolls.map(d => {
+    const button = el('button', 'resident-quick-person');
+    button.type = 'button';
+    button.dataset.resident = d.uid;
+    const portrait = el('canvas');
+    portrait.width = 20; portrait.height = 24;
+    portrait.setAttribute('aria-hidden', 'true');
+    dollPortrait(portrait, d.look);
+    const label = el('span'), status = el('small');
+    status.dataset.doing = d.uid;
+    label.append(el('b', null, esc(d.name)), status);
+    button.append(portrait, label);
+    button.onclick = () => {
+      G.sel = G.sel === d.uid ? null : d.uid;
+      SFX.play('click'); HOOK.select();
+    };
+    return button;
+  }));
+}
+
 function renderInfo() {
   const card = $('#dollInfo'), d = G.dolls.find(o => o.uid === G.sel);
   if (!d) { card.hidden = true; return; }
@@ -121,7 +147,10 @@ function tickInfo() {
     }
   }
   for (const s of document.querySelectorAll('[data-doing]')) {
-    const o = G.dolls.find(x => x.uid === +s.dataset.doing); if (o) s.textContent = doingText(o);
+    const o = G.dolls.find(x => x.uid === +s.dataset.doing);
+    if (!o) continue;
+    const status = doingText(o);
+    if (s.textContent !== status) s.textContent = status;
   }
   for (const s of document.querySelectorAll('[data-partners]')) {
     const o = G.dolls.find(x => x.uid === +s.dataset.partners);
@@ -134,6 +163,7 @@ function tickInfo() {
 }
 
 HOOK.select = () => {
+  renderResidentQuick();
   refreshSceneHint();
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
@@ -145,6 +175,24 @@ function refreshSceneHint() {
     : resident ? furnitureOrderHint(resident, hoverFurniture)
     : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
   if (hint.textContent !== text) hint.textContent = text;
+  const strip = $('#residentQuick'), action = $('#quickFurniture');
+  if (!strip || !action) return;
+  strip.hidden = G.mode !== 'live';
+  for (const button of strip.children) {
+    const pressed = String(Number(button.dataset.resident) === G.sel);
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
+  }
+  const available = furniture => !furniture.piece && !furnitureOrderBlock(resident, furniture)
+    && (resident.act?.onFurn ? furniturePath(resident, furniture, resident.act.back.x, resident.act.back.y)
+      : furniturePath(resident, furniture));
+  const target = !strip.hidden && resident && (G.furniture.find(f => f.id === 'sofa' && available(f))
+    || G.furniture.find(available));
+  action.hidden = !target;
+  if (target) {
+    const label = `让${resident.name}去${furnitureAction(resident, target)} · ${FURNITURE[target.id].name}`;
+    if (action.textContent !== label) action.textContent = label;
+    action.onclick = () => arrangeFurniture(resident, target);
+  }
 }
 
 /* ---------- 生活日志 ---------- */
@@ -236,6 +284,10 @@ $('#btnTrash').onclick = () => {
   $('#buildHint').textContent = G.build.trash ? '删除模式：点击房间里的家具把它移走' : '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
   SFX.play('click');
 };
+$('#cancelFurniture').onclick = () => {
+  cancelPlacing();
+  $('#buildBar').querySelector('.tab.on')?.focus();
+};
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
   const keepDolls = G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
@@ -253,6 +305,9 @@ const iconCache = {};
 function renderPalette() {
   const pal = $('#palette'); pal.innerHTML = '';
   $('#btnTrash').classList.toggle('on', G.build.trash);
+  const cancel = $('#cancelFurniture');
+  cancel.hidden = !G.build.placing;
+  cancel.textContent = G.build.placing?.moved ? '放回原处' : '取消放置';
   pal.dataset.category = tab;
   const group = FURNITURE_GROUPS[tab];
   if (tab === 'keepsakes') {
@@ -738,6 +793,7 @@ function updateKeepsakeDialog(reset = false) {
   };
   if (!notes.length) notes.push('常来坐坐，过几个月就会有属于自己的小角落。');
   notes.push('把两处熟悉的阅读角摆在同一房间、相隔三格以内。要好的室友看到对方在用时，有机会自己过去作伴。');
+  notes.push('窗边椅子可以坐下看书。熟人顺路经过时可能打招呼，想清静的住户会先婉拒，再被打扰才可能换位置。');
   list('#keepsakeNotes', notes, '');
   list('#keepsakePieces', G.keepsakes.pieces.map(keepsakeLabel), '还没有一起做过的纪念物。');
 }

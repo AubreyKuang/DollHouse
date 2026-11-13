@@ -83,6 +83,66 @@ test('adjacent reading corners affect the autonomous choice and restore social n
   assert.equal(b.needs.social,social);
 `));
 
+test('a reader can decline once, move after a second greeting, or finish in a quiet spot', () => game(`
+  const [reader,walker,other] = residents();
+  G.dolls = [reader,walker,other];
+  const window = addFurniture('window', 10, 0), chair = addFurniture('chair', 11, 4);
+  G.furniture = [window,chair];
+  rebuild();
+  rel(reader,walker).f=55;
+  rel(reader,other).f=55;
+  function readAt(x,y){
+    chair.x=x;chair.y=y;rebuild();
+    placeDollAt(reader,x,y+1);
+    assert.equal(orderUse(reader,chair),true);
+    arrive(reader);
+    assert.equal(reader.act.type,'read');
+  }
+  function walkPast(d=walker){
+    placeDollAt(d,10,5);
+    d.state='walk';d.path=[{x:11,y:5},{x:12,y:5}];d.act={type:'wander'};
+    for(let i=0;i<30&&d.state==='walk';i++)updateDoll(d,.1);
+  }
+  reader.needs.social=88;
+  reader.mbti='INTJ';
+  readAt(11,4);
+  walkPast();
+  assert.equal(reader.act.type,'read');
+  assert.equal(reader.bubble.text,'等我读完这一页。');
+  const remaining=reader.act.t;
+  updateDoll(reader,.5);
+  assert.equal(reader.act.t,remaining);
+  walkPast();
+  assert.equal(reader.act.type,'read');
+  assert.equal(G.log.filter(e=>e.text.includes('接着看书')).length,1);
+  const spareWindow=addFurniture('window',4,0), spare=addFurniture('chair',5,4);
+  rebuild();
+  walkPast(other);
+  assert.equal(reader.act?.furn,spare);
+  assert.ok(G.log.some(e=>e.text.includes('合上了书')));
+  assert.equal(JSON.parse(JSON.stringify(houseSaveData())).keepsakes.readingGreetings.month,G.day);
+  endAct(reader);
+  G.day++;
+  readAt(13,7);
+  walkPast();
+  assert.equal(reader.act.type,'read');
+  updateDoll(reader,reader.act.t+.01);
+  assert.equal(reader.bubble.text,'这一段读完了。');
+  assert.equal(G.log.filter(e=>e.text.includes('合上了书')).length,1);
+  G.day++;
+  readAt(11,4);
+  reader.mbti='ENFP';
+  const tv = addFurniture('tv',12,4);
+  rebuild();
+  placeDollAt(walker,10,5);
+  assert.equal(startAct(walker,{type:'tv',furn:tv,path:[{x:11,y:5},{x:12,y:5}]}),true);
+  for(let i=0;i<30&&walker.state==='walk';i++)updateDoll(walker,.1);
+  assert.equal(walker.act.type,'tv');
+  assert.equal(walker.state,'act');
+  assert.equal(reader.act.type,'read');
+  assert.equal(G.log.filter(e=>e.text.includes('聊了几句书')).length,1);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

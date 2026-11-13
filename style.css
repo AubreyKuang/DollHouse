@@ -139,6 +139,18 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #cv{width:100%;height:100%;display:block;image-rendering:auto}
 #overlay{position:absolute;inset:0;pointer-events:none}
 .hint{font-size:13px;color:var(--muted);margin:10px 2px 0}
+.resident-quick{display:flex;gap:5px;overflow-x:auto;padding:6px 2px 2px}
+.resident-quick[hidden]{display:none}
+.resident-quick-person{display:flex;flex:1 0 76px;align-items:center;gap:4px;min-width:0;min-height:44px;padding:4px 6px;border:1px solid var(--hud-line);border-radius:6px;background:var(--hud-bg);color:var(--hud-ink);text-align:left}
+.resident-quick-person:focus-visible{outline:2px solid #f1cbab;outline-offset:-2px}
+.resident-quick-person[aria-pressed="true"]{background:#f1cbab;color:#36263b}
+.resident-quick-person canvas{flex:none;width:20px;height:24px;image-rendering:pixelated}
+.resident-quick-person span{min-width:0}
+.resident-quick-person :is(b,small){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resident-quick-person small{font-size:10px}
+.scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.scene-action .hint{flex:1 1 13em;margin:3px 2px}
+#quickFurniture,#cancelFurniture{min-height:44px}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}

@@ -371,7 +371,9 @@ function decide(d) {
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
-    let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    const use = isWindowChair(f) ? 'read' : F.use;
+    const gain = use !== F.use ? { ...F.need, fun: 10 } : F.need;
+    let s = want(gain) + (P.like[use] || 0) + traitBonus(d, use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
     if (JOBS[d.job]?.interests?.includes(F.use)) s += 10;
     if (cornerRegular(f, d)) s += 17;
     if (F.use === 'sit' || F.use === 'read') s += readingCornerBonus(d, f);
@@ -389,7 +391,7 @@ function decide(d) {
     if (F.use === 'paint' && d.job === 'artist') s += 40;          // 画家要画画才卖得出画
     if (F.use === 'study' && d.job === 'student') s += 15;
     if (['exercise', 'boxPractice'].includes(F.use) && N.energy < 30) s -= 40;
-    if (d.recentFurniture?.use === F.use && d.recentFurniture.at + 125 > absNow() && !['sleep', 'toilet', 'snack', 'cook', 'meal'].includes(F.use)) s -= 25;
+    if (d.recentFurniture?.use === use && d.recentFurniture.at + 125 > absNow() && !['sleep', 'toilet', 'snack', 'cook', 'meal'].includes(use)) s -= 25;
     if (F.use === 'party') s += isHolidayParty() ? 50 : -10;           // 圣诞节大家围着圣诞树过节
     if(F.use==='meal'){
       const evening=G.time>=17*60&&G.time<21*60;
@@ -464,7 +466,9 @@ function startAct(d, o) {
   if (!path) return false;
   f.users.push(d);
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
-  d.act = { type: F.use, furn: f, gain: F.need, mode: F.mode, paperMoment: o.paperMoment };
+  const reading = isWindowChair(f);
+  d.act = { type: reading ? 'read' : F.use, furn: f, gain: reading ? { ...F.need, fun: 10 } : F.need,
+    mode: F.mode, paperMoment: o.paperMoment };
   return true;
 }
 
@@ -586,7 +590,12 @@ function updateDoll(d, dt) {
     const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
     if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
-    if (dist <= sp) { d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift(); if (!d.path.length) arrive(d); }
+    if (dist <= sp) {
+      const from = { x: d.tx, y: d.ty };
+      d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift();
+      greetPassingReader(d, from);
+      if (!d.path.length) arrive(d);
+    }
     else { d.x += dx / dist * sp; d.y += dy / dist * sp; }
     d.ft += dt; if (d.ft > 0.13) { d.ft = 0; d.frame = (d.frame + 1) % 4; }
     return;
@@ -596,6 +605,10 @@ function updateDoll(d, dt) {
   if (d.state === 'act') {
     const a = d.act;
     if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
+    if (a.readingPause > 0) {
+      a.readingPause -= dt;
+      return;
+    }
     if (a.furn && a.t > 0) a.practiceTime = (a.practiceTime || 0) + Math.min(dt, a.t);
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
@@ -626,6 +639,7 @@ function updateDoll(d, dt) {
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
+    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }

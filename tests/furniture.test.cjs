@@ -446,7 +446,7 @@ test('the calendar starts in January, celebrates a birthday once, and crosses a 
   runGame(`
     load();
     assert.equal(monthLabel(G.day), '1 年 1 月');
-    assert.equal(G.time, 0);
+    assert.equal(G.time, 8 * 60);
     assert.equal(seasonOf(G.day).id, 'winter');
     const jing = G.dolls.find(d => d.pid === 'p-jing');
     assert.equal(birthdayOf(jing), 1);
@@ -527,7 +527,7 @@ test('situational routines use weather, availability, relationships and saved co
 
 test('the sandbox grants maximum space and free furniture without changing the normal save', () => {
   const data = new Map();
-  runGame(`load(); G.fund = 37; assert.ok(save());`, { data });
+  runGame(`load(); G.fund = 37; G.time = 0; assert.ok(save());`, { data });
   runGame(`
     load();
     assert.equal(G.level, LEVELS.length - 1);

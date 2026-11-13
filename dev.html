@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素小屋 · 测试模式</title>
-<link rel="stylesheet" href="style.css?v=4fbc43bccdb8">
+<link rel="stylesheet" href="style.css?v=75ada3e0e4c7">
 </head>
 <body data-mode="test">
 <header class="topbar">
@@ -40,7 +40,11 @@
         <div id="overlay"></div>
       </div>
     </div>
-    <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <div id="residentQuick" class="resident-quick" role="group" aria-label="选择住户"></div>
+    <div class="scene-action">
+      <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
+      <button type="button" id="quickFurniture" class="btn small" hidden></button>
+    </div>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
       <span id="homeNowText" aria-live="polite"></span>
@@ -93,6 +97,7 @@
     </div>
     <div id="palette" class="palette"></div>
     <p id="buildHint" class="hint">选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消</p>
+    <button type="button" id="cancelFurniture" class="btn small ghost" hidden>取消放置</button>
   </section>
 </main>
 
@@ -263,7 +268,7 @@
 <div id="toast" role="status"></div>
 
 <script src="js/calendar.js?v=a40460b9fe31"></script>
-<script src="js/data.js?v=a843f01ebf00"></script>
+<script src="js/data.js?v=18fbdace6aa3"></script>
 <script src="js/sprites.js?v=c2edd6c1746e"></script>
 <script src="js/doll.js?v=a3fae09794ce"></script>
 <script src="js/audio.js?v=bfed272d2ce4"></script>
@@ -271,7 +276,7 @@
 <script src="js/save-manager.js?v=060e06e0483c"></script>
 <script src="js/house-life.js?v=0a53c97d6133"></script>
 <script src="js/bonds.js?v=20a4e9383317"></script>
-<script src="js/game.js?v=8204caf4e059"></script>
+<script src="js/game.js?v=4cc3ab5e33a3"></script>
 <script src="js/social.js?v=b46f816af400"></script>
 <script src="js/relationship-fallout.js?v=a691f6e383e1"></script>
 <script src="js/work.js?v=4c8cf0fc2a9c"></script>
@@ -288,14 +293,14 @@
 <script src="js/picnic.js?v=b56c8dbcd4b2"></script>
 <script src="js/house-view.js?v=7389fd4fa2e0"></script>
 <script src="js/yard.js?v=ce54dc627828"></script>
-<script src="js/keepsakes.js?v=7151a1682fea"></script>
+<script src="js/keepsakes.js?v=d48db2749134"></script>
 <script src="js/home-stories.js?v=855d6932a92b"></script>
 <script src="js/home-care.js?v=857e67a7a109"></script>
 <script src="js/life-moments.js?v=6759e38560c8"></script>
 <script src="js/save-portability.js?v=c9e35b4992d5"></script>
-<script src="js/view.js?v=d60b7f46254f"></script>
+<script src="js/view.js?v=95706307f9d7"></script>
 <script src="js/paper-card.js?v=fd8e706a66cf"></script>
-<script src="js/ui.js?v=698cbabd9c90"></script>
+<script src="js/ui.js?v=146d97907d50"></script>
 <script src="js/home-ui.js?v=3327afc56ad3"></script>
 </body>
 </html>

@@ -62,6 +62,11 @@ function drawDollObj(c, d) {
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
   if (d.state !== 'act') return;
+  if (d.act?.type === 'read' && d.act.furn?.id === 'chair') {
+    R(c, x - 4, y - 7, 8, 4, '#9b697b');
+    R(c, x - 3, y - 8, 6, 4, '#fff0d1');
+    R(c, x, y - 8, 1, 4, '#d4ac9b');
+  }
   if (d.act?.type === 'rainTea') {
     const px = Math.round(x + 7), py = Math.round(y - 10);
     bevel(c, px, py, 6, 5, '#fff0d4', '#95777b');
@@ -325,6 +330,7 @@ function furnitureOrderHint(resident, furniture) {
 function furnitureAction(resident, furniture) {
   const eatingSavedMeal = resident.act?.type === 'savedMeal' && resident.act.furn === furniture;
   if (eatingSavedMeal || savedMealFor(resident, furniture)) return '吃留好的饭';
+  if (isWindowChair(furniture)) return '坐下看书';
   const spec = FURNITURE[furniture.id];
   return (ACT_NAMES[spec.use] || spec.name).replace(/^在/, '');
 }
@@ -479,7 +485,7 @@ cv.addEventListener('pointerdown', e => {
       if (price > 0 && !(B.placing.confirm && B.placing.confirm.x === g.x && B.placing.confirm.y === g.y)) {
         B.placing.confirm = { x: g.x, y: g.y };
         const hint = document.getElementById('buildHint');
-        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置，右键取消`;
+        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置`;
         HOOK.toast(`再点一次确认购买「${FURNITURE[B.placing.id].name}」${yuan(price)}`, true);
         SFX.play('click');
         return;
@@ -580,10 +586,7 @@ cv.addEventListener('pointerup', e => {
     if (piece) HOOK.toast(keepsakeLabel(piece), true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
-    if (sd && orderUse(sd, press.furn)) {
-      const note = savedMealNote(press.furn);
-      HOOK.toast(note || `已安排 ${sd.name}去${furnitureAction(sd, press.furn)} · ${FURNITURE[press.furn.id].name}`, true);
-    }
+    if (sd) arrangeFurniture(sd, press.furn);
   } else if (press.furn) {
     const note = savedMealNote(press.furn);
     HOOK.toast(note || '先点一位居民，再点家具安排活动', true);
@@ -591,6 +594,12 @@ cv.addEventListener('pointerup', e => {
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
+
+function arrangeFurniture(resident, furniture) {
+  if (!orderUse(resident, furniture)) return;
+  const note = savedMealNote(furniture);
+  HOOK.toast(note || `已安排 ${resident.name}去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`, true);
+}
 function cancelDollDrag(e) {
   if (!press || press.pointerId !== e.pointerId) return;
   const d = press?.d;

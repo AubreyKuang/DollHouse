@@ -146,6 +146,18 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #cv{width:100%;height:100%;display:block;image-rendering:auto}
 #overlay{position:absolute;inset:0;pointer-events:none}
 .hint{font-size:13px;color:var(--muted);margin:10px 2px 0}
+.resident-quick{display:flex;gap:5px;overflow-x:auto;padding:6px 2px 2px}
+.resident-quick[hidden]{display:none}
+.resident-quick-person{display:flex;flex:1 0 76px;align-items:center;gap:4px;min-width:0;min-height:44px;padding:4px 6px;border:1px solid var(--hud-line);border-radius:6px;background:var(--hud-bg);color:var(--hud-ink);text-align:left}
+.resident-quick-person:focus-visible{outline:2px solid #f1cbab;outline-offset:-2px}
+.resident-quick-person[aria-pressed="true"]{background:#f1cbab;color:#36263b}
+.resident-quick-person canvas{flex:none;width:20px;height:24px;image-rendering:pixelated}
+.resident-quick-person span{min-width:0}
+.resident-quick-person :is(b,small){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.resident-quick-person small{font-size:10px}
+.scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.scene-action .hint{flex:1 1 13em;margin:3px 2px}
+#quickFurniture,#cancelFurniture{min-height:44px}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}
@@ -572,7 +584,11 @@ body{
         <div id="overlay"></div>
       </div>
     </div>
-    <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <div id="residentQuick" class="resident-quick" role="group" aria-label="选择住户"></div>
+    <div class="scene-action">
+      <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
+      <button type="button" id="quickFurniture" class="btn small" hidden></button>
+    </div>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
       <span id="homeNowText" aria-live="polite"></span>
@@ -625,6 +641,7 @@ body{
     </div>
     <div id="palette" class="palette"></div>
     <p id="buildHint" class="hint">选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消</p>
+    <button type="button" id="cancelFurniture" class="btn small ghost" hidden>取消放置</button>
   </section>
 </main>
 
@@ -1067,7 +1084,7 @@ const COTTAGE_STARTER_LOOKS = {
 };
 
 const DEFAULT_SAVE = {
-  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1, bathroom: true,
+  wall: 'cream', floor: 'oak', time: 480, day: 1, monthEvents: 0, floorsV: 1, bathroom: true,
   inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, pawRug: 1, knitting: 1 },
   furniture: [
     // 二楼：卫生间、卧室、书房。
@@ -3103,7 +3120,9 @@ function decide(d) {
     const lover = loverOf(d);
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
-    let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    const use = isWindowChair(f) ? 'read' : F.use;
+    const gain = use !== F.use ? { ...F.need, fun: 10 } : F.need;
+    let s = want(gain) + (P.like[use] || 0) + traitBonus(d, use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
     if (JOBS[d.job]?.interests?.includes(F.use)) s += 10;
     if (cornerRegular(f, d)) s += 17;
     if (F.use === 'sit' || F.use === 'read') s += readingCornerBonus(d, f);
@@ -3121,7 +3140,7 @@ function decide(d) {
     if (F.use === 'paint' && d.job === 'artist') s += 40;          // 画家要画画才卖得出画
     if (F.use === 'study' && d.job === 'student') s += 15;
     if (['exercise', 'boxPractice'].includes(F.use) && N.energy < 30) s -= 40;
-    if (d.recentFurniture?.use === F.use && d.recentFurniture.at + 125 > absNow() && !['sleep', 'toilet', 'snack', 'cook', 'meal'].includes(F.use)) s -= 25;
+    if (d.recentFurniture?.use === use && d.recentFurniture.at + 125 > absNow() && !['sleep', 'toilet', 'snack', 'cook', 'meal'].includes(use)) s -= 25;
     if (F.use === 'party') s += isHolidayParty() ? 50 : -10;           // 圣诞节大家围着圣诞树过节
     if(F.use==='meal'){
       const evening=G.time>=17*60&&G.time<21*60;
@@ -3196,7 +3215,9 @@ function startAct(d, o) {
   if (!path) return false;
   f.users.push(d);
   d.path = path; d.state = path.length ? 'walk' : 'arrive';
-  d.act = { type: F.use, furn: f, gain: F.need, mode: F.mode, paperMoment: o.paperMoment };
+  const reading = isWindowChair(f);
+  d.act = { type: reading ? 'read' : F.use, furn: f, gain: reading ? { ...F.need, fun: 10 } : F.need,
+    mode: F.mode, paperMoment: o.paperMoment };
   return true;
 }
 
@@ -3318,7 +3339,12 @@ function updateDoll(d, dt) {
     const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
     if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
-    if (dist <= sp) { d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift(); if (!d.path.length) arrive(d); }
+    if (dist <= sp) {
+      const from = { x: d.tx, y: d.ty };
+      d.x = gx; d.y = gy; d.tx = n.x; d.ty = n.y; d.path.shift();
+      greetPassingReader(d, from);
+      if (!d.path.length) arrive(d);
+    }
     else { d.x += dx / dist * sp; d.y += dy / dist * sp; }
     d.ft += dt; if (d.ft > 0.13) { d.ft = 0; d.frame = (d.frame + 1) % 4; }
     return;
@@ -3328,6 +3354,10 @@ function updateDoll(d, dt) {
   if (d.state === 'act') {
     const a = d.act;
     if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
+    if (a.readingPause > 0) {
+      a.readingPause -= dt;
+      return;
+    }
     if (a.furn && a.t > 0) a.practiceTime = (a.practiceTime || 0) + Math.min(dt, a.t);
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
@@ -3358,6 +3388,7 @@ function updateDoll(d, dt) {
     if (a.type === 'game' && Math.random() < dt * 2) SFX.play('game');
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
+    if (a.t <= 0 && a.type === 'read' && a.furn?.id === 'chair') say(d, '这一段读完了。');
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
     if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
@@ -6546,26 +6577,77 @@ function restoreKeepsakes(saved) {
     pieces: saved?.pieces || [],
     traditions: saved?.traditions || {},
     project: saved?.project || null,
+    readingGreetings: saved?.readingGreetings || null,
   };
 }
 
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
+const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
+  cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
 
 function cornerKind(f) {
   if (G.keepsakes.corners[f.key]?.kind) return G.keepsakes.corners[f.key].kind;
   if (f.id === 'teaTray') return 'tea';
   if (f.id === 'piano') return 'music';
   if (f.id === 'shelf') return 'read';
-  if (f.id === 'chair' && G.furniture.some(w => w.id === 'window' && cornerRoom(w) === cornerRoom(f) &&
-      Math.abs(w.x + 1 - f.x) <= 3)) return 'read';
+  if (isWindowChair(f)) return 'read';
   return null;
 }
 
 const CORNER_NAMES = { tea: '茶角', music: '练琴角', read: '阅读角' };
 const cornerOwner = f => G.keepsakes.corners[f.key]?.owner;
 const cornerRegular = (f, d) => G.keepsakes.corners[f.key]?.regulars?.includes(d.pid);
+
+function greetPassingReader(walker, from) {
+  const activity = walker.act;
+  const leisureWalk = activity?.type === 'wander' || (activity?.furn &&
+    !['sleep', 'toilet'].includes(activity.type) && !CARE_ACTIONS.includes(activity.type));
+  const needs = walker.needs;
+  if (walker.guest || !leisureWalk || needs.bladder < 20 || needs.hunger < 25 || needs.energy < 20) return;
+  const greetings = G.keepsakes.readingGreetings;
+  const greeted = greetings?.month === G.day && Array.isArray(greetings.people) ? greetings.people : [];
+  if (greeted.includes(walker.pid)) return;
+  const to = { x: walker.tx, y: walker.ty };
+  if (cornerDistance(from, to) !== 1) return;
+  const reader = G.dolls.find(d => {
+    const chair = d.act?.furn;
+    return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
+      chair?.id === 'chair' && d.act.t > 1 && !greeted.includes(d.pid) &&
+      roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
+      cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
+      !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
+  });
+  if (!reader) return;
+  // A passerby asks once per month. A reader who declines can be approached by someone else.
+  const people = [...greeted, walker.pid];
+  G.keepsakes.readingGreetings = { month: G.day, people };
+  say(walker, '在看什么书？');
+  if (isE(reader) || reader.needs.social < 85) {
+    people.push(reader.pid);
+    say(reader, '刚读到有意思的地方。');
+    for (const d of [walker, reader]) d.needs.social = Math.min(100, d.needs.social + 6);
+    addLog(`📖 ${walker.name}路过窗边，和${reader.name}聊了几句书。`);
+    return;
+  }
+  if (!reader.act.declinedGreeting) {
+    reader.act.declinedGreeting = true;
+    reader.act.readingPause = 1;
+    say(reader, '等我读完这一页。');
+    addLog(`📖 ${reader.name}请路过的${walker.name}等一等，接着看书。`);
+    return;
+  }
+  people.push(reader.pid);
+  say(reader, '我想找个安静的位置。');
+  addLog(`📖 ${reader.name}被路过的${walker.name}打断了，合上了书。`);
+  const chair = reader.act.furn;
+  endAct(reader);
+  for (const other of G.furniture) {
+    if (other === chair || !isWindowChair(other) || cornerRoom(other) === cornerRoom(chair)) continue;
+    if (startAct(reader, { furn: other, type: 'read' })) break;
+  }
+}
 
 function readingNeighbor(d, f) {
   if (d.guest || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
@@ -7731,6 +7813,11 @@ function drawDollObj(c, d) {
     happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
   if (d.state !== 'act') return;
+  if (d.act?.type === 'read' && d.act.furn?.id === 'chair') {
+    R(c, x - 4, y - 7, 8, 4, '#9b697b');
+    R(c, x - 3, y - 8, 6, 4, '#fff0d1');
+    R(c, x, y - 8, 1, 4, '#d4ac9b');
+  }
   if (d.act?.type === 'rainTea') {
     const px = Math.round(x + 7), py = Math.round(y - 10);
     bevel(c, px, py, 6, 5, '#fff0d4', '#95777b');
@@ -7994,6 +8081,7 @@ function furnitureOrderHint(resident, furniture) {
 function furnitureAction(resident, furniture) {
   const eatingSavedMeal = resident.act?.type === 'savedMeal' && resident.act.furn === furniture;
   if (eatingSavedMeal || savedMealFor(resident, furniture)) return '吃留好的饭';
+  if (isWindowChair(furniture)) return '坐下看书';
   const spec = FURNITURE[furniture.id];
   return (ACT_NAMES[spec.use] || spec.name).replace(/^在/, '');
 }
@@ -8148,7 +8236,7 @@ cv.addEventListener('pointerdown', e => {
       if (price > 0 && !(B.placing.confirm && B.placing.confirm.x === g.x && B.placing.confirm.y === g.y)) {
         B.placing.confirm = { x: g.x, y: g.y };
         const hint = document.getElementById('buildHint');
-        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置，右键取消`;
+        if (hint) hint.textContent = `再点一下同一格，确认花 ${yuan(price)} 买「${FURNITURE[B.placing.id].name}」· 点别处换位置`;
         HOOK.toast(`再点一次确认购买「${FURNITURE[B.placing.id].name}」${yuan(price)}`, true);
         SFX.play('click');
         return;
@@ -8249,10 +8337,7 @@ cv.addEventListener('pointerup', e => {
     if (piece) HOOK.toast(keepsakeLabel(piece), true);
   } else if (press.furn && G.sel) {
     const sd = G.dolls.find(o => o.uid === G.sel);
-    if (sd && orderUse(sd, press.furn)) {
-      const note = savedMealNote(press.furn);
-      HOOK.toast(note || `已安排 ${sd.name}去${furnitureAction(sd, press.furn)} · ${FURNITURE[press.furn.id].name}`, true);
-    }
+    if (sd) arrangeFurniture(sd, press.furn);
   } else if (press.furn) {
     const note = savedMealNote(press.furn);
     HOOK.toast(note || '先点一位居民，再点家具安排活动', true);
@@ -8260,6 +8345,12 @@ cv.addEventListener('pointerup', e => {
   } else { G.sel = null; HOOK.select(); }
   press = null;
 });
+
+function arrangeFurniture(resident, furniture) {
+  if (!orderUse(resident, furniture)) return;
+  const note = savedMealNote(furniture);
+  HOOK.toast(note || `已安排 ${resident.name}去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`, true);
+}
 function cancelDollDrag(e) {
   if (!press || press.pointerId !== e.pointerId) return;
   const d = press?.d;
@@ -8499,6 +8590,32 @@ function renderDollList() {
   $('#btnAddDoll').textContent = count ? `＋ 邀请新住户 · ${count} 份申请` : '＋ 邀请新住户';
 }
 
+function renderResidentQuick() {
+  const strip = $('#residentQuick');
+  if (!strip) return;
+  const roster = JSON.stringify(G.dolls.map(d => [d.uid, d.name, d.look]));
+  if (strip.dataset.roster === roster) return;
+  strip.dataset.roster = roster;
+  strip.replaceChildren(...G.dolls.map(d => {
+    const button = el('button', 'resident-quick-person');
+    button.type = 'button';
+    button.dataset.resident = d.uid;
+    const portrait = el('canvas');
+    portrait.width = 20; portrait.height = 24;
+    portrait.setAttribute('aria-hidden', 'true');
+    dollPortrait(portrait, d.look);
+    const label = el('span'), status = el('small');
+    status.dataset.doing = d.uid;
+    label.append(el('b', null, esc(d.name)), status);
+    button.append(portrait, label);
+    button.onclick = () => {
+      G.sel = G.sel === d.uid ? null : d.uid;
+      SFX.play('click'); HOOK.select();
+    };
+    return button;
+  }));
+}
+
 function renderInfo() {
   const card = $('#dollInfo'), d = G.dolls.find(o => o.uid === G.sel);
   if (!d) { card.hidden = true; return; }
@@ -8565,7 +8682,10 @@ function tickInfo() {
     }
   }
   for (const s of document.querySelectorAll('[data-doing]')) {
-    const o = G.dolls.find(x => x.uid === +s.dataset.doing); if (o) s.textContent = doingText(o);
+    const o = G.dolls.find(x => x.uid === +s.dataset.doing);
+    if (!o) continue;
+    const status = doingText(o);
+    if (s.textContent !== status) s.textContent = status;
   }
   for (const s of document.querySelectorAll('[data-partners]')) {
     const o = G.dolls.find(x => x.uid === +s.dataset.partners);
@@ -8578,6 +8698,7 @@ function tickInfo() {
 }
 
 HOOK.select = () => {
+  renderResidentQuick();
   refreshSceneHint();
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
@@ -8589,6 +8710,24 @@ function refreshSceneHint() {
     : resident ? furnitureOrderHint(resident, hoverFurniture)
     : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
   if (hint.textContent !== text) hint.textContent = text;
+  const strip = $('#residentQuick'), action = $('#quickFurniture');
+  if (!strip || !action) return;
+  strip.hidden = G.mode !== 'live';
+  for (const button of strip.children) {
+    const pressed = String(Number(button.dataset.resident) === G.sel);
+    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
+  }
+  const available = furniture => !furniture.piece && !furnitureOrderBlock(resident, furniture)
+    && (resident.act?.onFurn ? furniturePath(resident, furniture, resident.act.back.x, resident.act.back.y)
+      : furniturePath(resident, furniture));
+  const target = !strip.hidden && resident && (G.furniture.find(f => f.id === 'sofa' && available(f))
+    || G.furniture.find(available));
+  action.hidden = !target;
+  if (target) {
+    const label = `让${resident.name}去${furnitureAction(resident, target)} · ${FURNITURE[target.id].name}`;
+    if (action.textContent !== label) action.textContent = label;
+    action.onclick = () => arrangeFurniture(resident, target);
+  }
 }
 
 /* ---------- 生活日志 ---------- */
@@ -8680,6 +8819,10 @@ $('#btnTrash').onclick = () => {
   $('#buildHint').textContent = G.build.trash ? '删除模式：点击房间里的家具把它移走' : '选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消';
   SFX.play('click');
 };
+$('#cancelFurniture').onclick = () => {
+  cancelPlacing();
+  $('#buildBar').querySelector('.tab.on')?.focus();
+};
 $('#btnReset').onclick = () => {
   if (!confirm('把房间恢复成默认布置吗？（住户会保留）')) return;
   const keepDolls = G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs, routineTimes: d.routineTimes, away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay }));
@@ -8697,6 +8840,9 @@ const iconCache = {};
 function renderPalette() {
   const pal = $('#palette'); pal.innerHTML = '';
   $('#btnTrash').classList.toggle('on', G.build.trash);
+  const cancel = $('#cancelFurniture');
+  cancel.hidden = !G.build.placing;
+  cancel.textContent = G.build.placing?.moved ? '放回原处' : '取消放置';
   pal.dataset.category = tab;
   const group = FURNITURE_GROUPS[tab];
   if (tab === 'keepsakes') {
@@ -9182,6 +9328,7 @@ function updateKeepsakeDialog(reset = false) {
   };
   if (!notes.length) notes.push('常来坐坐，过几个月就会有属于自己的小角落。');
   notes.push('把两处熟悉的阅读角摆在同一房间、相隔三格以内。要好的室友看到对方在用时，有机会自己过去作伴。');
+  notes.push('窗边椅子可以坐下看书。熟人顺路经过时可能打招呼，想清静的住户会先婉拒，再被打扰才可能换位置。');
   list('#keepsakeNotes', notes, '');
   list('#keepsakePieces', G.keepsakes.pieces.map(keepsakeLabel), '还没有一起做过的纪念物。');
 }

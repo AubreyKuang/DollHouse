@@ -262,7 +262,7 @@ const COTTAGE_STARTER_LOOKS = {
 };
 
 const DEFAULT_SAVE = {
-  wall: 'cream', floor: 'oak', time: 0, day: 1, monthEvents: 0, floorsV: 1, bathroom: true,
+  wall: 'cream', floor: 'oak', time: 480, day: 1, monthEvents: 0, floorsV: 1, bathroom: true,
   inv: { bed: 1, lamp: 1, bath: 1, tv: 1, catbed: 1, plant: 1, chair: 2, window: 2, poster: 1, clock: 1, pawRug: 1, knitting: 1 },
   furniture: [
     // 二楼：卫生间、卧室、书房。
