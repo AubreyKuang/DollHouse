@@ -31,7 +31,7 @@ function loadFunction(ctx, source, name, next) {
 }
 test('all entry-point scripts parse', () => {
   for (const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) new vm.Script(match[1]);
-  for (const match of html.matchAll(/<script src="([^"]+)"/g)) new vm.Script(read(match[1]));
+  for (const match of html.matchAll(/<script src="([^"?]+)(?:\?[^"]*)?"/g)) new vm.Script(read(match[1]));
 });
 test('independent perspectives, unknown observers, duplicate event and sequence gap', () => {
   const ctx=runtime(), world={};
