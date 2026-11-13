@@ -174,6 +174,7 @@ const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
+const bookDiscussButton = $('#bookDiscuss');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
@@ -206,6 +207,11 @@ bookSeatButton.onclick = () => {
   if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
   refreshReadingSeats();
   save();
+};
+bookDiscussButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !toggleBookDiscussion(chair)) return;
+  refreshReadingSeats();
 };
 soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -253,6 +259,9 @@ function refreshReadingSeats() {
   const recommendation = bookRecommendation(chair);
   const reader = reservedBookReader(chair);
   bookSeatButton.hidden = !recommendation;
+  bookDiscussButton.hidden = !recommendation || !chair.readingNotes;
+  const discussing = String(recommendation?.discuss === true);
+  if (bookDiscussButton.getAttribute('aria-pressed') !== discussing) bookDiscussButton.setAttribute('aria-pressed', discussing);
   bookSeatButton.disabled = !!recommendation && !reader && furnitureInUse(chair, communityDoll(recommendation.to));
   if (bookSeatButton.getAttribute('aria-pressed') !== String(!!reader)) bookSeatButton.setAttribute('aria-pressed', String(!!reader));
   const text = reader ? `已给${reader.name}留座至 ${recommendation.seatUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(recommendation.seatUntil)}，再点一次可取消。`
@@ -262,7 +271,11 @@ function refreshReadingSeats() {
     : '此席适合独处，路过的住户会让读者继续看书。'
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';
-  if (note.textContent !== text) note.textContent = text;
+  const discussion = recommendation && chair.readingNotes
+    ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
+    : '';
+  const hint = text + discussion;
+  if (note.textContent !== hint) note.textContent = hint;
 
   const destinations = seats.flatMap((seat, i) => canMoveBookRecommendation(chair, seat, recommendation)
     ? [[seat.key, names[i]]] : []);

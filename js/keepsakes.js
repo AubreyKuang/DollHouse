@@ -88,27 +88,31 @@ function greetPassingReader(walker, from) {
   }
 }
 
+function canDiscussReading(reader, other, chair) {
+  return other.state === 'idle' && roomOf(other) === cornerRoom(chair) &&
+    cornerDistance({ x: other.tx, y: other.ty }, chair) <= 3 && canSee(reader, other);
+}
+
+function hasTimeToDiscussReading(d) {
+  const departure = leaveAbs(d), now = absNow();
+  return (departure == null || now < departure - 10 || now >= departure + 180) &&
+    d.needs.bladder >= 20 && d.needs.hunger >= 25 && d.needs.energy >= 20;
+}
+
 function finishReadingNote(reader, activity) {
   const chair = activity.furn;
   if (finishBookRecommendation(reader, chair)) return;
   if (!activity.readingNote || !chair.readingNotes || !quietReading(chair) || quietStudy(chair)) return;
   const writer = communityDoll(activity.readingNote);
   if (!writer || writer.guest || tensionBetween(reader, writer)) return;
-  if (writer.state !== 'idle' || roomOf(writer) !== cornerRoom(chair) ||
-      cornerDistance({ x: writer.tx, y: writer.ty }, chair) > 3 ||
-      !canSee(reader, writer)) {
+  if (!canDiscussReading(reader, writer, chair)) {
     if (bookRecommendation(chair)) return;
     G.keepsakes.bookRecommendations[chair.key] = { from: reader.pid, to: writer.pid, until: G.day + 1 };
     say(reader, '把这一段推荐给你，下次来读吧。');
     addLog(`📖 ${reader.name}在窗边给${writer.name}留了一条荐书便条。`);
     return;
   }
-  const now = absNow();
-  for (const d of [reader, writer]) {
-    const departure = leaveAbs(d);
-    if (departure != null && now >= departure - 10 && now < departure + 180) return;
-    if (d.needs.bladder < 20 || d.needs.hunger < 25 || d.needs.energy < 20) return;
-  }
+  if (![reader, writer].every(hasTimeToDiscussReading)) return;
   for (const d of [reader, writer]) d.needs.social = Math.min(100, d.needs.social + 6);
   say(reader, '读完啦。刚好想跟你说说这一段。');
   say(writer, '我还在呢，慢慢说。');
@@ -162,14 +166,34 @@ function moveBookRecommendation(source, target) {
   return false;
 }
 
+function toggleBookDiscussion(chair) {
+  const note = bookRecommendation(chair);
+  if (!note || !chair.readingNotes || !isWindowChair(chair)) return false;
+  const previous = note.discuss;
+  if (previous === true) delete note.discuss;
+  else note.discuss = true;
+  if (save()) return true;
+  if (previous === undefined) delete note.discuss;
+  else note.discuss = previous;
+  return false;
+}
+
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;
   const author = communityDoll(note.from);
   if (tensionBetween(author, reader)) return false;
   delete G.keepsakes.bookRecommendations[chair.key];
-  reader.needs.fun = Math.min(100, reader.needs.fun + 8);
   bump(reader, author, 2);
+  if (note.discuss === true && !quietStudy(chair) && canDiscussReading(reader, author, chair) &&
+      [reader, author].every(hasTimeToDiscussReading)) {
+    for (const d of [reader, author]) d.needs.social = Math.min(100, d.needs.social + 6);
+    say(reader, '我读完你推荐的那一段了。');
+    say(author, '来聊聊你读到的吧。');
+    addLog(`📖 ${reader.name}读完荐书，和${author.name}在窗边聊了几句。`);
+    return true;
+  }
+  reader.needs.fun = Math.min(100, reader.needs.fun + 8);
   say(reader, '原来你想推荐的是这一段。');
   addLog(`📖 ${reader.name}读完了${author.name}推荐的那一段。`);
   return true;

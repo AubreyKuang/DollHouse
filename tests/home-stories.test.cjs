@@ -376,6 +376,35 @@ test('moving a recommendation carries the original hold to a free window seat an
   assert.equal(reservedBookReader(moved),null);
 `));
 
+test('a saved discussion exchanges solo fun for shared social recovery only when both residents can talk', () => {
+  for (const situation of ['together', 'away', 'busy', 'quiet room', 'unplanned']) game(`
+    const [author,reader]=residents();
+    const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+    G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+    G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:reader.pid,until:G.day+1};
+    const planned='${situation}'!=='unplanned';
+    if(planned)assert.ok(toggleBookDiscussion(seat));
+    assert.ok(save());load();
+    const a=communityDoll(author.pid),r=communityDoll(reader.pid),chair=G.furniture.find(f=>f.key===seat.key);
+    const relationship=rel(r,a),expectedFriendship=relationship.f+2*relationship.chem*compat(r,a);
+    assert.equal(bookRecommendation(chair).discuss===true,planned);
+    for(const d of [a,r]){
+      d.state='idle';d.job='none';d.needs={energy:80,hunger:80,bladder:80,fun:40,social:30};
+    }
+    placeDollAt(r,10,17);placeDollAt(a,11,17);
+    if('${situation}'==='away')a.state='away';
+    if('${situation}'==='busy')a.state='walk';
+    G.studyQuiet='${situation}'==='quiet room';
+    assert.ok(orderUse(r,chair));arrive(r);
+    r.act.t=.01;updateDoll(r,.05);
+    const together='${situation}'==='together';
+    assert.deepEqual([Math.round(r.needs.fun),Math.round(r.needs.social),a.needs.social,rel(r,a).f],
+      [together?40:48,together?36:30,together?36:30,expectedFriendship]);
+    assert.equal(bookRecommendation(chair),null);
+    assert.equal(finishBookRecommendation(r,chair),false);
+  `);
+});
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;
