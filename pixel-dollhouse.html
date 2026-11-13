@@ -1638,14 +1638,34 @@ function houseRelations(){
 function helpWithMeal(d, table) {
   const guest=table.users.find(person=>person!==d&&person.state==='act'&&person.needs.hunger<35);
   if(!guest)return;
-  guest.needs.hunger=Math.min(100,guest.needs.hunger+10);
-  const text=`${d.name} 给饿着的 ${guest.name} 分了一份晚饭`;
-  NPCMemory.record(G,{type:'meal-help',time:absNow(),participants:[d.pid,guest.pid],outcome:'shared'},[
-    {person:guest.pid,subject:d.pid,emotion:.85,impact:90,interpretation:`我饿着的时候，${d.name} 给我分了晚饭`},
-    {person:d.pid,subject:guest.pid,emotion:.45,impact:55,interpretation:`我给 ${guest.name} 分了晚饭`}
+  shareMeal(d, guest, '晚饭', 10);
+}
+
+function shareCookedMeal(cook) {
+  if (cook.guest) return;
+  const caring = cook.persona === 'foodie' || ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook));
+  const hungry = residents().filter(person => person !== cook &&
+    person.money < PRICES.snack && person.needs.hunger < 35 &&
+    person.state !== 'away' && person.state !== 'lift' && !lying(person) &&
+    !['meal', 'snack', 'cook', 'picnic'].includes(person.act?.type) &&
+    canSee(cook, person) && canDisturb(cook, person) &&
+    (caring || arePartners(cook, person) || rel(cook, person).f >= 50));
+  hungry.sort((a, b) => a.needs.hunger - b.needs.hunger);
+  const guest = hungry[0];
+  if (!guest) return;
+  shareMeal(cook, guest, '刚做好的饭', 28);
+  say(cook, '多做了一份，趁热吃吧。');
+  say(guest, '谢谢你，我正饿着呢。');
+}
+
+function shareMeal(host, guest, food, gain) {
+  guest.needs.hunger = Math.min(100, guest.needs.hunger + gain);
+  NPCMemory.record(G, { type: 'meal-help', time: absNow(), participants: [host.pid, guest.pid], outcome: 'shared' }, [
+    { person: guest.pid, subject: host.pid, emotion: .85, impact: 90, interpretation: `我饿着的时候，${host.name} 给我分了${food}` },
+    { person: host.pid, subject: guest.pid, emotion: .45, impact: 55, interpretation: `我给 ${guest.name} 分了${food}` }
   ]);
-  addLog(`🍲 ${text}`);
-  if(typeof addTrust==='function')addTrust(guest,d,10);
+  addLog(`🍲 ${host.name} 给饿着的 ${guest.name} 分了一份${food}`);
+  if (typeof addTrust === 'function') addTrust(guest, host, 10);
 }
 
 const PAPER_EVENTS = [
@@ -2559,6 +2579,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
+    if (a.type === 'cook' && a.t <= 0) shareCookedMeal(d);
     if (a.t <= 0 || wake) endAct(d);
     return;
   }

@@ -580,6 +580,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
+    if (a.type === 'cook' && a.t <= 0) shareCookedMeal(d);
     if (a.t <= 0 || wake) endAct(d);
     return;
   }
