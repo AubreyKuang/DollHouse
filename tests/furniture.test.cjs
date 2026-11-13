@@ -10,9 +10,9 @@ const read = name => fs.readFileSync(path.join(root, name), 'utf8');
 function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
   const pointer = {};
   const canvas = {
-    style: {}, getContext: () => ({}), setPointerCapture() {},
+    style: {}, getContext: () => ({ scale() {} }), setPointerCapture() {},
     addEventListener: (name, fn) => { pointer[name] = fn; },
-    getBoundingClientRect() { return { left: 0, top: 0, width: this.width, height: this.height }; },
+    getBoundingClientRect() { return { left: 0, top: 0, width: this.width / 2, height: this.height / 2 }; },
   };
   const context = vm.createContext({
     assert, pointer, canvas, setTimeout() {}, window: { addEventListener() {} },
@@ -43,12 +43,14 @@ test('every purchasable furnishing has one category, a price, and a sprite', () 
 test('pointer coordinates and overlay anchors use the full scaled canvas in either orientation', () => {
   runGame(`
     load();
+    assert.equal(canvas.width, (W + HOUSE_MARGIN) * PIXEL_SCALE);
+    assert.equal(canvas.height, HOUSE_HEIGHT * PIXEL_SCALE);
     for (const width of [300, 720]) {
       const height = width * canvas.height / canvas.width;
       canvas.getBoundingClientRect = () => ({ left: 21, top: 84, width, height });
       const point = toScene({ clientX: 21 + width * .75, clientY: 84 + height * .9 });
-      assert.ok(Math.abs(point.x / canvas.width - .75) < 1e-9);
-      assert.ok(Math.abs(point.y / canvas.height - .9) < 1e-9);
+      assert.ok(Math.abs(point.x / (W + HOUSE_MARGIN) - .75) < 1e-9);
+      assert.ok(Math.abs(point.y / HOUSE_HEIGHT - .9) < 1e-9);
       const marker = { style: {} };
       positionOverlay(marker, point.x, point.y);
       assert.equal(marker.style.left, '75%');

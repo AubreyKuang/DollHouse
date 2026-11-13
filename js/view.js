@@ -6,8 +6,10 @@ const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
-  cv.width = lightCv.width = W + HOUSE_MARGIN;
-  cv.height = lightCv.height = HOUSE_HEIGHT;
+  cv.width = lightCv.width = (W + HOUSE_MARGIN) * PIXEL_SCALE;
+  cv.height = lightCv.height = HOUSE_HEIGHT * PIXEL_SCALE;
+  ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
+  lctx.scale(PIXEL_SCALE, PIXEL_SCALE);
   ctx.imageSmoothingEnabled = false;
   document.getElementById('stage').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
@@ -69,9 +71,39 @@ function drawDollObj(c, d) {
   }
 }
 
+// Keep the light on the floor of the window's room, below furniture and dolls.
+function drawWindowLight(c) {
+  if (G.weather !== 'sunny' || G.time < 8 * 60 || G.time >= 18 * 60) return;
+  const afternoon = G.time >= 13 * 60;
+  const bright = afternoon ? '#ffd59c48' : '#fff3cc39';
+  const pale = afternoon ? '#ffc98828' : '#fff3cc20';
+  for (const f of G.furniture) {
+    if (f.id !== 'window') continue;
+    const { x, w, storey } = houseFurnitureRect(f);
+    const split = HOUSE_X + BX * T;
+    const bath = G.bathroom && storey === STOREYS[1] ? HOUSE_X + BATH_X * T : HOUSE_X;
+    const center = x + w / 2;
+    const left = center >= split ? split : center >= bath ? bath : HOUSE_X;
+    const right = center >= split ? HOUSE_X + W : center >= bath ? split : bath;
+    const { back, front } = storey;
+    c.save();
+    housePath(c, [[left, front], [left + 9, back], [right - 9, back], [right, front]]);
+    c.clip();
+    const lean = afternoon ? -1 : 1;
+    for (let row = 0; row < front - back - 2; row += 1) {
+      const px = center - 9 + Math.round(row * .65) * lean, y = back + row + 1;
+      R(c, px - 2, y, 21, 1, pale);
+      R(c, px, y, 8, 1, bright);
+      R(c, px + 10, y, 7, 1, bright);
+    }
+    c.restore();
+  }
+}
+
 function render() {
   const c = ctx, t = G.t;
   drawHouseShell(c, wallSpec(), floorSpec());
+  drawWindowLight(c);
 
   for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);
 
@@ -108,8 +140,8 @@ function render() {
   // 夜晚：整体压暗，台灯/电视/游戏机处“挖洞”透光
   if (G.dark > 0.01) {
     lctx.globalCompositeOperation = 'source-over';
-    lctx.clearRect(0, 0, cv.width, cv.height);
-    lctx.fillStyle = `rgba(18,14,48,${G.dark})`; lctx.fillRect(0, 0, cv.width, cv.height);
+    lctx.clearRect(0, 0, W + HOUSE_MARGIN, HOUSE_HEIGHT);
+    lctx.fillStyle = `rgba(18,14,48,${G.dark})`; lctx.fillRect(0, 0, W + HOUSE_MARGIN, HOUSE_HEIGHT);
     lctx.globalCompositeOperation = 'destination-out';
     const hole = (x, y, r, a = 1) => {
       const g = lctx.createRadialGradient(x, y, 2, x, y, r);
@@ -135,7 +167,7 @@ function render() {
       if (f.id === 'fridge' && f.active) hole(x + 8, y, 24, .7);
       lctx.restore();
     }
-    c.drawImage(lightCv, 0, 0);
+    c.drawImage(lightCv, 0, 0, W + HOUSE_MARGIN, HOUSE_HEIGHT);
     c.globalCompositeOperation = 'lighter';
     for (const f of G.furniture) if (f.id === 'lamp') {
       const { x, y, storey } = houseFurnitureRect(f);
@@ -217,8 +249,8 @@ function drawBuildOverlay(c, t) {
 /* ---------- DOM 浮层：对话气泡、名字、爱心 ---------- */
 const domBubbles = new Map();
 function positionOverlay(el, x, y) {
-  el.style.left = `${100 * x / cv.width}%`;
-  el.style.top = `${100 * y / cv.height}%`;
+  el.style.left = `${100 * x / (W + HOUSE_MARGIN)}%`;
+  el.style.top = `${100 * y / HOUSE_HEIGHT}%`;
 }
 function updateOverlay() {
   const alive = new Set();
@@ -258,7 +290,7 @@ function updateOverlay() {
 let hoverDoll = null, press = null;
 function toScene(e) {
   const r = cv.getBoundingClientRect();
-  return { x: (e.clientX - r.left) / r.width * cv.width, y: (e.clientY - r.top) / r.height * cv.height };
+  return { x: (e.clientX - r.left) / r.width * (W + HOUSE_MARGIN), y: (e.clientY - r.top) / r.height * HOUSE_HEIGHT };
 }
 
 function dollAt(p, exclude) {

@@ -17,7 +17,7 @@
 
 <sub>打开就能玩，电脑和手机都可以 · 目前只有中文界面</sub>
 
-<img src="docs/two-storey.png" width="620" alt="两层剖面像素洋房，二楼有薄荷色卫生间、卧室和书房，一楼是卧室和客餐厅">
+<img src="docs/art-refresh.png" width="620" alt="两层剖面像素洋房，二楼有薄荷色卫生间、卧室和书房，一楼是卧室和客餐厅">
 
 <sub>白天的小屋 · 二楼左侧是独立卫生间，门前是住户可以走进去的院子</sub>
 
@@ -252,3 +252,6 @@ node --test tests/*.test.cjs
 <div align="center">
 <sub>用 Canvas 和 WebAudio 一个像素、一个音符地拼出来的小房子 🏡</sub>
 </div>
+
+
+[像素细节](docs/art-details.png) · [小屋夜景](docs/art-night.png)

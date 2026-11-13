@@ -1,5 +1,23 @@
 // 全部像素图都在这里用 fillRect 现场画出来，没有任何图片文件
-const INK = '#3b2a2f';
+const INK = '#493743';
+const PIXEL_SCALE = 2;
+
+// Fine details snap to the same half-tile-pixel grid in the house and portraits.
+function detail(c, x, y, w, h, color) {
+  c.fillStyle = color;
+  c.fillRect(Math.round(x * PIXEL_SCALE) / PIXEL_SCALE, Math.round(y * PIXEL_SCALE) / PIXEL_SCALE, w, h);
+}
+
+function bevel(c, x, y, w, h, fill, line) {
+  R(c, x + 1, y, w - 2, h, line);
+  R(c, x, y + 1, w, h - 2, line);
+  R(c, x + 1, y + 1, w - 2, h - 2, fill);
+}
+
+function contactShadow(c, x, y, w) {
+  R(c, x + 1, y, w - 2, 2, '#4b364221');
+  R(c, x, y + 1, w, 1, '#4b36421c');
+}
 
 function R(c, x, y, w, h, col) { c.fillStyle = col; c.fillRect(x | 0, y | 0, w | 0, h | 0); }
 // 带描边的方块：先画深色外框，再往里缩一像素填色
@@ -35,7 +53,7 @@ function drawFloor(c, floor, y0 = WALL_ROWS * T + 1, end = H) {
   if (floor.pat === 'check') for (let y = y0; y < end; y += 8) for (let x = ((y - y0) / 8 % 2) * 8; x < W; x += 16) R(c, x, y, 8, 8, a);
   if (floor.pat === 'tile') for (let y = y0; y < end; y += 16) for (let x = 0; x < W; x += 16) { R(c, x, y, 16, 1, a); R(c, x, y, 1, 16, a); R(c, x + 2, y + 2, 2, 1, '#ffffff55'); }
   if (floor.pat === 'carpet') for (let i = 0; i < 260; i++) R(c, rnd(i) * W, y0 + rnd(i + 999) * h, 1, 1, a);
-  if (floor.pat === 'grass') for (let i = 0; i < 200; i++) { const x = rnd(i) * W, y = y0 + rnd(i + 7) * h; R(c, x, y, 1, 2, a); if (i % 23 === 0) R(c, x, y, 2, 2, i % 2 ? '#fff6a0' : '#f6b0c8'); }
+  if (floor.pat === 'grass') for (let i = 0; i < 200; i++) { const x = rnd(i) * W, y = y0 + rnd(i + 7) * h; R(c, x, y, 1, 2, a); if (i % 23 === 0) R(c, x, y, 2, 2, i % 2 ? '#fff6a0' : '#e6a9bb'); }
   // 墙脚阴影
   R(c, 0, y0, W, 2, 'rgba(0,0,0,.12)');
 }
@@ -43,37 +61,66 @@ function drawFloor(c, floor, y0 = WALL_ROWS * T + 1, end = H) {
 /* ---------------- 家具 ----------------
    每个函数参数：(c, px, py, f, t)，px/py 是占地格子左上角像素，
    高家具会往上画超出占地格；f 是家具实例（f.active 表示有人在用，f.occ 是躺/坐上去的小人回调） */
-const WOOD = '#b0743f', WOOD_L = '#c98d55', WOOD_D = '#8a5530';
+const WOOD = '#ae7856', WOOD_L = '#d7a77a', WOOD_D = '#785247';
 
 function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
   const w = double ? 48 : 32;
-  R(c, x + 2, y + 29, w - 4, 3, '#3b2a2f29');
-  R(c, x + 2, y + 7, w - 4, 16, '#654e51');
-  R(c, x + 3, y + 8, w - 6, 2, double ? '#d9b091' : '#85738d');
-  R(c, x + 5, y + 11, w - 10, 5, double ? '#c59a86' : '#534963');
-  box(c, x + 2, y + 14, w - 4, 14, '#fff4e9', '#614d56');
+  const frame = '#765057', edge = '#583e48', hi = shade(linen, .16), seam = shade(linen, -.10);
+  contactShadow(c, x + 2, y + 30, w - 4);
+  bevel(c, x + 2, y + 7, w - 4, 23, '#a57264', edge);
+  R(c, x + 6, y + 8, w - 12, 2, '#d3a18a');
+  R(c, x + 6, y + 11, w - 12, 4, '#93615e');
+  for (const post of [x + 3, x + w - 6]) {
+    R(c, post, y + 8, 3, 24, frame);
+    R(c, post, y + 8, 2, 2, '#ddb199');
+    R(c, post + 1, y + 10, 1, 5, '#b98072');
+  }
+  bevel(c, x + 3, y + 14, w - 6, 14, '#fff1e2', frame);
   const centers = double ? [13, 35] : [16];
   for (const [slot, center] of centers.entries()) {
-    box(c, x + center - 7, y + 14, 14, 6, '#f8e8de', '#bdadae');
+    bevel(c, x + center - 7, y + 14, 14, 6, '#fff0e5', '#cdb2ae');
+    R(c, x + center - 5, y + 15, 9, 1, '#fffbef');
+    detail(c, x + center - 4, y + 18.5, 8, .5, '#dec5be');
     f?.occ?.(slot, x + center, y + 19);
   }
-  R(c, x + 3, y + 20, w - 6, 8, linen);
-  R(c, x + 3, y + 20, w - 6, 1, shade(linen, .18));
-  for (let px = x + 7; px < x + w - 5; px += 6) R(c, px, y + 23, 1, 3, shade(linen, -.10));
-  R(c, x + 2, y + 28, w - 4, 2, '#695354');
-  R(c, x + 4, y + 30, 2, 2, '#695354');
-  R(c, x + w - 6, y + 30, 2, 2, '#695354');
+  bevel(c, x + 3, y + 20, w - 6, 9, linen, seam);
+  R(c, x + 4, y + 21, w - 8, 1, hi);
+  for (let px = x + 7; px < x + w - 5; px += 7) {
+    detail(c, px, y + 25, 1, 1, seam);
+    detail(c, px + 1, y + 24, 1, 1, seam);
+    detail(c, px + 2, y + 23, 1, 1, seam);
+    detail(c, px + 3, y + 24, 1, 1, hi);
+    detail(c, px + 2, y + 25, 1, 1, hi);
+    detail(c, px + 1, y + 26, 1, 1, hi);
+  }
+  R(c, x + 4, y + 28, w - 8, 1, shade(linen, -.16));
+  R(c, x + 4, y + 29, w - 8, 1, '#b78274');
 }
 
 const DRAW = {
   bed(c, x, y, f) { drawBed(c, x, y, f, false); },
   bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
-    const col = '#5bb8b0', l = shade(col, 0.12), d = shade(col, -0.18);
-    box(c, x + 2, y - 8, 28, 13, col); R(c, x + 3, y - 7, 26, 2, l);
-    box(c, x + 3, y + 1, 26, 11, l); R(c, x + 16, y + 2, 1, 9, d);
-    box(c, x, y - 3, 6, 16, d); box(c, x + 26, y - 3, 6, 16, d);
-    R(c, x + 2, y + 13, 2, 3, INK); R(c, x + 28, y + 13, 2, 3, INK);
+    const edge = '#3e605c', body = '#76a99d', shade = '#518577', light = '#aacabd';
+    contactShadow(c, x + 2, y + 14, 28);
+    for (const foot of [x + 4, x + 26]) R(c, foot, y + 12, 2, 3, WOOD_D);
+    bevel(c, x + 2, y - 8, 28, 17, body, edge);
+    R(c, x + 5, y - 7, 22, 1, light);
+    R(c, x + 6, y - 1, 20, 1, shade);
+    R(c, x + 15, y - 5, 1, 4, '#649b8d');
+    bevel(c, x + 3, y + 1, 26, 12, shade, edge);
+    for (const seat of [x + 5, x + 16]) {
+      bevel(c, seat, y + 2, 11, 7, '#9bc1b2', shade);
+      detail(c, seat + 1, y + 3, 8, .5, '#c4d8ca');
+      R(c, seat + 1, y + 7, 9, 1, body);
+    }
+    for (const arm of [x, x + 25]) {
+      bevel(c, arm, y - 2, 7, 14, body, edge);
+      bevel(c, arm + 1, y - 1, 5, 6, light, shade);
+      detail(c, arm + 2.5, y + .5, 2, 1, body);
+      R(c, arm + 2, y + 8, 3, 2, shade);
+    }
+    R(c, x + 7, y + 10, 18, 1, body);
   },
   chair(c, x, y) {
     box(c, x + 3, y - 9, 10, 12, WOOD); R(c, x + 5, y - 7, 6, 1, WOOD_L); R(c, x + 5, y - 4, 6, 1, WOOD_L);
@@ -81,67 +128,112 @@ const DRAW = {
     R(c, x + 3, y + 8, 2, 7, WOOD_D); R(c, x + 11, y + 8, 2, 7, WOOD_D);
   },
   table(c, x, y) {
-    R(c, x + 2, y + 6, 2, 9, WOOD_D); R(c, x + 28, y + 6, 2, 9, WOOD_D);
-    box(c, x, y - 4, 32, 11, WOOD); R(c, x + 1, y - 3, 30, 6, WOOD_L); R(c, x + 1, y + 3, 30, 1, WOOD_D);
-    box(c, x + 6, y - 3, 8, 5, '#ffffff', '#cbbfae'); R(c, x + 8, y - 2, 4, 2, '#f0a64a'); // 盘子和煎蛋
-    box(c, x + 21, y - 6, 5, 7, '#e26d7d'); R(c, x + 26, y - 4, 1, 3, INK);             // 杯子
+    contactShadow(c, x + 1, y + 14, 30);
+    for (const px of [x + 3, x + 27]) {
+      R(c, px, y + 5, 2, 10, WOOD_D);
+      detail(c, px, y + 6, .5, 8, WOOD_L);
+    }
+    bevel(c, x, y - 4, 32, 11, WOOD, WOOD_D);
+    R(c, x + 2, y - 3, 28, 6, WOOD_L);
+    detail(c, x + 2, y + 3, 28, .5, '#efc396');
+    detail(c, x + 3, y - 2.5, 26, .5, '#b98a68');
+    bevel(c, x + 6, y - 3, 8, 5, '#fff4de', '#c4a78e');
+    R(c, x + 8, y - 2, 4, 2, '#e7ae69');
+    bevel(c, x + 21, y - 6, 5, 7, '#ce8d93', '#9b6673');
+    detail(c, x + 26, y - 4.5, 1.5, 2.5, '#9b6673');
+    detail(c, x + 22, y - 5, 2, .5, '#f0bcab');
   },
   fridge(c, x, y) {
-    box(c, x + 1, y - 18, 14, 33, '#e8eef2'); R(c, x + 2, y - 7, 12, 1, '#a9b6c0');
-    R(c, x + 11, y - 15, 2, 5, '#a9b6c0'); R(c, x + 11, y - 4, 2, 7, '#a9b6c0');
-    R(c, x + 4, y - 15, 3, 3, '#e26d7d'); R(c, x + 5, y - 2, 3, 2, '#f2d16b'); // 冰箱贴
+    contactShadow(c, x + 1, y + 14, 14);
+    bevel(c, x + 1, y - 18, 14, 33, '#eae8df', '#8e7d83');
+    R(c, x + 3, y - 17, 9, 1, '#fffbec');
+    R(c, x + 12, y - 16, 2, 29, '#cfc3c2');
+    R(c, x + 2, y - 7, 12, 1, '#ad9ea1');
+    for (const [py, h] of [[y - 15, 5], [y - 4, 7]]) {
+      detail(c, x + 10.5, py, 1.5, h, '#a49598');
+      detail(c, x + 10.5, py, .5, h - 1, '#f9efdf');
+    }
+    R(c, x + 4, y - 15, 3, 3, '#ca8290');
+    detail(c, x + 4, y - 15, 2, .5, '#f3b5ad');
+    R(c, x + 5, y - 2, 3, 2, '#efd189');
   },
   stove(c, x, y, f, t) {
-    box(c, x + 1, y - 6, 14, 21, '#d8d0c4'); R(c, x + 2, y - 5, 12, 3, '#3b3a4a');
+    box(c, x + 1, y - 6, 14, 21, '#d8d0c4'); R(c, x + 2, y - 5, 12, 3, '#4e4557');
     R(c, x + 3, y - 4, 3, 1, '#666'); R(c, x + 10, y - 4, 3, 1, '#666');
-    box(c, x + 3, y + 1, 10, 7, '#3b3a4a', '#8a8278'); R(c, x + 4, y + 2, 8, 2, '#5b5a6a');
-    R(c, x + 3, y + 10, 2, 2, '#e26d7d'); R(c, x + 7, y + 10, 2, 2, '#e26d7d');
+    box(c, x + 3, y + 1, 10, 7, '#4e4557', '#8a8278'); R(c, x + 4, y + 2, 8, 2, '#675a6e');
+    R(c, x + 3, y + 10, 2, 2, '#ca8290'); R(c, x + 7, y + 10, 2, 2, '#ca8290');
     if (f && f.active) {
       const k = Math.floor(t * 8) % 2;
-      R(c, x + 3, y - 7, 4, 2, k ? '#f2d16b' : '#f0a64a');
-      box(c, x + 8, y - 9, 7, 4, '#5b5a6a'); R(c, x + 14, y - 8, 3, 1, INK);
+      R(c, x + 3, y - 7, 4, 2, k ? '#efd189' : '#e1ad71');
+      box(c, x + 8, y - 9, 7, 4, '#675a6e'); R(c, x + 14, y - 8, 3, 1, INK);
       R(c, x + 10 + k, y - 12 - k, 1, 2, '#ffffffaa');
     }
   },
   shelf(c, x, y) {
-    box(c, x, y - 22, 32, 37, WOOD_D);
-    for (let r = 0; r < 3; r++) {
-      const sy = y - 20 + r * 11;
-      R(c, x + 2, sy, 28, 9, '#5e3a22');
+    const covers = ['#b97482', '#7899aa', '#dcb278', '#81a48b', '#9583aa', '#c28867'];
+    contactShadow(c, x + 1, y + 14, 30);
+    bevel(c, x, y - 22, 32, 37, WOOD, WOOD_D);
+    R(c, x + 2, y - 21, 28, 1, WOOD_L);
+    for (let row = 0; row < 3; row++) {
+      const sy = y - 20 + row * 11;
+      R(c, x + 2, sy, 28, 9, '#61454b');
       let bx = x + 3;
       for (let i = 0; bx < x + 28; i++) {
-        const bw = 2 + ((rnd(r * 20 + i) * 3) | 0), bh = 6 + ((rnd(r * 9 + i + 3) * 3) | 0);
-        R(c, bx, sy + 9 - bh, bw, bh, ['#e26d7d', '#6aa9ec', '#f2d16b', '#7cc576', '#8a7fe0', '#f0a64a'][(rnd(i + r * 7) * 6) | 0]);
+        const bw = Math.min(x + 29 - bx, 2 + Math.floor(rnd(row * 20 + i) * 3));
+        const bh = 5 + Math.floor(rnd(row * 9 + i + 3) * 4);
+        const color = covers[Math.floor(rnd(i + row * 7) * covers.length)];
+        R(c, bx, sy + 9 - bh, bw, bh, color);
+        detail(c, bx, sy + 9 - bh, .5, bh, shade(color, .15));
+        detail(c, bx + .5, sy + 11 - bh, bw - 1, .5, shade(color, .12));
         bx += bw + 1;
       }
       R(c, x + 1, sy + 9, 30, 2, WOOD);
+      R(c, x + 2, sy + 9, 28, 1, WOOD_L);
     }
+    detail(c, x + 1, y - 19, .5, 32, WOOD_L);
+    detail(c, x + 30, y - 19, .5, 32, '#96634f');
   },
   tv(c, x, y, f, t) {
     box(c, x, y, 32, 15, WOOD); R(c, x + 2, y + 4, 13, 8, WOOD_D); R(c, x + 17, y + 4, 13, 8, WOOD_D);
     R(c, x + 15, y - 2, 2, 3, INK);
-    box(c, x + 3, y - 17, 26, 16, '#3b3a4a', INK);
+    box(c, x + 3, y - 17, 26, 16, '#4e4557', INK);
     if (f && f.active) {
-      const cols = ['#6aa9ec', '#7cc576', '#f2d16b', '#e26d7d'];
+      const cols = ['#7e9fbd', '#88ab83', '#efd189', '#ca8290'];
       const k = Math.floor(t * 1.5) % 4;
       R(c, x + 5, y - 15, 22, 12, cols[k]); R(c, x + 8, y - 10, 6, 5, shade(cols[(k + 1) % 4], -0.1));
       R(c, x + 17, y - 13, 7, 3, '#ffffff99');
     } else { R(c, x + 5, y - 15, 22, 12, '#4c5a68'); R(c, x + 6, y - 14, 4, 1, '#ffffff44'); }
   },
   arcade(c, x, y, f, t) {
-    box(c, x + 1, y - 18, 14, 33, '#8a7fe0'); R(c, x + 2, y - 17, 12, 3, '#f2d16b');
+    box(c, x + 1, y - 18, 14, 33, '#9582b1'); R(c, x + 2, y - 17, 12, 3, '#efd189');
     box(c, x + 3, y - 13, 10, 9, '#1d1b2a');
-    if (f && f.active) { const k = Math.floor(t * 6) % 3; R(c, x + 5 + k * 2, y - 10, 2, 2, '#7cc576'); R(c, x + 9 - k, y - 7, 2, 1, '#e26d7d'); }
-    else R(c, x + 6, y - 9, 4, 1, '#7cc576');
-    R(c, x + 2, y - 3, 12, 4, shade('#8a7fe0', -0.2)); R(c, x + 5, y - 5, 1, 3, INK); R(c, x + 4, y - 6, 3, 2, '#e26d7d');
-    R(c, x + 9, y - 3, 2, 2, '#6aa9ec'); R(c, x + 12, y - 3, 1, 2, '#f2d16b');
+    if (f && f.active) { const k = Math.floor(t * 6) % 3; R(c, x + 5 + k * 2, y - 10, 2, 2, '#88ab83'); R(c, x + 9 - k, y - 7, 2, 1, '#ca8290'); }
+    else R(c, x + 6, y - 9, 4, 1, '#88ab83');
+    R(c, x + 2, y - 3, 12, 4, shade('#9582b1', -0.2)); R(c, x + 5, y - 5, 1, 3, INK); R(c, x + 4, y - 6, 3, 2, '#ca8290');
+    R(c, x + 9, y - 3, 2, 2, '#7e9fbd'); R(c, x + 12, y - 3, 1, 2, '#efd189');
   },
-  piano(c, x, y) {
-    box(c, x, y - 14, 32, 29, '#2e2530'); R(c, x + 2, y - 12, 28, 6, '#4a3a48');
-    R(c, x + 1, y + 1, 30, 5, '#ffffff');
-    for (let i = 0; i < 10; i++) { R(c, x + 3 + i * 3, y + 1, 1, 5, '#cbbfae'); if (i % 7 !== 2 && i % 7 !== 6) R(c, x + 4 + i * 3, y + 1, 2, 3, INK); }
-    R(c, x + 12, y - 11, 8, 4, '#f6ead6'); // 琴谱
-    R(c, x + 2, y + 12, 3, 3, INK); R(c, x + 27, y + 12, 3, 3, INK);
+  piano(c, x, y, f, t) {
+    const edge = '#493441', walnut = '#725057', glint = '#a97a72';
+    contactShadow(c, x + 1, y + 14, 30);
+    bevel(c, x, y - 14, 32, 29, walnut, edge);
+    R(c, x + 2, y - 13, 28, 2, glint);
+    bevel(c, x + 2, y - 10, 28, 10, '#644650', edge);
+    detail(c, x + 4, y - 8, 24, .5, glint);
+    bevel(c, x + 12, y - 8, 8, 5, '#f6e7cd', '#ae927e');
+    detail(c, x + 16, y - 7, .5, 3, '#d0b697');
+    R(c, x + 1, y, 30, 6, edge);
+    for (let i = 0; i < 14; i++) {
+      const keyX = x + 2 + i * 2;
+      const playing = f?.active && i === Math.floor(t * 9) % 14;
+      detail(c, keyX, y + 1, 1.5, 3.5, playing ? '#f3bf96' : '#fff3df');
+      if (i % 7 !== 2 && i % 7 !== 6) detail(c, keyX + 1, y + 1, 1, 2, '#54414c');
+    }
+    R(c, x + 4, y + 8, 24, 1, glint);
+    for (let i = 0; i < 3; i++) {
+      R(c, x + 13 + i * 2, y + 12, 1, 2, '#dbac70');
+      detail(c, x + 13 + i * 2, y + 12, 1, .5, '#f8d28f');
+    }
+    R(c, x + 2, y + 12, 3, 3, edge); R(c, x + 27, y + 12, 3, 3, edge);
   },
   bath(c, x, y, f) {
     box(c, x, y - 4, 32, 18, '#ffffff', '#7a8a96'); R(c, x + 2, y - 2, 28, 6, '#9fd8f0');
@@ -152,69 +244,86 @@ const DRAW = {
     R(c, x + 2, y + 13, 3, 3, '#a9b6c0'); R(c, x + 27, y + 13, 3, 3, '#a9b6c0');
   },
   plant(c, x, y, f, t) {
-    const sway = f && f.active ? Math.round(Math.sin(t * 6)) : 0;
-    const g = '#5fae5a', gl = '#8ccf7a';
-    R(c, x + 6, y - 6, 4, 8, '#3f7d3c');
-    box(c, x + 1 + sway, y - 14, 8, 8, g); box(c, x + 7 + sway, y - 12, 8, 8, g); box(c, x + 4 + sway, y - 18, 8, 8, gl);
-    R(c, x + 6 + sway, y - 16, 2, 2, '#b4e6a0');
-    box(c, x + 3, y + 2, 10, 12, '#c8735a'); R(c, x + 3, y + 2, 10, 3, '#a85c48');
+    const sway = f?.active ? Math.round(Math.sin(t * 6)) : 0;
+    const leaf = '#83aa80', edge = '#52765f', glint = '#a8c59a';
+    contactShadow(c, x + 3, y + 13, 10);
+    R(c, x + 7, y - 8, 2, 12, edge);
+    for (const [dx, dy, w] of [[1, -14, 8], [7, -12, 8], [4, -18, 8]]) {
+      bevel(c, x + dx + sway, y + dy, w, 8, leaf, edge);
+      detail(c, x + dx + 1.5 + sway, y + dy + 1, w - 3, .5, glint);
+      detail(c, x + dx + 2 + sway, y + dy + 2, .5, 3, glint);
+    }
+    bevel(c, x + 3, y + 2, 10, 12, '#be816e', '#825b59');
+    R(c, x + 3, y + 2, 10, 3, '#a5665c');
+    detail(c, x + 4, y + 3, 8, .5, '#e4a98a');
+    detail(c, x + 5, y + 6, .5, 5, '#d69a80');
   },
   lamp(c, x, y) {
-    R(c, x + 7, y - 12, 2, 24, '#6b5a52');
-    box(c, x + 4, y + 11, 8, 4, '#6b5a52');
-    R(c, x + 2, y - 20, 12, 9, INK); R(c, x + 4, y - 21, 8, 1, INK);
-    R(c, x + 3, y - 19, 10, 7, '#f6d98a'); R(c, x + 5, y - 20, 6, 1, '#f6d98a'); R(c, x + 3, y - 13, 10, 1, '#e0b860');
+    const brass = '#a5795b', edge = '#74545b';
+    contactShadow(c, x + 3, y + 14, 10);
+    R(c, x + 7, y - 12, 2, 24, edge);
+    detail(c, x + 7.5, y - 12, .5, 24, '#d9ae78');
+    bevel(c, x + 4, y + 11, 8, 4, brass, edge);
+    bevel(c, x + 2, y - 20, 12, 9, '#f0cc84', edge);
+    R(c, x + 4, y - 19, 8, 1, '#fff0b7');
+    for (const px of [5, 8, 11]) detail(c, x + px, y - 18, .5, 5, '#ffdfa2');
+    R(c, x + 3, y - 13, 10, 1, '#d7a774');
   },
   catbed(c, x, y, f, t) {
     box(c, x, y + 4, 16, 11, '#e27fa6'); R(c, x + 2, y + 6, 12, 6, '#f6c1d4');
     // 卷成一团的橘猫，尾巴会摇
     const tail = Math.round(Math.sin(t * (f && f.active ? 10 : 3)) * 1.5);
-    box(c, x + 3, y + 3, 10, 7, '#f0a64a'); box(c, x + 9, y + 1, 6, 6, '#f0a64a');
-    R(c, x + 9, y, 2, 2, '#f0a64a'); R(c, x + 13, y, 2, 2, '#f0a64a');
+    box(c, x + 3, y + 3, 10, 7, '#e1ad71'); box(c, x + 9, y + 1, 6, 6, '#e1ad71');
+    R(c, x + 9, y, 2, 2, '#e1ad71'); R(c, x + 13, y, 2, 2, '#e1ad71');
     R(c, x + 11, y + 3, 1, 1, INK); R(c, x + 13, y + 3, 1, 1, INK);
     R(c, x + 2 + tail, y + 6, 2, 4, '#d88a34');
     R(c, x + 5, y + 5, 3, 1, '#d88a34');
   },
   rug(c, x, y) {
-    const col = '#e8a0b4';
-    R(c, x + 4, y + 1, 40, 30, INK); R(c, x + 1, y + 4, 46, 24, INK);
+    const col = '#d8a4ad';
+    R(c, x + 4, y + 1, 40, 30, '#b88f9b'); R(c, x + 1, y + 4, 46, 24, '#b88f9b');
     R(c, x + 5, y + 2, 38, 28, col); R(c, x + 2, y + 5, 44, 22, col);
-    R(c, x + 8, y + 6, 32, 20, '#f6c8d4'); R(c, x + 6, y + 8, 36, 16, '#f6c8d4');
+    R(c, x + 8, y + 6, 32, 20, '#efccd0'); R(c, x + 6, y + 8, 36, 16, '#efccd0');
     R(c, x + 14, y + 11, 20, 10, col);
   },
   rug2(c, x, y) {
     box(c, x + 1, y + 1, 30, 30, '#f6ead6');
-    for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, ['#6aa9ec', '#f2d16b', '#7cc576', '#e26d7d', '#8a7fe0'][i]);
+    for (let i = 0; i < 5; i++) R(c, x + 2, y + 4 + i * 6, 28, 3, ['#7e9fbd', '#efd189', '#88ab83', '#ca8290', '#9582b1'][i]);
     for (let i = 0; i < 7; i++) { R(c, x + 3 + i * 4, y - 1, 1, 2, '#cbbfae'); R(c, x + 3 + i * 4, y + 31, 1, 2, '#cbbfae'); }
   },
   door(c, x, y, f) {
     box(c, x + 1, y + 2, 14, 30, WOOD_D);
     if (f && f.openT > 0) {
-      R(c, x + 2, y + 3, 12, 29, '#2a2230'); R(c, x + 2, y + 3, 12, 6, G.sky || '#9fd3f0');   // 打开时看到外面
+      R(c, x + 2, y + 3, 12, 29, '#2a2230'); R(c, x + 2, y + 3, 12, 6, G.sky || '#a5ccdc');   // 打开时看到外面
       R(c, x + 2, y + 3, 3, 29, WOOD);                                                         // 往里开的门板
     } else {
       R(c, x + 2, y + 3, 12, 29, WOOD); R(c, x + 3, y + 4, 10, 1, WOOD_L);
-      box(c, x + 4, y + 6, 8, 7, G.sky || '#9fd3f0', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
+      box(c, x + 4, y + 6, 8, 7, G.sky || '#a5ccdc', WOOD_D); R(c, x + 7, y + 6, 1, 7, WOOD_D);
       R(c, x + 4, y + 16, 8, 6, shade(WOOD, -0.08)); R(c, x + 4, y + 24, 8, 6, shade(WOOD, -0.08));
-      R(c, x + 11, y + 19, 2, 2, '#f2c33a');
+      R(c, x + 11, y + 19, 2, 2, '#e8ba75');
     }
-    R(c, x, y + 33, 16, 3, '#c8735a'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
+    R(c, x, y + 33, 16, 3, '#be816e'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
   },
   window(c, x, y) {
     box(c, x + 2, y + 4, 28, 24, '#ffffff');
-    R(c, x + 4, y + 6, 24, 20, G.sky || '#9fd3f0');
+    R(c, x + 4, y + 6, 24, 20, G.sky || '#a5ccdc');
     if (G.night) { R(c, x + 21, y + 9, 4, 4, '#fff6c8'); R(c, x + 22, y + 9, 3, 1, G.sky); R(c, x + 8, y + 10, 1, 1, '#fff'); R(c, x + 13, y + 18, 1, 1, '#fff'); }
     else { R(c, x + 7, y + 11, 8, 2, '#ffffff'); R(c, x + 9, y + 10, 4, 1, '#ffffff'); R(c, x + 19, y + 17, 6, 2, '#ffffffcc'); }
     if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 4, y + 6, 24, 20);
     R(c, x + 15, y + 5, 2, 22, '#ffffff'); R(c, x + 3, y + 15, 26, 2, '#ffffff');
     R(c, x, y + 1, 32, 3, WOOD_D);                            // 窗帘杆
-    R(c, x + 1, y + 3, 5, 24, '#e26d7d'); R(c, x + 26, y + 3, 5, 24, '#e26d7d');
-    R(c, x + 3, y + 3, 1, 24, '#c95a6a'); R(c, x + 28, y + 3, 1, 24, '#c95a6a');
+    for (const px of [x + 1, x + 26]) {
+      R(c, px, y + 3, 5, 24, '#cc8794');
+      detail(c, px + .5, y + 4, .5, 22, '#f2b0b1');
+      R(c, px + 2, y + 4, 1, 22, '#aa687c');
+      R(c, px, y + 25, 5, 1, '#e7a6a7');
+      R(c, px + 2, y + 1, 1, 2, '#efc38c');
+    }
     R(c, x + 2, y + 28, 28, 2, WOOD_L);
   },
   painting(c, x, y) {
     box(c, x + 1, y + 2, 14, 12, '#d9a640');
-    R(c, x + 3, y + 4, 10, 8, '#9fd3f0'); R(c, x + 3, y + 9, 10, 3, '#7cc576');
+    R(c, x + 3, y + 4, 10, 8, '#a5ccdc'); R(c, x + 3, y + 9, 10, 3, '#88ab83');
     R(c, x + 5, y + 7, 3, 3, '#5fae5a'); R(c, x + 10, y + 5, 2, 2, '#fff6a0');
   },
   clock(c, x, y) {
@@ -225,14 +334,14 @@ const DRAW = {
     const hx = Math.round(Math.cos(ang(h, 12)) * 2), hy = Math.round(Math.sin(ang(h, 12)) * 2);
     const mx = Math.round(Math.cos(ang(m, 60)) * 3), my = Math.round(Math.sin(ang(m, 60)) * 3);
     R(c, x + 8 + hx, y + 8 + hy, 1, 1, INK); R(c, x + 8 + Math.round(hx / 2), y + 8 + Math.round(hy / 2), 1, 1, INK);
-    R(c, x + 8 + mx, y + 8 + my, 1, 1, '#e26d7d'); R(c, x + 8 + Math.round(mx * 2 / 3), y + 8 + Math.round(my * 2 / 3), 1, 1, '#e26d7d');
+    R(c, x + 8 + mx, y + 8 + my, 1, 1, '#ca8290'); R(c, x + 8 + Math.round(mx * 2 / 3), y + 8 + Math.round(my * 2 / 3), 1, 1, '#ca8290');
     R(c, x + 8, y + 8, 1, 1, INK);
   },
   poster(c, x, y) {
     box(c, x + 2, y + 3, 12, 24, '#3d3a66');
-    R(c, x + 7, y + 8, 2, 6, '#f2d16b'); R(c, x + 5, y + 10, 6, 2, '#f2d16b'); R(c, x + 6, y + 9, 4, 4, '#f2d16b');
-    R(c, x + 4, y + 18, 8, 1, '#e26d7d'); R(c, x + 5, y + 21, 6, 1, '#ffffff'); R(c, x + 5, y + 23, 4, 1, '#ffffff');
-    R(c, x + 7, y + 2, 2, 2, '#e26d7d');
+    R(c, x + 7, y + 8, 2, 6, '#efd189'); R(c, x + 5, y + 10, 6, 2, '#efd189'); R(c, x + 6, y + 9, 4, 4, '#efd189');
+    R(c, x + 4, y + 18, 8, 1, '#ca8290'); R(c, x + 5, y + 21, 6, 1, '#ffffff'); R(c, x + 5, y + 23, 4, 1, '#ffffff');
+    R(c, x + 7, y + 2, 2, 2, '#ca8290');
   },
 };
 
@@ -243,13 +352,21 @@ const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv
 function furnitureIcon(id, size = 56) {
   const d = FURNITURE[id], top = d.layer ? 0 : (TALL[id] || 0);
   const pw = d.w * T, ph = d.h * T + top;
-  const cv = document.createElement('canvas'); cv.width = cv.height = size;
-  const c = cv.getContext('2d'); c.imageSmoothingEnabled = false;
-  const tmp = document.createElement('canvas'); tmp.width = pw; tmp.height = ph;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = size * PIXEL_SCALE;
+  cv.style.width = cv.style.height = size + 'px';
+  const c = cv.getContext('2d');
+  c.imageSmoothingEnabled = false;
+  const tmp = document.createElement('canvas');
+  tmp.width = pw * PIXEL_SCALE;
+  tmp.height = ph * PIXEL_SCALE;
   const tc = tmp.getContext('2d');
+  tc.scale(PIXEL_SCALE, PIXEL_SCALE);
   DRAW[id](tc, 0, top, { color: null }, 0);
-  const s = Math.max(1, Math.floor(Math.min(size / pw, size / ph)));
-  c.drawImage(tmp, (size - pw * s) / 2 | 0, (size - ph * s) / 2 | 0, pw * s, ph * s);
+  const s = Math.min(size / pw, size / ph);
+  const scale = s >= 1 ? Math.floor(s) : s;
+  const w = Math.round(pw * PIXEL_SCALE * scale), h = Math.round(ph * PIXEL_SCALE * scale);
+  c.drawImage(tmp, Math.floor((cv.width - w) / 2), Math.floor((cv.height - h) / 2), w, h);
   return cv;
 }
 
