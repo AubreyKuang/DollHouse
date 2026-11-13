@@ -629,6 +629,36 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.match(excerpts[0].steps[5],/在书房的窗边聊起/);
 `));
 
+test('readers wait for a free moment and walk to a saved window appointment', () => game(`
+  const [author,first,second]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:first.pid,until:G.day,readBy:[first.pid,second.pid],
+    keepForPaper:true,question:true};
+  const write=save;
+  save=()=>false;assert.equal(toggleBookMeeting(seat),false);
+  assert.equal(bookMeetingUntil(bookRecommendation(seat)),null);
+  save=write;assert.ok(toggleBookMeeting(seat));load();
+  const chair=G.furniture.find(f=>f.key===seat.key);
+  const note=bookRecommendation(chair), readers=[first.pid,second.pid].map(communityDoll);
+  assert.ok(bookMeetingUntil(note));
+  for(const [i,d] of readers.entries()){
+    Object.assign(d,{job:'none',state:'idle',act:null,path:[],needs:{energy:80,hunger:80,bladder:80,social:40,fun:50}});
+    placeDollAt(d,13+i,18);
+  }
+  const [a,b]=readers;
+  b.state='away';tickKeepsakes(0);
+  assert.equal(a.act,null);
+  b.state='idle';G.time+=4;tickKeepsakes(0);
+  assert.deepEqual(readers.map(d=>d.act?.type),['bookMeet','bookMeet']);
+  for(let i=0;i<200&&!readers.every(d=>d.state==='act');i++)readers.forEach(d=>updateDoll(d,.1));
+  assert.equal(readers.every(d=>d.state==='act'),true);
+  G.time+=4;tickKeepsakes(0);
+  assert.equal(note.followup,true);
+  assert.equal(note.followupRoom,'study');
+  assert.ok(readers.every(d=>d.needs.social>43));
+`));
+
 test('a completed book can reserve next month without replacing this issue', () => game(`
   const [author,first,second]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});

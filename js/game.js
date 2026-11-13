@@ -484,6 +484,7 @@ function arrive(d) {
   const a = d.act;
   if (CARE_ACTIONS.includes(a?.type)) { arriveHomeCare(d); return; }
   if (a?.type === 'homeTime') { arriveHomeTime(d); return; }
+  if (a?.type === 'bookMeet') { d.state = 'act'; a.t = 30; return; }
   if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
   if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }

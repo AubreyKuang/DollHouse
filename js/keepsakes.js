@@ -134,6 +134,7 @@ const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
 const BOOK_FOLLOWUP_SOCIAL = 4;
+const BOOK_MEET_MINUTES = 120;
 const BOOK_QUESTION = '这一段让你想起了什么？';
 const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
 function publicBookReaders(note) {
@@ -207,6 +208,24 @@ function canTalkAboutBook(chair, readers) {
     readers.every(hasTimeToDiscussReading) && !tensionBetween(first, second);
 }
 
+function bookMeetingUntil(note) {
+  return note?.meetUntil > absNow() ? note.meetUntil : null;
+}
+
+function toggleBookMeeting(chair) {
+  const note = bookRecommendation(chair), readers = bookFollowupReaders(chair);
+  const previous = note?.meetUntil;
+  if (bookMeetingUntil(note)) delete note.meetUntil;
+  else {
+    if (readers.length !== BOOK_PUBLIC_READERS || tensionBetween(...readers)) return false;
+    note.meetUntil = Math.min(Math.floor(absNow()) + BOOK_MEET_MINUTES, note.until * 1440);
+  }
+  if (save()) return true;
+  if (previous === undefined) delete note.meetUntil;
+  else note.meetUntil = previous;
+  return false;
+}
+
 function talkAboutBook(chair) {
   if (!G.furniture.includes(chair)) return false;
   const readers = bookFollowupReaders(chair);
@@ -229,6 +248,48 @@ function talkAboutBook(chair) {
   say(first, '原来你也想到了窗边的雨。');
   say(second, '下次下雨，再一起坐一会儿吧。');
   return true;
+}
+
+let bookMeetingCheck;
+function tickBookMeetings() {
+  const minute = Math.floor(absNow() / 4);
+  if (bookMeetingCheck === minute) return;
+  bookMeetingCheck = minute;
+  for (const d of G.dolls) {
+    if (d.act?.type !== 'bookMeet') continue;
+    const chair = G.furniture.find(f => f.key === d.act.keepsakeKey);
+    const note = chair && bookRecommendation(chair);
+    if (!note || note.followup || !bookMeetingUntil(note) || quietStudy(chair) || !hasTimeToDiscussReading(d)) {
+      endAct(d);
+      d.path = [];
+    }
+  }
+  for (const [key, note] of Object.entries(G.keepsakes.bookRecommendations)) {
+    if (!bookMeetingUntil(note) || note.followup) continue;
+    const chair = G.furniture.find(f => f.key === key);
+    if (!chair || quietStudy(chair)) continue;
+    const readers = bookFollowupReaders(chair);
+    if (readers.length !== BOOK_PUBLIC_READERS || tensionBetween(...readers)) continue;
+    const assigned = d => d.act?.type === 'bookMeet' && d.act.keepsakeKey === chair.key;
+    const onTheWay = readers.filter(assigned);
+    if (onTheWay.length === BOOK_PUBLIC_READERS && !readers.every(d => d.state === 'act')) continue;
+    for (const d of onTheWay) {
+      endAct(d);
+      d.path = [];
+    }
+    if (canTalkAboutBook(chair, readers)) {
+      talkAboutBook(chair);
+      continue;
+    }
+    if (!readers.every(d => d.state === 'idle' && hasTimeToDiscussReading(d))) continue;
+    const tiles = [];
+    for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
+      const tile = { x, y };
+      if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === cornerRoom(chair)) tiles.push(tile);
+    }
+    const routes = pairRoutes(...readers, tiles);
+    if (routes) sendKeepsakePair(readers, routes, 'bookMeet', chair.key);
+  }
 }
 
 function replyToBookRecommendation(chair) {
@@ -557,6 +618,7 @@ function startRainTea(key, pair) {
 }
 
 function tickKeepsakes(dt) {
+  tickBookMeetings();
   const k = G.keepsakes;
   const project = k.project;
   if (project) {

@@ -623,6 +623,7 @@ body{
           aria-describedby="bookQuestionHint" hidden>给下一位留个问题</button>
         <span class="hint" id="bookQuestionHint" hidden></span>
         <button type="button" class="btn small" id="bookFollowup" aria-describedby="bookQuestionHint" hidden>让两位读者当面聊</button>
+        <button type="button" class="btn small" id="bookMeeting" aria-describedby="bookQuestionHint" hidden>约两位读者有空时来聊</button>
         <button type="button" class="btn small" id="bookReply" aria-describedby="readingSeatHint" hidden>回信给推荐人</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
         <div id="bookReaderControls" hidden>
@@ -3315,6 +3316,7 @@ function arrive(d) {
   const a = d.act;
   if (CARE_ACTIONS.includes(a?.type)) { arriveHomeCare(d); return; }
   if (a?.type === 'homeTime') { arriveHomeTime(d); return; }
+  if (a?.type === 'bookMeet') { d.state = 'act'; a.t = 30; return; }
   if (['makeKeepsake', 'rainTea'].includes(a?.type)) { arriveKeepsake(d); return; }
   if (a?.type === 'visitLeave') { finishGuestDeparture(); return; }
   if (a?.type === 'neighborLeave') { arriveNeighborOuting(d); return; }
@@ -7016,6 +7018,7 @@ const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
 const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
 const BOOK_FOLLOWUP_SOCIAL = 4;
+const BOOK_MEET_MINUTES = 120;
 const BOOK_QUESTION = '这一段让你想起了什么？';
 const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
 function publicBookReaders(note) {
@@ -7089,6 +7092,24 @@ function canTalkAboutBook(chair, readers) {
     readers.every(hasTimeToDiscussReading) && !tensionBetween(first, second);
 }
 
+function bookMeetingUntil(note) {
+  return note?.meetUntil > absNow() ? note.meetUntil : null;
+}
+
+function toggleBookMeeting(chair) {
+  const note = bookRecommendation(chair), readers = bookFollowupReaders(chair);
+  const previous = note?.meetUntil;
+  if (bookMeetingUntil(note)) delete note.meetUntil;
+  else {
+    if (readers.length !== BOOK_PUBLIC_READERS || tensionBetween(...readers)) return false;
+    note.meetUntil = Math.min(Math.floor(absNow()) + BOOK_MEET_MINUTES, note.until * 1440);
+  }
+  if (save()) return true;
+  if (previous === undefined) delete note.meetUntil;
+  else note.meetUntil = previous;
+  return false;
+}
+
 function talkAboutBook(chair) {
   if (!G.furniture.includes(chair)) return false;
   const readers = bookFollowupReaders(chair);
@@ -7111,6 +7132,48 @@ function talkAboutBook(chair) {
   say(first, '原来你也想到了窗边的雨。');
   say(second, '下次下雨，再一起坐一会儿吧。');
   return true;
+}
+
+let bookMeetingCheck;
+function tickBookMeetings() {
+  const minute = Math.floor(absNow() / 4);
+  if (bookMeetingCheck === minute) return;
+  bookMeetingCheck = minute;
+  for (const d of G.dolls) {
+    if (d.act?.type !== 'bookMeet') continue;
+    const chair = G.furniture.find(f => f.key === d.act.keepsakeKey);
+    const note = chair && bookRecommendation(chair);
+    if (!note || note.followup || !bookMeetingUntil(note) || quietStudy(chair) || !hasTimeToDiscussReading(d)) {
+      endAct(d);
+      d.path = [];
+    }
+  }
+  for (const [key, note] of Object.entries(G.keepsakes.bookRecommendations)) {
+    if (!bookMeetingUntil(note) || note.followup) continue;
+    const chair = G.furniture.find(f => f.key === key);
+    if (!chair || quietStudy(chair)) continue;
+    const readers = bookFollowupReaders(chair);
+    if (readers.length !== BOOK_PUBLIC_READERS || tensionBetween(...readers)) continue;
+    const assigned = d => d.act?.type === 'bookMeet' && d.act.keepsakeKey === chair.key;
+    const onTheWay = readers.filter(assigned);
+    if (onTheWay.length === BOOK_PUBLIC_READERS && !readers.every(d => d.state === 'act')) continue;
+    for (const d of onTheWay) {
+      endAct(d);
+      d.path = [];
+    }
+    if (canTalkAboutBook(chair, readers)) {
+      talkAboutBook(chair);
+      continue;
+    }
+    if (!readers.every(d => d.state === 'idle' && hasTimeToDiscussReading(d))) continue;
+    const tiles = [];
+    for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
+      const tile = { x, y };
+      if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === cornerRoom(chair)) tiles.push(tile);
+    }
+    const routes = pairRoutes(...readers, tiles);
+    if (routes) sendKeepsakePair(readers, routes, 'bookMeet', chair.key);
+  }
 }
 
 function replyToBookRecommendation(chair) {
@@ -7439,6 +7502,7 @@ function startRainTea(key, pair) {
 }
 
 function tickKeepsakes(dt) {
+  tickBookMeetings();
   const k = G.keepsakes;
   const project = k.project;
   if (project) {
@@ -9379,6 +9443,7 @@ const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
 const bookFollowupButton = $('#bookFollowup');
+const bookMeetingButton = $('#bookMeeting');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -9488,6 +9553,11 @@ bookFollowupButton.onclick = () => {
   } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，可以稍后再聊。';
   refreshReadingSeats();
 };
+bookMeetingButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !toggleBookMeeting(chair)) return;
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -9577,13 +9647,20 @@ function refreshReadingSeats() {
   const followupReaders = bookFollowupReaders(chair);
   bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true;
   bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
+  const meetingUntil = bookMeetingUntil(recommendation);
+  bookMeetingButton.hidden = bookFollowupButton.hidden;
+  bookMeetingButton.disabled = !meetingUntil && (followupReaders.length !== BOOK_PUBLIC_READERS ||
+    tensionBetween(...followupReaders) || !bookFollowupButton.disabled);
+  const meetingAction = meetingUntil ? '取消窗边约聊' : '约两位读者有空时来聊';
+  if (bookMeetingButton.textContent !== meetingAction) bookMeetingButton.textContent = meetingAction;
   if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
   bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
   const followupRoom = Object.hasOwn(readingRoomNames, recommendation?.followupRoom)
     ? readingRoomNames[recommendation.followupRoom] : '';
   const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
       (recommendation.followup ? `两位读者已经${followupRoom ? '在' + followupRoom : ''}当面聊过。`
-        : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。搬动便条时可查看哪些椅子现在适合聊天。`)
+        : meetingUntil ? `约聊等到 ${meetingUntil >= G.day * 1440 ? '月底' : hhmm(meetingUntil)}。两人有空时会来这把椅子旁。`
+        : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。也可约他们在 ${BOOK_MEET_MINUTES} 分钟内有空时来聊。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
   if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);

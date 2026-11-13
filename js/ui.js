@@ -183,6 +183,7 @@ const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
 const bookFollowupButton = $('#bookFollowup');
+const bookMeetingButton = $('#bookMeeting');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -292,6 +293,11 @@ bookFollowupButton.onclick = () => {
   } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，可以稍后再聊。';
   refreshReadingSeats();
 };
+bookMeetingButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !toggleBookMeeting(chair)) return;
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -381,13 +387,20 @@ function refreshReadingSeats() {
   const followupReaders = bookFollowupReaders(chair);
   bookFollowupButton.hidden = !completed || !questioning || recommendation.followup === true;
   bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
+  const meetingUntil = bookMeetingUntil(recommendation);
+  bookMeetingButton.hidden = bookFollowupButton.hidden;
+  bookMeetingButton.disabled = !meetingUntil && (followupReaders.length !== BOOK_PUBLIC_READERS ||
+    tensionBetween(...followupReaders) || !bookFollowupButton.disabled);
+  const meetingAction = meetingUntil ? '取消窗边约聊' : '约两位读者有空时来聊';
+  if (bookMeetingButton.textContent !== meetingAction) bookMeetingButton.textContent = meetingAction;
   if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
   bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
   const followupRoom = Object.hasOwn(readingRoomNames, recommendation?.followupRoom)
     ? readingRoomNames[recommendation.followupRoom] : '';
   const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
       (recommendation.followup ? `两位读者已经${followupRoom ? '在' + followupRoom : ''}当面聊过。`
-        : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。搬动便条时可查看哪些椅子现在适合聊天。`)
+        : meetingUntil ? `约聊等到 ${meetingUntil >= G.day * 1440 ? '月底' : hhmm(meetingUntil)}。两人有空时会来这把椅子旁。`
+        : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。也可约他们在 ${BOOK_MEET_MINUTES} 分钟内有空时来聊。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
   if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);
