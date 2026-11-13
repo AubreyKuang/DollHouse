@@ -16,6 +16,7 @@ const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f
 const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
+const quietReading = f => quietStudy(f) || (f.soloReading === true && isWindowChair(f));
 
 function cornerKind(f) {
   if (G.keepsakes.corners[f.key]?.kind) return G.keepsakes.corners[f.key].kind;
@@ -44,7 +45,7 @@ function greetPassingReader(walker, from) {
   const reader = G.dolls.find(d => {
     const chair = d.act?.furn;
     return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
-      chair?.id === 'chair' && !quietStudy(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
+      chair?.id === 'chair' && !quietReading(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
       roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
       cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
       !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
@@ -80,10 +81,10 @@ function greetPassingReader(walker, from) {
 }
 
 function readingNeighbor(d, f) {
-  if (d.guest || quietStudy(f) || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
+  if (d.guest || quietReading(f) || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
   return G.dolls.find(o => {
     const other = o.act?.furn;
-    return o !== d && !o.guest && o.state === 'act' && other && other !== f &&
+    return o !== d && !o.guest && o.state === 'act' && other && other !== f && !quietReading(other) &&
       cornerRegular(other, o) && cornerKind(other) === 'read' &&
       cornerRoom(other) === cornerRoom(f) && cornerDistance(other, f) <= 3 &&
       canSee(d, o) && canDisturb(d, o) && !tensionBetween(d, o) && (G.rel[relKey(d, o)]?.f || 0) >= 25;
@@ -91,7 +92,7 @@ function readingNeighbor(d, f) {
 }
 
 function readingCornerBonus(d, f) {
-  if (quietStudy(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
+  if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
 }
 

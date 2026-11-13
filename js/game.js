@@ -37,7 +37,7 @@ function houseSaveData() {
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
-      .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
+      .map(({ id, x, y, key, piece, soloReading }) => ({ id, x, y, key, piece, ...(soloReading ? { soloReading } : {}) })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
@@ -196,6 +196,7 @@ function applySave(s) {
 function addFurniture(id, x, y, saved = {}) {
   const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
   const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
+  if (id === 'chair' && saved.soloReading === true) f.soloReading = true;
   G.furniture.push(f);
   return f;
 }

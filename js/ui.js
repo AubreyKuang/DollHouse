@@ -170,6 +170,44 @@ HOOK.select = () => {
 
 const studyQuietButton = $('#studyQuiet');
 const studyQuietTimer = $('#studyQuietTimer');
+const readingSeat = $('#readingSeat');
+const soloReadingButton = $('#soloReading');
+let readingSeatOptions = '';
+const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
+readingSeat.onchange = refreshReadingSeats;
+soloReadingButton.onclick = () => {
+  const chair = G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+  if (!chair || G.mode !== 'live') return;
+  chair.soloReading = !chair.soloReading;
+  refreshReadingSeats();
+  save();
+};
+
+function refreshReadingSeats() {
+  const seats = G.mode === 'live' ? G.furniture.filter(isWindowChair) : [];
+  $('#readingSeatControls').hidden = !seats.length;
+  if (!seats.length) return;
+  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y >= FLOOR_SPLIT ? f.y - FLOOR_SPLIT + 1 : f.y - WALL_ROWS + 1} 排`);
+  const options = JSON.stringify(seats.map((f, i) => [f.key, names[i]]));
+  if (options !== readingSeatOptions) {
+    const previous = readingSeat.value;
+    readingSeat.replaceChildren(...seats.map((f, i) => {
+      const option = el('option', '', names[i]);
+      option.value = f.key;
+      return option;
+    }));
+    if (seats.some(f => f.key === previous)) readingSeat.value = previous;
+    readingSeatOptions = options;
+  }
+  const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
+  const pressed = String(chair.soloReading === true);
+  if (soloReadingButton.getAttribute('aria-pressed') !== pressed) soloReadingButton.setAttribute('aria-pressed', pressed);
+  const note = $('#readingSeatHint');
+  const text = chair.soloReading ? '此席适合独处，路过的住户会让读者继续看书。'
+    : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
+      : '熟人可在此搭话或共读。';
+  if (note.textContent !== text) note.textContent = text;
+}
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;
   G.studyQuietUntil = null;
@@ -208,6 +246,7 @@ function refreshSceneHint() {
     : timed ? `安静阅读至 ${G.studyQuietUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(G.studyQuietUntil)}，到时恢复开放。`
       : '书房开放，熟人可以路过搭话或结伴阅读。';
   if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
+  refreshReadingSeats();
   if (!strip || !action) return;
   strip.hidden = G.mode !== 'live';
   for (const button of strip.children) {

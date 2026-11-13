@@ -263,6 +263,15 @@ function drawHouseFurniture(c, f, t) {
   drawHomeTable(c, f, x, y);
   drawSavedMeal(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
+  if (f.soloReading && isWindowChair(f)) {
+    R(c, x + 11, y - 8, 5, 6, '#436266');
+    R(c, x + 12, y - 7, 2, 4, '#d9f0cb');
+  }
+  if (G.mode === 'live' && document.activeElement?.id === 'readingSeat' && f.key === document.activeElement.value) {
+    c.strokeStyle = '#e4ffc9';
+    c.lineWidth = 1;
+    c.strokeRect(x + .5, y - 9.5, T - 1, bottom - y + 9);
+  }
 }
 
 function houseHeadPoint(d) {
@@ -505,7 +514,7 @@ cv.addEventListener('pointerdown', e => {
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, soloReading: f.soloReading, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
   if (press && press.pointerId !== e.pointerId) return;

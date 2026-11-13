@@ -160,6 +160,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #quickFurniture,#cancelFurniture,#studyQuiet,#studyQuietTimer{min-height:44px}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
+#readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
+#readingSeatControls select,#soloReading{min-height:48px}
+#readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
+#soloReading[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}
@@ -595,6 +599,13 @@ body{
       <button type="button" id="studyQuietTimer" class="btn small" aria-pressed="false"
         aria-describedby="studyQuietHint">安静 1 小时</button>
       <span id="studyQuietHint" class="hint" role="status">书房开放，熟人可以路过搭话或结伴阅读。</span>
+      <div id="readingSeatControls" hidden>
+        <label for="readingSeat">窗边阅读椅</label>
+        <select id="readingSeat"></select>
+        <button type="button" class="btn small" id="soloReading" aria-pressed="false"
+          aria-describedby="readingSeatHint">安静席</button>
+        <span class="hint" id="readingSeatHint" role="status"></span>
+      </div>
     </div>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
@@ -2816,7 +2827,7 @@ function houseSaveData() {
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
-      .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
+      .map(({ id, x, y, key, piece, soloReading }) => ({ id, x, y, key, piece, ...(soloReading ? { soloReading } : {}) })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
@@ -2975,6 +2986,7 @@ function applySave(s) {
 function addFurniture(id, x, y, saved = {}) {
   const key = saved.key || 'f-' + G.keepsakes.nextFurniture++;
   const f = { uid: G.uid++, id, x, y, key, piece: saved.piece, active: false, users: [] };
+  if (id === 'chair' && saved.soloReading === true) f.soloReading = true;
   G.furniture.push(f);
   return f;
 }
@@ -6833,6 +6845,7 @@ const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f
 const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
+const quietReading = f => quietStudy(f) || (f.soloReading === true && isWindowChair(f));
 
 function cornerKind(f) {
   if (G.keepsakes.corners[f.key]?.kind) return G.keepsakes.corners[f.key].kind;
@@ -6861,7 +6874,7 @@ function greetPassingReader(walker, from) {
   const reader = G.dolls.find(d => {
     const chair = d.act?.furn;
     return d !== walker && !d.guest && d.state === 'act' && d.act.type === 'read' &&
-      chair?.id === 'chair' && !quietStudy(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
+      chair?.id === 'chair' && !quietReading(chair) && d.act.t > 1 && !greeted.includes(d.pid) &&
       roomOf(walker) === cornerRoom(chair) && cornerDistance(from, chair) <= 2 &&
       cornerDistance(to, chair) <= 2 && canSee(walker, d) && canDisturb(walker, d) &&
       !tensionBetween(walker, d) && (G.rel[relKey(walker, d)]?.f || 0) >= 25;
@@ -6897,10 +6910,10 @@ function greetPassingReader(walker, from) {
 }
 
 function readingNeighbor(d, f) {
-  if (d.guest || quietStudy(f) || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
+  if (d.guest || quietReading(f) || !cornerRegular(f, d) || cornerKind(f) !== 'read') return;
   return G.dolls.find(o => {
     const other = o.act?.furn;
-    return o !== d && !o.guest && o.state === 'act' && other && other !== f &&
+    return o !== d && !o.guest && o.state === 'act' && other && other !== f && !quietReading(other) &&
       cornerRegular(other, o) && cornerKind(other) === 'read' &&
       cornerRoom(other) === cornerRoom(f) && cornerDistance(other, f) <= 3 &&
       canSee(d, o) && canDisturb(d, o) && !tensionBetween(d, o) && (G.rel[relKey(d, o)]?.f || 0) >= 25;
@@ -6908,7 +6921,7 @@ function readingNeighbor(d, f) {
 }
 
 function readingCornerBonus(d, f) {
-  if (quietStudy(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
+  if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
 }
 
@@ -8281,6 +8294,15 @@ function drawHouseFurniture(c, f, t) {
   drawHomeTable(c, f, x, y);
   drawSavedMeal(c, f, x, y);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
+  if (f.soloReading && isWindowChair(f)) {
+    R(c, x + 11, y - 8, 5, 6, '#436266');
+    R(c, x + 12, y - 7, 2, 4, '#d9f0cb');
+  }
+  if (G.mode === 'live' && document.activeElement?.id === 'readingSeat' && f.key === document.activeElement.value) {
+    c.strokeStyle = '#e4ffc9';
+    c.lineWidth = 1;
+    c.strokeRect(x + .5, y - 9.5, T - 1, bottom - y + 9);
+  }
 }
 
 function houseHeadPoint(d) {
@@ -8523,7 +8545,7 @@ cv.addEventListener('pointerdown', e => {
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
   if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
-  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
+  else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, soloReading: f.soloReading, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {
   if (press && press.pointerId !== e.pointerId) return;
@@ -8972,6 +8994,44 @@ HOOK.select = () => {
 
 const studyQuietButton = $('#studyQuiet');
 const studyQuietTimer = $('#studyQuietTimer');
+const readingSeat = $('#readingSeat');
+const soloReadingButton = $('#soloReading');
+let readingSeatOptions = '';
+const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
+readingSeat.onchange = refreshReadingSeats;
+soloReadingButton.onclick = () => {
+  const chair = G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+  if (!chair || G.mode !== 'live') return;
+  chair.soloReading = !chair.soloReading;
+  refreshReadingSeats();
+  save();
+};
+
+function refreshReadingSeats() {
+  const seats = G.mode === 'live' ? G.furniture.filter(isWindowChair) : [];
+  $('#readingSeatControls').hidden = !seats.length;
+  if (!seats.length) return;
+  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y >= FLOOR_SPLIT ? f.y - FLOOR_SPLIT + 1 : f.y - WALL_ROWS + 1} 排`);
+  const options = JSON.stringify(seats.map((f, i) => [f.key, names[i]]));
+  if (options !== readingSeatOptions) {
+    const previous = readingSeat.value;
+    readingSeat.replaceChildren(...seats.map((f, i) => {
+      const option = el('option', '', names[i]);
+      option.value = f.key;
+      return option;
+    }));
+    if (seats.some(f => f.key === previous)) readingSeat.value = previous;
+    readingSeatOptions = options;
+  }
+  const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
+  const pressed = String(chair.soloReading === true);
+  if (soloReadingButton.getAttribute('aria-pressed') !== pressed) soloReadingButton.setAttribute('aria-pressed', pressed);
+  const note = $('#readingSeatHint');
+  const text = chair.soloReading ? '此席适合独处，路过的住户会让读者继续看书。'
+    : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
+      : '熟人可在此搭话或共读。';
+  if (note.textContent !== text) note.textContent = text;
+}
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;
   G.studyQuietUntil = null;
@@ -9010,6 +9070,7 @@ function refreshSceneHint() {
     : timed ? `安静阅读至 ${G.studyQuietUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(G.studyQuietUntil)}，到时恢复开放。`
       : '书房开放，熟人可以路过搭话或结伴阅读。';
   if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
+  refreshReadingSeats();
   if (!strip || !action) return;
   strip.hidden = G.mode !== 'live';
   for (const button of strip.children) {

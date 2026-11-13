@@ -214,6 +214,33 @@ test('a timed study sign resumes across a save and expires at the hour even acro
   assert.equal(G.studyQuietUntil,null);
 `));
 
+test('an individual window seat protects its reader while the next seat can still host conversation', () => game(`
+  const [a,b,walker,...others]=residents();
+  for(const d of others)d.state='away';
+  const window=addFurniture('window',9,UPPER_WALL);
+  const quiet=addFurniture('chair',10,16,{soloReading:true}),open=addFurniture('chair',11,16);
+  G.furniture=[window,quiet,open];rebuild();
+  for(const d of [a,b,walker]) {
+    d.mbti='ENFP';d.needs.social=25;d.needs.hunger=80;
+  }
+  rel(a,walker).f=55;rel(b,walker).f=55;rel(a,b).f=55;
+  G.keepsakes.corners[quiet.key]={kind:'read',regulars:[a.pid],visits:{}};
+  G.keepsakes.corners[open.key]={kind:'read',regulars:[b.pid],visits:{}};
+  placeDollAt(a,10,17);orderUse(a,quiet);arrive(a);
+  placeDollAt(b,11,17);orderUse(b,open);arrive(b);
+  assert.equal(readingNeighbor(b,open),undefined);
+  placeDollAt(walker,11,17);walker.act={type:'wander'};
+  greetPassingReader(walker,{x:10,y:17});
+  assert.equal(a.needs.social,25);
+  assert.equal(b.needs.social,31);
+  G.studyQuiet=true;
+  assert.equal(quietReading(open),true);
+  G.studyQuiet=false;
+  save();load();
+  assert.equal(quietReading(G.furniture.find(f=>f.key===quiet.key)),true);
+  assert.equal(quietReading(G.furniture.find(f=>f.key===open.key)),false);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;
