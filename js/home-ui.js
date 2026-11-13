@@ -140,7 +140,10 @@ $('#homeStart').onclick = () => {
 $('#homeStop').onclick = () => cancelHomeTime();
 
 function showHomeSaveStatus() {
-  $('#saveState').textContent = G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
+  const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
+  $('#saveState').textContent = status === 'newer' ? '此进度由新版游戏保存，请打开新版继续。'
+    : status === 'conflict' ? '另一标签页已更新进度。本页已暂停保存。可先下载备份，再刷新读取最新进度。'
+    : G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
     : `✓ ${monthLabel(G.day)} · ${residents().length} 位住户 · ${TEST_MODE ? '测试小屋' : '正式小屋'}`;
   try { $('#saveUndo').hidden = !localStorage.getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
 }
@@ -181,7 +184,7 @@ $('#saveImport').onclick = () => {
 $('#saveUndo').onclick = () => {
   if (!confirm('回到上次导入前的小屋？导入后发生的事将不再保留。')) return;
   try {
-    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP));
+    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP), true);
     importPortableHome(previous, true); refreshImportedHome(); $('#saveFeedback').textContent = '已经回到导入前的小屋。';
   } catch (error) { $('#saveFeedback').textContent = error.message; }
 };

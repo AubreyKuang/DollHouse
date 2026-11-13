@@ -8,7 +8,7 @@ function game(code, mode, withUI = false) {
   const data = new Map(), dialogs = {};
   const ctx = vm.createContext({ assert, dialogs,
     document: { body: { dataset: { mode } }, getElementById: id => dialogs[id] || {} },
-    localStorage: { getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v) }, setTimeout() {},
+    localStorage: { getItem: k => data.get(k) ?? null, setItem: (k, v) => data.set(k, v), removeItem: k => data.delete(k) }, setTimeout() {},
   });
   const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
   for (const [, script] of html.matchAll(/<script src="([^"?]+)(?:\?[^"]*)?"/g)) {
@@ -192,6 +192,21 @@ test('import refuses invalid residents and storage failure preserves the current
   localStorage.setItem=()=>{throw Error('quota');};
   assert.throws(()=>importPortableHome(good),/无法保留/);
   assert.equal(G.fund,current); assert.equal(save(),false); assert.equal(G.saveOk,false);
+`));
+
+test('failure at the final write preserves the live house, backups and snapshots', () => game(`
+  save();
+  const good=readPortableHome(exportHomeSave()); good.fund=5000;
+  const current=G.fund, resident=G.dolls[0];
+  const keys=[SAVE_KEY, SAVE_KEY + ':backup', SAVE_KEY + ':snapshots', HOME_IMPORT_BACKUP];
+  const before=keys.map(key=>localStorage.getItem(key));
+  const write=localStorage.setItem;
+  localStorage.setItem=(key,value)=>{if(key===SAVE_KEY)throw Error('quota');write(key,value);};
+  assert.throws(()=>importPortableHome(good),/恢复已取消/);
+  assert.equal(restoreHouseSnapshot(0),false);
+  assert.equal(G.fund,current);
+  assert.equal(G.dolls[0],resident);
+  assert.deepEqual(keys.map(key=>localStorage.getItem(key)),before);
 `));
 
 test('reading the home journal or save preview pauses simulation, and test dinners are free', () => game(`

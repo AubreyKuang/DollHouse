@@ -28,10 +28,10 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
   vm.runInContext(scenario, context);
 }
 
-test('all entry points open residents and draw the room without external art', () => {
+test('all entry points offer residents on demand and draw the room without external art', () => {
   for (const file of ['index.html', 'dev.html', 'pixel-dollhouse.html']) {
     const html = read(file);
-    assert.match(html, /<details id="side" open>/);
+    assert.match(html, /<details id="side">\s*<summary>住户与生活日志<\/summary>/);
     assert.doesNotMatch(html, /id="(?:cottage|doll)Atlas"/);
   }
 });

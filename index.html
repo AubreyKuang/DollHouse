@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素小屋</title>
-<link rel="stylesheet" href="style.css?v=6cb034c7faed">
+<link rel="stylesheet" href="style.css?v=2e467c8b0cac">
 </head>
 <body>
 <header class="topbar">
@@ -15,13 +15,6 @@
     <span id="timeIcon">🌙</span>
   </div>
   <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
-  <nav class="modes" aria-label="模式">
-    <button class="mode on" data-mode="live">🏠 生活</button>
-    <button class="mode" data-mode="build">🪑 布置</button>
-    <button id="btnWardrobe">👗 衣橱</button>
-    <button id="btnHome" aria-haspopup="dialog">📖 小屋时光</button>
-    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
-  </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
     <button data-speed="1" class="on" title="正常">▶</button>
@@ -42,7 +35,7 @@
         <div id="overlay"></div>
       </div>
     </div>
-    <p id="hint" class="hint">👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
       <span id="homeNowText" aria-live="polite"></span>
@@ -54,7 +47,7 @@
     </section>
   </div>
 
-  <details id="side" open>
+  <details id="side">
     <summary>住户与生活日志</summary>
     <div class="resident-panel">
     <div id="dollList"></div>
@@ -212,6 +205,14 @@
   <p id="buildHint" class="hint">选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消</p>
 </section>
 
+<nav class="modes house-dock" aria-label="小屋操作">
+  <button class="mode on" data-mode="live" aria-pressed="true"><span aria-hidden="true">🏠</span> 生活</button>
+  <button class="mode" data-mode="build" aria-pressed="false"><span aria-hidden="true">🪑</span> 布置</button>
+  <button id="btnWardrobe"><span aria-hidden="true">👗</span> 衣橱</button>
+  <button id="btnHome" aria-haspopup="dialog"><span aria-hidden="true">📖</span> 小屋时光</button>
+  <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
+</nav>
+
 <div id="wardrobe" class="modal" hidden>
   <div class="modal-card">
     <div class="modal-head">
@@ -257,10 +258,10 @@
 <script src="js/doll.js?v=90560b5c8508"></script>
 <script src="js/audio.js?v=bfed272d2ce4"></script>
 <script src="js/npc-memory.js?v=aa25de9db61f"></script>
-<script src="js/save-manager.js?v=d5ebb3e28e51"></script>
+<script src="js/save-manager.js?v=060e06e0483c"></script>
 <script src="js/house-life.js?v=8a20f1ba02ad"></script>
 <script src="js/bonds.js?v=20a4e9383317"></script>
-<script src="js/game.js?v=2f59f4570bdd"></script>
+<script src="js/game.js?v=e4eba309c1e8"></script>
 <script src="js/social.js?v=b46f816af400"></script>
 <script src="js/relationship-fallout.js?v=a691f6e383e1"></script>
 <script src="js/work.js?v=4c8cf0fc2a9c"></script>
@@ -275,16 +276,16 @@
 <script src="js/community.js?v=7906752fa326"></script>
 <script src="js/neighbors.js?v=e3c87f10bbf7"></script>
 <script src="js/picnic.js?v=b56c8dbcd4b2"></script>
-<script src="js/house-view.js?v=b145a776857e"></script>
+<script src="js/house-view.js?v=7389fd4fa2e0"></script>
 <script src="js/yard.js?v=ce54dc627828"></script>
 <script src="js/keepsakes.js?v=2011aa6aa705"></script>
 <script src="js/home-stories.js?v=2f4b95bfe1b1"></script>
 <script src="js/home-care.js?v=857e67a7a109"></script>
 <script src="js/life-moments.js?v=6759e38560c8"></script>
-<script src="js/save-portability.js?v=3c2be2424d5f"></script>
-<script src="js/view.js?v=8768aae9b0b7"></script>
+<script src="js/save-portability.js?v=c9e35b4992d5"></script>
+<script src="js/view.js?v=e854ab81c1b7"></script>
 <script src="js/paper-card.js?v=fd8e706a66cf"></script>
-<script src="js/ui.js?v=0e02b2ac8ac7"></script>
-<script src="js/home-ui.js?v=b02c18b96788"></script>
+<script src="js/ui.js?v=0bfbfe22bdd5"></script>
+<script src="js/home-ui.js?v=27c04eb65588"></script>
 </body>
 </html>

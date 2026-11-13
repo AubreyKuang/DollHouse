@@ -45,10 +45,10 @@ function houseSaveData() {
     trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
 }
-function save() {
+function save(touch = false) {
   let ok = false;
   try {
-    ok = SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
+    ok = SaveManager.save(SaveManager.getStorage(),SAVE_KEY,houseSaveData(),validHouseSave,{touch});
   } catch (e) { /* The toolbar offers an export if browser storage is unavailable. */ }
   G.saveOk = ok;
   HOOK.saved?.(ok);
@@ -64,20 +64,37 @@ function migrateHouseSave(s, from) {
 }
 // 每月开始时留一份快照，最多 4 份，可以从月报里回到那个月初
 function snapshotHouseMonth() {
-  try { SaveManager.snapshot(localStorage, SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
+  try { SaveManager.snapshot(SaveManager.getStorage(), SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
 }
-function restoreHouseSnapshot(index) {
-  const s = SaveManager.restore(localStorage, SAVE_KEY, index, validHouseSave, migrateHouseSave);
+function restoreHouseSnapshot(index, expected) {
+  const s = SaveManager.restore(SaveManager.getStorage(), SAVE_KEY, index, validHouseSave, migrateHouseSave, expected);
   if (!s) return false;
-  applySave(s); rebuild(); save();
-  return true;
+  return replaceHouseSave(s);
+}
+function replaceHouseSave(data, alongside = []) {
+  if (SaveManager.status(SaveManager.getStorage(), SAVE_KEY) !== 'ready') return false;
+  const previous = { ...G }, previousBlock = BLOCK, previousCols = COLS;
+  const restored = { ...data, savedAt: Date.now() };
+  try {
+    applySave(restored); rebuild();
+    if (SaveManager.save(SaveManager.getStorage(), SAVE_KEY, houseSaveData(), validHouseSave, { touch: true, alongside })) {
+      G.saveOk = true; HOOK.saved?.(true);
+      return true;
+    }
+  } catch { /* Keep the live house when a restore cannot be applied. */ }
+  Object.assign(G, previous);
+  setWorldSize(previousCols);
+  BLOCK = previousBlock;
+  SFX.setRain(G.weather === 'rain');
+  G.saveOk = false; HOOK.saved?.(false);
+  return false;
 }
 let lastSavedAt = 0;
 function load() {
-  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave,migrateHouseSave);
+  const s = SaveManager.load(SaveManager.getStorage(),SAVE_KEY,validHouseSave,migrateHouseSave);
   applySave(s || defaultHouseSave());
   lastSavedAt = s?.savedAt || 0;
-  if (!SaveManager.snapshots(localStorage, SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
+  if (!SaveManager.snapshots(SaveManager.getStorage(), SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
 }
 // Hidden and closed pages both use the same capped catch-up simulation.
 const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
@@ -716,5 +733,5 @@ function update(realDt) {
   updateDoors(realDt);
   if (running) { socialTick(dt); trystTick(); bondsTick(dt); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
-  saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
+  if (running) { saveT += realDt; if (saveT > 5) { saveT = 0; save(); } }
 }

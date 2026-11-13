@@ -7,6 +7,9 @@ ctx.imageSmoothingEnabled = false;
 const SCENE_SCALE = 4;
 const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
+const interiorCv = document.createElement('canvas');
+const interiorCtx = interiorCv.getContext('2d');
+let interiorKey = '';
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
   cv.width = lightCv.width = (W + HOUSE_MARGIN) * SCENE_SCALE;
@@ -20,6 +23,21 @@ const overlay = document.getElementById('overlay');
 
 const wallSpec = () => WALLS.find(w => w.id === G.wall) || WALLS[0];
 const floorSpec = () => FLOORS.find(f => f.id === G.floor) || FLOORS[0];
+
+function drawHouseShell(c) {
+  const left = HOUSE_X, right = left + W;
+  drawHouseGarden(c, left, right);
+  drawHouseRoof(c, left, right);
+  const key = [W, BX, G.bathroom, G.wall, G.floor].join(':');
+  if (key !== interiorKey) {
+    interiorCv.width = cv.width;
+    interiorCv.height = cv.height;
+    interiorCtx.scale(SCENE_SCALE, SCENE_SCALE);
+    drawHouseInterior(interiorCtx, wallSpec(), floorSpec());
+    interiorKey = key;
+  }
+  c.drawImage(interiorCv, 0, 0, W + HOUSE_MARGIN, HOUSE_HEIGHT);
+}
 
 function dollPose(d) {
   if (d.state === 'lift') return 'lift';
@@ -124,7 +142,7 @@ function drawWindowLight(c) {
 
 function render() {
   const c = ctx, t = G.t;
-  drawHouseShell(c, wallSpec(), floorSpec());
+  drawHouseShell(c);
   drawWindowLight(c);
 
   for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);

@@ -149,9 +149,13 @@ $('#btnLogClear').onclick = () => { G.log = []; renderLog(); save(); };
 function setMode(m) {
   if (G.mode === 'build' && m !== 'build') cancelPlacing();
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
-  document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  document.querySelectorAll('.mode').forEach(b => {
+    const active = b.dataset.mode === m;
+    b.classList.toggle('on', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
@@ -736,17 +740,17 @@ document.getElementById('paperCard').onclick = () => {
 };
 function renderRewind(){
   const list=document.getElementById('rewindList');
-  const snaps=SaveManager.snapshots(localStorage,SAVE_KEY).sort((a,b)=>b.day-a.day);
+  const snaps=SaveManager.snapshots(SaveManager.getStorage(),SAVE_KEY).sort((a,b)=>b.day-a.day);
   list.replaceChildren(...snaps.map(snap=>{
     const row=el('div','rewind-row',`<span>${monthLabel(snap.day)} 月初${snap.day===G.day?' · 本月':''}</span>`);
     const button=el('button','btn small ghost','回到这里');
     button.onclick=()=>{
       if(!confirm(`回到${monthLabel(snap.day)}月初？之后发生的事都会被改写。`))return;
-      if(restoreHouseSnapshot(snap.index)){
+      if(restoreHouseSnapshot(snap.index, snap)){
         document.getElementById('paperDialog').close();
         HOOK.select();updateClock();renderLog();renderShopBar();updateHousePaperButton();
         HOOK.toast(`🕰 回到了${monthLabel(G.day)}月初`,true);
-      }else HOOK.toast('这份快照读不出来了',true);
+      }else HOOK.toast('无法恢复这份快照，请检查存档状态。',true);
     };
     row.append(button);return row;
   }));
@@ -759,7 +763,7 @@ let awaySince = lastSavedAt || Date.now();
 function leaveHouse() {
   if (awaySince) return;
   awaySince = Date.now();
-  save();
+  save(true);
 }
 
 function returnToHouse() {

@@ -412,11 +412,47 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .keepsake-fields select{width:100%;min-width:0}
 .keepsake-notes{margin:6px 0 16px;padding-left:1.3em;display:grid;gap:6px}
 
-/* Keep the open residents panel beside the playable scene. */
-@media (min-width:701px), (orientation:landscape){
-  .layout:has(#side[open]){display:grid;grid-template-columns:minmax(0,1fr) clamp(176px,22vw,258px);gap:10px}
-  #side[open]{position:static;display:flex;flex-direction:column;min-height:0;width:100%;max-width:none}
-  #side[open] .resident-panel{width:100%;max-height:none;min-height:0}
+/* The house stays in place when its journal opens. */
+body{
+  background:radial-gradient(ellipse at 50% 40%,#584353,#2a202f 72%);
+  --hud-bg:#342739;
+  --hud-ink:#fff1dd;
+  --hud-line:#a7899b65;
+}
+.topbar{background:#2a202f;color:var(--hud-ink);border-bottom:1px solid var(--hud-line)}
+.topbar h1{color:#f8dbba;font-size:clamp(17px,2vw,23px)}
+.topbar .clock,.topbar .speed button,.topbar .away-toggle{
+  background:var(--hud-bg);color:var(--hud-ink);border:1px solid var(--hud-line);box-shadow:none
+}
+.topbar .clock #dayLabel{color:#e2c7bc}
+.topbar .speed button.on{background:#f1cbab;color:#36263b}
+.topbar .speed{margin-left:auto;flex-wrap:wrap}
+#stage{border:1px solid #d1a98d82;border-radius:5px;box-shadow:0 12px 38px #1d1424a8}
+#hint{align-self:center;background:transparent;border:0;padding:2px 8px;color:#f1d9ce;font-size:12px;text-align:center}
+#side{top:12px;right:12px;max-width:calc(100% - 24px)}
+#side summary{background:var(--hud-bg);color:var(--hud-ink);border-color:var(--hud-line);min-height:38px}
+.resident-panel{box-shadow:0 12px 32px #1d142478;max-height:min(64dvh,530px)}
+.house-dock{
+  flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
+  margin:0 auto;width:min(100%,520px);padding:6px 8px max(7px,env(safe-area-inset-bottom));background:#2a202f
+}
+.house-dock button,.house-dock .paper-button{
+  min-height:42px;min-width:0;background:transparent!important;border:1px solid transparent;color:#f0d8d4;
+  font-size:13px;padding:5px 3px;white-space:normal;box-shadow:none
+}
+.house-dock button:hover{background:#72576a70!important}
+.house-dock button.on{background:#f1cbab!important;color:#36263b}
+.house-dock button span{margin-inline-end:3px}
+#buildBar{border-top:1px solid var(--hud-line);max-height:40dvh;overflow:auto}
+#toast{bottom:calc(64px + env(safe-area-inset-bottom))}
+@media(max-width:700px) and (orientation:portrait){
+  .topbar .speed{margin-left:0}
+  #stageWrap{justify-content:center}
+  #side{position:relative;top:auto;right:auto;width:100%;max-width:100%;margin-top:7px}
+  #side summary{margin-left:auto}
+  #side .resident-panel{position:absolute;z-index:1;right:0;bottom:calc(100% + 6px);width:min(100%,340px);max-height:min(45dvh,360px)}
+  .house-dock button span{display:block;margin:0}
+  .house-dock button{min-height:44px;font-size:12px}
 }
 </style>
 </head>
@@ -429,13 +465,6 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     <span id="timeIcon">🌙</span>
   </div>
   <div class="clock fund-pill" title="家庭基金">🏦 <span id="fundTop"></span></div>
-  <nav class="modes" aria-label="模式">
-    <button class="mode on" data-mode="live">🏠 生活</button>
-    <button class="mode" data-mode="build">🪑 布置</button>
-    <button id="btnWardrobe">👗 衣橱</button>
-    <button id="btnHome" aria-haspopup="dialog">📖 小屋时光</button>
-    <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
-  </nav>
   <div class="speed" aria-label="速度">
     <button data-speed="0" title="暂停">⏸</button>
     <button data-speed="1" class="on" title="正常">▶</button>
@@ -456,7 +485,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
         <div id="overlay"></div>
       </div>
     </div>
-    <p id="hint" class="hint">👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动</p>
+    <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
       <span id="homeNowText" aria-live="polite"></span>
@@ -468,7 +497,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
     </section>
   </div>
 
-  <details id="side" open>
+  <details id="side">
     <summary>住户与生活日志</summary>
     <div class="resident-panel">
     <div id="dollList"></div>
@@ -625,6 +654,14 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   <div id="palette" class="palette"></div>
   <p id="buildHint" class="hint">选择家具后点击房间放置 · 点已有家具可以拿起移动 · 右键/Esc 取消</p>
 </section>
+
+<nav class="modes house-dock" aria-label="小屋操作">
+  <button class="mode on" data-mode="live" aria-pressed="true"><span aria-hidden="true">🏠</span> 生活</button>
+  <button class="mode" data-mode="build" aria-pressed="false"><span aria-hidden="true">🪑</span> 布置</button>
+  <button id="btnWardrobe"><span aria-hidden="true">👗</span> 衣橱</button>
+  <button id="btnHome" aria-haspopup="dialog"><span aria-hidden="true">📖</span> 小屋时光</button>
+  <button type="button" id="dailyPaper" class="paper-button" aria-haspopup="dialog">📰 小屋月报</button>
+</nav>
 
 <div id="wardrobe" class="modal" hidden>
   <div class="modal-card">
@@ -2013,12 +2050,41 @@ const NPCMemory = (() => {
 const SaveManager = (() => {
   const version = 2;
   const SNAPSHOTS = 4;
+  const observed = new Map();
+
+  function getStorage() {
+    try { return globalThis.localStorage; } catch { return null; }
+  }
+
+  function versionOf(raw) {
+    try { return JSON.parse(raw)?.saveVersion ?? 1; } catch { return 1; }
+  }
+
+  function track(storage, key, refresh = false) {
+    const raw = storage.getItem(key) ?? null;
+    if (refresh || !observed.has(key)) observed.set(key, { raw, content: null, newer: versionOf(raw) > version });
+    return { raw, entry: observed.get(key) };
+  }
+
+  function status(storage, key) {
+    try {
+      const { raw, entry } = track(storage, key);
+      if (raw === entry.raw ? entry.newer : versionOf(raw) > version) return 'newer';
+      return raw === entry.raw ? 'ready' : 'conflict';
+    } catch {
+      return 'unavailable';
+    }
+  }
+
+  function contentOf(data) {
+    return JSON.stringify({ ...data, saveVersion: version, savedAt: undefined });
+  }
   function decode(raw, valid, migrate) {
     try {
       let data = JSON.parse(raw);
       if (!data || typeof data !== 'object') return null;
       const from = data.saveVersion ?? 1;
-      if (from > version) return null;
+      if (!Number.isInteger(from) || from < 1 || from > version) return null;
       if (from < version && migrate) data = migrate(data, from);
       if (!data || !valid(data)) return null;
       return data;
@@ -2027,24 +2093,51 @@ const SaveManager = (() => {
     }
   }
 
-  function load(storage, key, valid, migrate) {
+  function load(storage, key, valid, migrate, refresh = false) {
     try {
-      return decode(storage.getItem(key), valid, migrate) || decode(storage.getItem(key + ':backup'), valid, migrate);
+      const { raw, entry } = track(storage, key, refresh);
+      if (raw === entry.raw ? entry.newer : versionOf(raw) > version) return null;
+      return decode(raw, valid, migrate) || decode(storage.getItem(key + ':backup'), valid, migrate);
     } catch {
       return null;
     }
   }
 
-  function save(storage, key, data, valid) {
+  function save(storage, key, data, valid, { touch = false, alongside = [] } = {}) {
+    const changed = [];
     try {
-      const next = JSON.stringify({ ...data, saveVersion: version });
+      const { raw: previous, entry } = track(storage, key);
+      if (previous !== entry.raw || entry.newer) return false;
+      const content = contentOf(data);
+      const decoded = entry.content === null ? decode(previous, valid) : null;
+      if (decoded) entry.content = contentOf(decoded);
+      if (!touch && !alongside.length && content === entry.content) return true;
+      const next = Number.isFinite(data.savedAt)
+        ? content.slice(0, -1) + ',"savedAt":' + data.savedAt + '}'
+        : content;
       if (!decode(next, valid)) return false;
-      const previous = storage.getItem(key);
-      if (previous === next) return true;
-      if (decode(previous, valid)) storage.setItem(key + ':backup', previous);
+      if (previous === next && !alongside.length) return true;
+
+      const writes = [...alongside];
+      if (entry.content !== null && content !== entry.content) writes.push([key + ':backup', previous]);
+      for (const [name, value] of writes) {
+        const old = storage.getItem(name) ?? null;
+        if (old === value) continue;
+        storage.setItem(name, value);
+        changed.push([name, old, value]);
+      }
+      if ((storage.getItem(key) ?? null) !== previous) throw Error('Save changed in another tab');
       storage.setItem(key, next);
+      observed.set(key, { raw: next, content, newer: false });
       return true;
     } catch {
+      for (const [name, old, written] of changed.reverse()) {
+        try {
+          if (storage.getItem(name) !== written) continue;
+          if (old === null) storage.removeItem(name);
+          else storage.setItem(name, old);
+        } catch { /* The primary save is still unchanged. */ }
+      }
       return false;
     }
   }
@@ -2059,6 +2152,7 @@ const SaveManager = (() => {
   }
   // Keep one snapshot per label. Oldest go first when storage is full.
   function snapshot(storage, key, data, valid, meta = {}) {
+    if (status(storage, key) !== 'ready') return false;
     const raw = JSON.stringify({ ...data, saveVersion: version });
     if (!decode(raw, valid)) return false;
     let list = readSnapshots(storage, key).filter(entry => entry.label !== meta.label);
@@ -2077,12 +2171,15 @@ const SaveManager = (() => {
   function snapshots(storage, key) {
     return readSnapshots(storage, key).map(({ raw, ...meta }, index) => ({ ...meta, index }));
   }
-  function restore(storage, key, index, valid, migrate) {
-    const entry = readSnapshots(storage, key)[index];
+  function restore(storage, key, index, valid, migrate, expected) {
+    const list = readSnapshots(storage, key);
+    const entry = expected
+      ? list.find(item => item.label === expected.label && item.savedAt === expected.savedAt)
+      : list[index];
     return entry ? decode(entry.raw, valid, migrate) : null;
   }
 
-  return { load, save, snapshot, snapshots, restore, version };
+  return { getStorage, load, save, snapshot, snapshots, restore, decode, status, version };
 })();
 </script>
 <script>
@@ -2518,10 +2615,10 @@ function houseSaveData() {
     trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
 }
-function save() {
+function save(touch = false) {
   let ok = false;
   try {
-    ok = SaveManager.save(localStorage,SAVE_KEY,houseSaveData(),validHouseSave);
+    ok = SaveManager.save(SaveManager.getStorage(),SAVE_KEY,houseSaveData(),validHouseSave,{touch});
   } catch (e) { /* The toolbar offers an export if browser storage is unavailable. */ }
   G.saveOk = ok;
   HOOK.saved?.(ok);
@@ -2537,20 +2634,37 @@ function migrateHouseSave(s, from) {
 }
 // 每月开始时留一份快照，最多 4 份，可以从月报里回到那个月初
 function snapshotHouseMonth() {
-  try { SaveManager.snapshot(localStorage, SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
+  try { SaveManager.snapshot(SaveManager.getStorage(), SAVE_KEY, houseSaveData(), validHouseSave, { label: 'm-' + G.day, day: G.day }); } catch { /* 存不下就算了 */ }
 }
-function restoreHouseSnapshot(index) {
-  const s = SaveManager.restore(localStorage, SAVE_KEY, index, validHouseSave, migrateHouseSave);
+function restoreHouseSnapshot(index, expected) {
+  const s = SaveManager.restore(SaveManager.getStorage(), SAVE_KEY, index, validHouseSave, migrateHouseSave, expected);
   if (!s) return false;
-  applySave(s); rebuild(); save();
-  return true;
+  return replaceHouseSave(s);
+}
+function replaceHouseSave(data, alongside = []) {
+  if (SaveManager.status(SaveManager.getStorage(), SAVE_KEY) !== 'ready') return false;
+  const previous = { ...G }, previousBlock = BLOCK, previousCols = COLS;
+  const restored = { ...data, savedAt: Date.now() };
+  try {
+    applySave(restored); rebuild();
+    if (SaveManager.save(SaveManager.getStorage(), SAVE_KEY, houseSaveData(), validHouseSave, { touch: true, alongside })) {
+      G.saveOk = true; HOOK.saved?.(true);
+      return true;
+    }
+  } catch { /* Keep the live house when a restore cannot be applied. */ }
+  Object.assign(G, previous);
+  setWorldSize(previousCols);
+  BLOCK = previousBlock;
+  SFX.setRain(G.weather === 'rain');
+  G.saveOk = false; HOOK.saved?.(false);
+  return false;
 }
 let lastSavedAt = 0;
 function load() {
-  const s = SaveManager.load(localStorage,SAVE_KEY,validHouseSave,migrateHouseSave);
+  const s = SaveManager.load(SaveManager.getStorage(),SAVE_KEY,validHouseSave,migrateHouseSave);
   applySave(s || defaultHouseSave());
   lastSavedAt = s?.savedAt || 0;
-  if (!SaveManager.snapshots(localStorage, SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
+  if (!SaveManager.snapshots(SaveManager.getStorage(), SAVE_KEY).some(entry => entry.label === 'm-' + G.day)) snapshotHouseMonth();
 }
 // Hidden and closed pages both use the same capped catch-up simulation.
 const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
@@ -3189,7 +3303,7 @@ function update(realDt) {
   updateDoors(realDt);
   if (running) { socialTick(dt); trystTick(); bondsTick(dt); }
   for (let i = hearts.length - 1; i >= 0; i--) { hearts[i].t -= realDt; if (hearts[i].t <= 0) hearts.splice(i, 1); }
-  saveT += realDt; if (saveT > 5) { saveT = 0; save(); }
+  if (running) { saveT += realDt; if (saveT > 5) { saveT = 0; save(); } }
 }
 </script>
 <script>
@@ -6124,10 +6238,8 @@ function drawHouseStairs(c) {
   R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
 }
 
-function drawHouseShell(c, wall, floor) {
+function drawHouseInterior(c, wall, floor) {
   const l = HOUSE_X, r = l + W;
-  drawHouseGarden(c, l, r);
-  drawHouseRoof(c, l, r);
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
   for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
     R(c, l - 4, y, W + 8, h, '#916953');
@@ -7299,8 +7411,8 @@ function validatePortableHome(data) {
   }
   return data;
 }
-function readPortableHome(raw) {
-  if (typeof raw !== 'string' || raw.length > HOME_FILE_LIMIT) throw Error('请选择小于 5 MB 的小屋备份文件。');
+function readPortableHome(raw, localBackup = false) {
+  if (typeof raw !== 'string' || (!localBackup && raw.length > HOME_FILE_LIMIT)) throw Error('请选择小于 5 MB 的小屋备份文件。');
   let file;
   try { file = JSON.parse(raw); } catch { throw Error('这不是可以读取的 JSON 存档文件。'); }
   if (file?.game !== 'DollHouse' || file.format !== 1) throw Error('请选择由「下载存档备份」保存的小屋文件。');
@@ -7311,32 +7423,27 @@ function readPortableHome(raw) {
 }
 function importPortableHome(data, undo = false) {
   validatePortableHome(data);
-  const previous = JSON.parse(JSON.stringify(houseSaveData()));
-  let previousRaw, previousSnapshots, restoredSnapshots;
-  // A failed backup must abort before any in-memory state changes.
+  const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
+  if (status === 'newer') throw Error('此进度由新版游戏保存，请打开新版继续。');
+  if (status === 'conflict') throw Error('另一标签页已更新进度，请下载备份后刷新。');
+  const snapshotsKey = SAVE_KEY + ':snapshots';
+  let alongside;
   try {
-    previousRaw = localStorage.getItem(SAVE_KEY);
-    previousSnapshots = localStorage.getItem(SAVE_KEY + ':snapshots') || '[]';
-    restoredSnapshots = localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') || '[]';
-    if (!undo) {
-      localStorage.setItem(HOME_IMPORT_BACKUP, exportHomeSave());
-      localStorage.setItem(HOME_IMPORT_BACKUP + ':snapshots', previousSnapshots);
+    if (undo) {
+      const backup = JSON.parse(localStorage.getItem(HOME_IMPORT_BACKUP));
+      const snapshots = backup?.snapshots ?? localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
+      alongside = [[snapshotsKey, snapshots]];
+    } else {
+      const backup = JSON.parse(exportHomeSave());
+      backup.snapshots = localStorage.getItem(snapshotsKey) || '[]';
+      alongside = [[HOME_IMPORT_BACKUP, JSON.stringify(backup)], [snapshotsKey, '[]']];
     }
-  } catch { throw Error('无法保留当前进度，恢复已取消。请先下载一份备份。'); }
-  try {
-    applySave(JSON.parse(JSON.stringify(data))); rebuild();
-    G.paperPending = false; lastSavedAt = Date.now();
-    if (!save()) throw Error('浏览器没有保存成功。');
-    localStorage.setItem(SAVE_KEY + ':snapshots', undo ? restoredSnapshots : '[]');
-    if (!undo) snapshotHouseMonth();
-  } catch (error) {
-    applySave(previous); rebuild();
-    try {
-      if (previousRaw !== null) localStorage.setItem(SAVE_KEY, previousRaw);
-      localStorage.setItem(SAVE_KEY + ':snapshots', previousSnapshots);
-    } catch { /* Export remains available if storage itself has stopped accepting writes. */ }
-    throw Error('恢复没有完成，已回到原来的小屋。' + error.message);
+  } catch { throw Error('无法读取备份，恢复已取消。'); }
+  if (!replaceHouseSave(JSON.parse(JSON.stringify(data)), alongside)) {
+    throw Error('无法保留当前进度或写入存档，恢复已取消。请先下载一份备份。');
   }
+  G.paperPending = false;
+  if (!undo) snapshotHouseMonth();
   return true;
 }
 </script>
@@ -7350,6 +7457,9 @@ ctx.imageSmoothingEnabled = false;
 const SCENE_SCALE = 4;
 const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
+const interiorCv = document.createElement('canvas');
+const interiorCtx = interiorCv.getContext('2d');
+let interiorKey = '';
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
   cv.width = lightCv.width = (W + HOUSE_MARGIN) * SCENE_SCALE;
@@ -7363,6 +7473,21 @@ const overlay = document.getElementById('overlay');
 
 const wallSpec = () => WALLS.find(w => w.id === G.wall) || WALLS[0];
 const floorSpec = () => FLOORS.find(f => f.id === G.floor) || FLOORS[0];
+
+function drawHouseShell(c) {
+  const left = HOUSE_X, right = left + W;
+  drawHouseGarden(c, left, right);
+  drawHouseRoof(c, left, right);
+  const key = [W, BX, G.bathroom, G.wall, G.floor].join(':');
+  if (key !== interiorKey) {
+    interiorCv.width = cv.width;
+    interiorCv.height = cv.height;
+    interiorCtx.scale(SCENE_SCALE, SCENE_SCALE);
+    drawHouseInterior(interiorCtx, wallSpec(), floorSpec());
+    interiorKey = key;
+  }
+  c.drawImage(interiorCv, 0, 0, W + HOUSE_MARGIN, HOUSE_HEIGHT);
+}
 
 function dollPose(d) {
   if (d.state === 'lift') return 'lift';
@@ -7467,7 +7592,7 @@ function drawWindowLight(c) {
 
 function render() {
   const c = ctx, t = G.t;
-  drawHouseShell(c, wallSpec(), floorSpec());
+  drawHouseShell(c);
   drawWindowLight(c);
 
   for (const f of G.furniture) if (layerOf(f.id) !== 'solid') drawHouseFurniture(c, f, t);
@@ -8206,9 +8331,13 @@ $('#btnLogClear').onclick = () => { G.log = []; renderLog(); save(); };
 function setMode(m) {
   if (G.mode === 'build' && m !== 'build') cancelPlacing();
   G.mode = m; G.build.trash = false; G.build.placing = null; G.build.hover = null;
-  document.querySelectorAll('.mode').forEach(b => b.classList.toggle('on', b.dataset.mode === m));
+  document.querySelectorAll('.mode').forEach(b => {
+    const active = b.dataset.mode === m;
+    b.classList.toggle('on', active);
+    b.setAttribute('aria-pressed', String(active));
+  });
   $('#buildBar').hidden = m !== 'build';
-  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '👆 先点一位小人，再点家具安排活动 · 拖到另一位身边可互动';
+  $('#hint').textContent = m === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。' : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
   if (m === 'build') renderPalette();
   SFX.play('click');
 }
@@ -8793,17 +8922,17 @@ document.getElementById('paperCard').onclick = () => {
 };
 function renderRewind(){
   const list=document.getElementById('rewindList');
-  const snaps=SaveManager.snapshots(localStorage,SAVE_KEY).sort((a,b)=>b.day-a.day);
+  const snaps=SaveManager.snapshots(SaveManager.getStorage(),SAVE_KEY).sort((a,b)=>b.day-a.day);
   list.replaceChildren(...snaps.map(snap=>{
     const row=el('div','rewind-row',`<span>${monthLabel(snap.day)} 月初${snap.day===G.day?' · 本月':''}</span>`);
     const button=el('button','btn small ghost','回到这里');
     button.onclick=()=>{
       if(!confirm(`回到${monthLabel(snap.day)}月初？之后发生的事都会被改写。`))return;
-      if(restoreHouseSnapshot(snap.index)){
+      if(restoreHouseSnapshot(snap.index, snap)){
         document.getElementById('paperDialog').close();
         HOOK.select();updateClock();renderLog();renderShopBar();updateHousePaperButton();
         HOOK.toast(`🕰 回到了${monthLabel(G.day)}月初`,true);
-      }else HOOK.toast('这份快照读不出来了',true);
+      }else HOOK.toast('无法恢复这份快照，请检查存档状态。',true);
     };
     row.append(button);return row;
   }));
@@ -8816,7 +8945,7 @@ let awaySince = lastSavedAt || Date.now();
 function leaveHouse() {
   if (awaySince) return;
   awaySince = Date.now();
-  save();
+  save(true);
 }
 
 function returnToHouse() {
@@ -8984,7 +9113,10 @@ $('#homeStart').onclick = () => {
 $('#homeStop').onclick = () => cancelHomeTime();
 
 function showHomeSaveStatus() {
-  $('#saveState').textContent = G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
+  const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
+  $('#saveState').textContent = status === 'newer' ? '此进度由新版游戏保存，请打开新版继续。'
+    : status === 'conflict' ? '另一标签页已更新进度。本页已暂停保存。可先下载备份，再刷新读取最新进度。'
+    : G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
     : `✓ ${monthLabel(G.day)} · ${residents().length} 位住户 · ${TEST_MODE ? '测试小屋' : '正式小屋'}`;
   try { $('#saveUndo').hidden = !localStorage.getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
 }
@@ -9025,7 +9157,7 @@ $('#saveImport').onclick = () => {
 $('#saveUndo').onclick = () => {
   if (!confirm('回到上次导入前的小屋？导入后发生的事将不再保留。')) return;
   try {
-    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP));
+    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP), true);
     importPortableHome(previous, true); refreshImportedHome(); $('#saveFeedback').textContent = '已经回到导入前的小屋。';
   } catch (error) { $('#saveFeedback').textContent = error.message; }
 };

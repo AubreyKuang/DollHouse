@@ -320,10 +320,8 @@ function drawHouseStairs(c) {
   R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
 }
 
-function drawHouseShell(c, wall, floor) {
+function drawHouseInterior(c, wall, floor) {
   const l = HOUSE_X, r = l + W;
-  drawHouseGarden(c, l, r);
-  drawHouseRoof(c, l, r);
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
   for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
     R(c, l - 4, y, W + 8, h, '#916953');

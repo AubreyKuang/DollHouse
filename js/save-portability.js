@@ -80,8 +80,8 @@ function validatePortableHome(data) {
   }
   return data;
 }
-function readPortableHome(raw) {
-  if (typeof raw !== 'string' || raw.length > HOME_FILE_LIMIT) throw Error('请选择小于 5 MB 的小屋备份文件。');
+function readPortableHome(raw, localBackup = false) {
+  if (typeof raw !== 'string' || (!localBackup && raw.length > HOME_FILE_LIMIT)) throw Error('请选择小于 5 MB 的小屋备份文件。');
   let file;
   try { file = JSON.parse(raw); } catch { throw Error('这不是可以读取的 JSON 存档文件。'); }
   if (file?.game !== 'DollHouse' || file.format !== 1) throw Error('请选择由「下载存档备份」保存的小屋文件。');
@@ -92,31 +92,26 @@ function readPortableHome(raw) {
 }
 function importPortableHome(data, undo = false) {
   validatePortableHome(data);
-  const previous = JSON.parse(JSON.stringify(houseSaveData()));
-  let previousRaw, previousSnapshots, restoredSnapshots;
-  // A failed backup must abort before any in-memory state changes.
+  const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
+  if (status === 'newer') throw Error('此进度由新版游戏保存，请打开新版继续。');
+  if (status === 'conflict') throw Error('另一标签页已更新进度，请下载备份后刷新。');
+  const snapshotsKey = SAVE_KEY + ':snapshots';
+  let alongside;
   try {
-    previousRaw = localStorage.getItem(SAVE_KEY);
-    previousSnapshots = localStorage.getItem(SAVE_KEY + ':snapshots') || '[]';
-    restoredSnapshots = localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') || '[]';
-    if (!undo) {
-      localStorage.setItem(HOME_IMPORT_BACKUP, exportHomeSave());
-      localStorage.setItem(HOME_IMPORT_BACKUP + ':snapshots', previousSnapshots);
+    if (undo) {
+      const backup = JSON.parse(localStorage.getItem(HOME_IMPORT_BACKUP));
+      const snapshots = backup?.snapshots ?? localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
+      alongside = [[snapshotsKey, snapshots]];
+    } else {
+      const backup = JSON.parse(exportHomeSave());
+      backup.snapshots = localStorage.getItem(snapshotsKey) || '[]';
+      alongside = [[HOME_IMPORT_BACKUP, JSON.stringify(backup)], [snapshotsKey, '[]']];
     }
-  } catch { throw Error('无法保留当前进度，恢复已取消。请先下载一份备份。'); }
-  try {
-    applySave(JSON.parse(JSON.stringify(data))); rebuild();
-    G.paperPending = false; lastSavedAt = Date.now();
-    if (!save()) throw Error('浏览器没有保存成功。');
-    localStorage.setItem(SAVE_KEY + ':snapshots', undo ? restoredSnapshots : '[]');
-    if (!undo) snapshotHouseMonth();
-  } catch (error) {
-    applySave(previous); rebuild();
-    try {
-      if (previousRaw !== null) localStorage.setItem(SAVE_KEY, previousRaw);
-      localStorage.setItem(SAVE_KEY + ':snapshots', previousSnapshots);
-    } catch { /* Export remains available if storage itself has stopped accepting writes. */ }
-    throw Error('恢复没有完成，已回到原来的小屋。' + error.message);
+  } catch { throw Error('无法读取备份，恢复已取消。'); }
+  if (!replaceHouseSave(JSON.parse(JSON.stringify(data)), alongside)) {
+    throw Error('无法保留当前进度或写入存档，恢复已取消。请先下载一份备份。');
   }
+  G.paperPending = false;
+  if (!undo) snapshotHouseMonth();
   return true;
 }

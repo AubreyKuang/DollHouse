@@ -111,6 +111,10 @@ test('save manager v2 migrates v1 saves, rejects newer versions and keeps month 
   assert.equal(JSON.stringify(loaded.trust), '{}');
   map.set('house', JSON.stringify({ furniture: [], dolls: [], saveVersion: 9 }));
   assert.equal(SaveManager.load(storage, 'house', valid), null);
+  assert.equal(SaveManager.save(storage, 'house', { furniture: [], dolls: [] }, valid), false);
+  assert.equal(JSON.parse(map.get('house')).saveVersion, 9);
+  map.set('house', JSON.stringify({ furniture: [], dolls: [], saveVersion: 2 }));
+  SaveManager.load(storage, 'house', valid, undefined, true);
   for (let day = 1; day <= 6; day++) assert.ok(SaveManager.snapshot(storage, 'house', { furniture: [], dolls: [], day }, valid, { label: 'm-' + day, day }));
   const list = SaveManager.snapshots(storage, 'house');
   assert.equal(JSON.stringify(list.map(s => s.day)), '[3,4,5,6]');
