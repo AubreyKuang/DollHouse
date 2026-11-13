@@ -80,7 +80,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   box-shadow:0 3px 0 var(--shadow);background:#9fd3f0;
   touch-action:none;user-select:none;-webkit-user-select:none;
 }
-#cv{width:100%;height:100%;display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#cv{width:100%;height:100%;display:block;image-rendering:auto}
 #overlay{position:absolute;inset:0;pointer-events:none}
 .hint{font-size:13px;color:var(--muted);margin:10px 2px 0}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
@@ -114,7 +114,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .g-m{color:#4a8fd8}.g-f{color:#e26d7d}
 .doll-row.sel .g-m,.doll-row.sel .g-f{color:inherit}
 .doll-row.away .meta b::after{content:" · 外出";font-weight:400;font-size:12px;opacity:.7}
-.doll-row canvas{width:30px;height:36px;image-rendering:pixelated;flex:none}
+.doll-row canvas{width:30px;height:36px;image-rendering:auto;flex:none}
 .doll-row .meta{display:flex;flex-direction:column;line-height:1.25;min-width:0}
 .doll-row .meta b{font-weight:600}
 .doll-row .meta small{opacity:.75;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -182,7 +182,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .item-purpose{color:var(--muted);font-size:10px}
 .item:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .item.on{background:var(--sel);color:#3b2a2f}
-.item canvas{width:56px;height:56px;image-rendering:pixelated;background:var(--item-art,transparent);border-radius:8px}
+.item canvas{width:56px;height:56px;image-rendering:auto;background:var(--item-art,transparent);border-radius:8px}
 
 .modal{position:fixed;inset:0;background:var(--backdrop);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
 .modal[hidden],#buildBar[hidden],.card[hidden]{display:none}
@@ -196,7 +196,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .wd-preview{flex:0 0 200px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 auto;
   position:sticky;top:0;align-self:flex-start;background:var(--panel);z-index:1;padding-bottom:8px}
 .wd-saved{min-height:18px;font-size:13px;font-weight:700;color:#4f9a4a}
-#wdCanvas{width:200px;height:240px;image-rendering:pixelated;border:2px solid var(--line);border-radius:6px;
+#wdCanvas{width:200px;height:240px;image-rendering:auto;border:2px solid var(--line);border-radius:6px;
   background:repeating-conic-gradient(var(--panel-2) 0 25%,var(--panel) 0 50%) 0 0/20px 20px}
 .wd-dir{display:flex;gap:4px}
 .wd-dir button{border:2px solid var(--line);background:var(--panel-2);border-radius:4px;width:34px;height:28px}
@@ -268,7 +268,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .paper-cast{display:flex;align-items:center;justify-content:center;gap:2px;color:inherit;font-size:25px}
 .paper-cast figure{display:grid;justify-items:center;margin:0;min-width:0}
 .paper-cast figcaption{font-size:10px;max-width:6em;overflow-wrap:anywhere;text-align:center}
-.paper-cast canvas{display:block;width:24px;height:29px;image-rendering:pixelated}
+.paper-cast canvas{display:block;width:24px;height:29px;image-rendering:auto}
 .paper-feature{grid-template-columns:1fr;gap:8px}
 .paper-feature .paper-cast{gap:clamp(8px,4vw,22px);padding:7px 4px 4px;background:#fff1e866;border-radius:6px;border-bottom:2px dashed #dba7b7}
 .paper-feature .paper-cast canvas{width:60px;height:72px;animation:paper-hop 560ms ease-out both}
@@ -295,7 +295,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #picnicPlans{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
 .neighbor-porch{min-height:134px;display:flex;align-items:flex-end;justify-content:center;gap:18px;padding:16px 12px 10px;border:2px solid #956d60;border-top:8px solid #9d605c;border-radius:8px;background:repeating-linear-gradient(90deg,#ba9272 0 1px,transparent 1px 17px) bottom/100% 28px no-repeat,linear-gradient(#f2d4b2 0 76%,#dcab83 76%);color:#513b3a}
 .neighbor-porch figure{display:grid;justify-items:center;margin:0;font-size:12px;font-weight:700}
-.neighbor-porch canvas{width:60px;height:72px;image-rendering:pixelated}
+.neighbor-porch canvas{width:60px;height:72px;image-rendering:auto}
 #neighborTie{margin:8px 0}
 .community-status{font-size:12px;line-height:1.4;margin:0;padding:7px 9px;border-radius:7px;background:var(--panel);color:var(--ink)}
 .guest-tag{font-size:10px;font-style:normal;font-weight:600;border-radius:5px;padding:2px 5px;background:#ecd6f3;color:#59355e}
@@ -303,7 +303,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .community-choices{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
 .community-choices button:disabled,.community-dialog button:disabled{opacity:.55;cursor:default}
 .application-row{display:flex;gap:9px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:7px 9px;margin:8px 0;background:var(--panel)}
-.application-row canvas{width:30px;height:36px;image-rendering:pixelated}
+.application-row canvas{width:30px;height:36px;image-rendering:auto}
 .application-info{display:grid;gap:3px;flex:1;min-width:0}
 .application-info small{color:var(--muted)}
 #btnRandomResident{margin-top:12px}
@@ -1044,11 +1044,20 @@ const DRAW = {
     R(c, x + 5, y + 5, 3, 1, '#d88a34');
   },
   rug(c, x, y) {
-    const col = '#d8a4ad';
-    R(c, x + 4, y + 1, 40, 30, '#b88f9b'); R(c, x + 1, y + 4, 46, 24, '#b88f9b');
-    R(c, x + 5, y + 2, 38, 28, col); R(c, x + 2, y + 5, 44, 22, col);
-    R(c, x + 8, y + 6, 32, 20, '#efccd0'); R(c, x + 6, y + 8, 36, 16, '#efccd0');
-    R(c, x + 14, y + 11, 20, 10, col);
+    bevel(c, x + 1, y + 2, 46, 28, '#cc929a', '#a56e7d');
+    bevel(c, x + 4, y + 5, 40, 22, '#ebbbb5', '#f2d2c3');
+    bevel(c, x + 8, y + 8, 32, 16, '#e0a7a4', '#c88791');
+    for (const a of [14, 24, 34]) {
+      for (let i = -3; i <= 3; i++) {
+        const half = 4 - Math.abs(i);
+        R(c, x + a - half, y + 16 + i, half * 2, 1, '#f3c9b6');
+      }
+      R(c, x + a - 1, y + 15, 2, 2, '#b97b86');
+    }
+    for (let i = 3; i < 30; i += 4) {
+      detail(c, x, y + i, 2, .5, '#f0c9b6');
+      detail(c, x + 46, y + i, 2, .5, '#f0c9b6');
+    }
   },
   rug2(c, x, y) {
     box(c, x + 1, y + 1, 30, 30, '#f6ead6');
@@ -1069,21 +1078,40 @@ const DRAW = {
     R(c, x, y + 33, 16, 3, '#be816e'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
   },
   window(c, x, y) {
-    box(c, x + 2, y + 4, 28, 24, '#ffffff');
-    R(c, x + 4, y + 6, 24, 20, G.sky || '#a5ccdc');
-    if (G.night) { R(c, x + 21, y + 9, 4, 4, '#fff6c8'); R(c, x + 22, y + 9, 3, 1, G.sky); R(c, x + 8, y + 10, 1, 1, '#fff'); R(c, x + 13, y + 18, 1, 1, '#fff'); }
-    else { R(c, x + 7, y + 11, 8, 2, '#ffffff'); R(c, x + 9, y + 10, 4, 1, '#ffffff'); R(c, x + 19, y + 17, 6, 2, '#ffffffcc'); }
-    if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 4, y + 6, 24, 20);
-    R(c, x + 15, y + 5, 2, 22, '#ffffff'); R(c, x + 3, y + 15, 26, 2, '#ffffff');
-    R(c, x, y + 1, 32, 3, WOOD_D);                            // 窗帘杆
-    for (const px of [x + 1, x + 26]) {
-      R(c, px, y + 3, 5, 24, '#cc8794');
-      detail(c, px + .5, y + 4, .5, 22, '#f2b0b1');
-      R(c, px + 2, y + 4, 1, 22, '#aa687c');
-      R(c, px, y + 25, 5, 1, '#e7a6a7');
-      R(c, px + 2, y + 1, 1, 2, '#efc38c');
+    const walnut = '#925f57', pine = '#bf8a65', cream = '#fff0d4';
+    bevel(c, x + 2, y + 3, 28, 26, '#d5a183', walnut);
+    bevel(c, x + 4, y + 5, 24, 22, cream, '#d3ab89');
+    R(c, x + 6, y + 7, 20, 18, G.sky || '#a5ccdc');
+    if (G.night) {
+      R(c, x + 21, y + 9, 3, 3, '#fff6c8');
+      R(c, x + 22, y + 9, 2, 1, G.sky);
+      detail(c, x + 10, y + 10, .5, .5, '#fff');
+      detail(c, x + 20, y + 19, .5, .5, '#fff');
+    } else {
+      R(c, x + 7, y + 11, 8, 2, '#fff3de');
+      R(c, x + 9, y + 10, 4, 1, '#fff3de');
+      R(c, x + 19, y + 17, 6, 2, '#fff3decc');
+      detail(c, x + 7, y + 23, 18, .5, '#e6f4eb');
     }
-    R(c, x + 2, y + 28, 28, 2, WOOD_L);
+    if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 6, y + 7, 20, 18);
+    detail(c, x + 15.5, y + 6, 1.5, 20, cream);
+    detail(c, x + 6, y + 14, 20, 1.5, cream);
+    detail(c, x + 16.5, y + 7, .5, 18, '#d0ac91');
+    bevel(c, x, y + 1, 32, 3, pine, walnut);
+    for (const [px, dir] of [[x + 2, 1], [x + 30, -1]]) {
+      c.save();
+      c.translate(px, y + 3);
+      c.scale(dir, 1);
+      bevel(c, -1, 0, 6, 13, '#ce8992', '#a65d72');
+      bevel(c, -1, 11, 4, 13, '#ca7d8a', '#a65d72');
+      detail(c, 0, 1, .5, 22, '#efafb0');
+      detail(c, 2, 2, .5, 20, '#ab6379');
+      detail(c, -.5, 11, 4, 1, '#f0ca97');
+      R(c, 0, 22, 2, 1, '#e6a2a3');
+      c.restore();
+    }
+    bevel(c, x + 1, y + 27, 30, 3, pine, walnut);
+    detail(c, x + 3, y + 27, 26, .5, '#f4c6a0');
   },
   painting(c, x, y) {
     box(c, x + 1, y + 2, 14, 12, '#d9a640');
@@ -5223,15 +5251,18 @@ function drawHouseGarden(c, left, right) {
   const grass = season === 'autumn' ? '#b9b181' : snowy ? '#cbdace' : '#a7bd8b';
   const leaf = season === 'autumn' ? '#c4a172' : '#89a97d';
   const canopy = shade(leaf, -.10), leafLight = shade(leaf, .08);
-  const horizon = snowy ? '#b9c9ca' : '#9ab6a1';
-  for (let y = 28; y < 229; y += 20) {
-    R(c, 0, y, width, 20, G.night ? '#c4b4e105' : '#f6e7cf0a');
-  }
-  R(c, 0, 210, width, 32, horizon);
+  const sky = c.createLinearGradient(0, 18, 0, 230);
+  sky.addColorStop(0, G.night ? '#35315100' : '#86b5dc48');
+  sky.addColorStop(1, G.night ? '#b59bc35b' : '#ffefd496');
+  c.fillStyle = sky;
+  c.fillRect(0, 0, width, 230);
+  const horizon = snowy ? '#b9c9ca' : '#a6baa2';
+  housePoly(c, horizon, [0, 213], [19, 196], [63, 224], [right - 18, 213],
+    [right + 22, 194], [width, 211], [width, 239], [0, 239]);
   R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
-  for (const [x, y, size] of [[-10, 207, 41], [right + 3, 198, 34], [right + 21, 209, 42]]) {
-    R(c, x + 14, y - 4, 6, 38, '#785749');
-    R(c, x + 16, y - 3, 2, 37, '#aa8061');
+  for (const [x, y, size] of [[-13, 171, 42], [right + 2, 165, 37], [right + 21, 197, 40]]) {
+    R(c, x + 14, y - 4, 6, 231 - y, '#785749');
+    R(c, x + 16, y - 3, 2, 229 - y, '#aa8061');
     for (const [dx, dy, w] of [[0, -13, size], [4, -19, size - 6], [8, -25, size - 14], [13, -29, size - 22]]) {
       R(c, x + dx, y + dy, w, 14, canopy);
       R(c, x + dx + 2, y + dy, w - 6, 7, leaf);
@@ -5242,8 +5273,13 @@ function drawHouseGarden(c, left, right) {
       detail(c, x + dx + 1, y + dy - .5, 2, .5, leafLight);
     }
   }
-  R(c, left - 5, YARD.back, W + 10, YARD.front - YARD.back, shade(grass, .075));
-  R(c, 0, 301, width, 9, '#c6bca0');
+  const lawn = c.createLinearGradient(0, YARD.back, 0, YARD.front);
+  lawn.addColorStop(0, shade(grass, -.045));
+  lawn.addColorStop(.5, shade(grass, .055));
+  lawn.addColorStop(1, shade(grass, .09));
+  c.fillStyle = lawn;
+  c.fillRect(left - 5, YARD.back, W + 10, YARD.front - YARD.back);
+  R(c, 0, 301, width, 9, '#d4c0a2');
   R(c, 0, 301, width, 1, '#e0d3b5');
   for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
   const gate = left + 10 * T;
@@ -5288,27 +5324,39 @@ function drawHouseGarden(c, left, right) {
 
 function drawHouseRoof(c, left, right) {
   const peak = left + Math.round(W * .58), eave = 70;
-  housePoly(c, '#60404c', [left - 7, eave], [peak, 7], [right + 9, 32], [right + 9, eave]);
-  housePoly(c, '#a56868', [left - 4, eave], [peak, 11], [right + 6, 36], [right + 6, eave]);
-  housePoly(c, '#e5ba90', [left + 2, eave], [peak, 19], [right - 1, 41], [right - 1, eave]);
-  housePoly(c, '#f6ddba', [left + 13, eave], [peak, 23], [right - 8, 44], [right - 8, eave]);
-  housePoly(c, '#d2a480', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
-  for (let x = left - 1; x < right + 6; x++) {
-    const edge = x < peak ? mixNum(eave, 11, (x - left + 4) / (peak - left + 4)) :
-      mixNum(11, 36, (x - peak) / (right + 6 - peak));
-    R(c, x, edge + 1, 1, 1, '#d29683');
-    R(c, x, edge + 4, 1, 2, '#824f56');
-    if ((x - left + 1) % 8 < 2) R(c, x, edge + 2, 1, 3, '#925a5d');
-  }
-  R(c, right + 1, 39, 5, 30, '#8d575b');
-  R(c, right + 2, 42, 1, 25, '#c28077');
+  const pitch = (color, outer, inner) => housePoly(c, color, ...outer, ...[...inner].reverse());
+  const ridge = [[left - 7, eave], [peak, 7], [right + 9, 32]];
+  const rim = [[left - 3, eave + 1], [peak, 13], [right + 8, 38]];
+  const face = [[left + 8, eave + 1], [peak, 20], [right + 1, 44]];
+  const underside = [[left + 17, eave + 1], [peak, 25], [right - 5, 47]];
+  housePoly(c, '#f8ddba', ...ridge, [right + 9, eave]);
+  pitch('#684450', ridge, rim);
+  pitch('#ab6b6d', rim, face);
+  pitch('#dca68d', face, underside);
+  const glint = [[left + 2, eave], [peak, 15], [right + 7, 40]];
+  pitch('#d19488', rim, glint);
+  R(c, right + 1, 37, 8, 32, '#80525a');
+  R(c, right + 1, 43, 2, 26, '#bc8274');
+  c.save();
+  housePath(c, [...underside, [right - 5, eave], [left + 17, eave]]);
+  c.clip();
+  const plaster = c.createLinearGradient(0, 20, 0, eave);
+  plaster.addColorStop(0, '#f1c395');
+  plaster.addColorStop(.65, '#ffe4be');
+  plaster.addColorStop(1, '#edc198');
+  c.fillStyle = plaster;
+  c.fillRect(left, 20, W, eave - 20);
+  housePoly(c, '#ce9b7666', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
+  for (let x = left + 72; x < right; x += 24) detail(c, x, 23, .5, 45, '#bc886818');
+  c.restore();
   R(c, left + 65, 49, 3, 21, '#a38877');
   R(c, left + 69, 62, W - 76, 8, '#d7b18c');
   for (let y = 63; y < eave; y += 2) R(c, left + 69, y, W - 76, 1, '#c5a07f');
   for (const [x, y, w, h] of [[peak - 48, 52, 24, 14], [peak - 22, 45, 15, 21], [peak - 3, 41, 22, 25], [right - 42, 54, 18, 12], [right - 23, 48, 15, 18]]) {
-    R(c, x, y, w, h, '#b9916c');
-    R(c, x, y, w, 2, '#d2ab81');
-    R(c, x + w - 5, y + 2, 5, h - 2, '#987457');
+    bevel(c, x, y, w, h, '#bb8962', '#9a674f');
+    R(c, x + 1, y + 1, w - 2, 2, '#e4b48a');
+    R(c, x + w - 5, y + 3, 4, h - 4, '#a47455');
+    detail(c, x + 2, y + h - 3, w - 8, .5, '#d29b73');
     R(c, x + 3, y + 3, w - 10, 1, '#d9b489');
     R(c, x + w - 9, y + 5, 3, 2, '#a27b62');
     detail(c, x + w - 9, y + 5, 2.5, .5, '#ebc292');
@@ -5376,7 +5424,9 @@ function drawRoomFloor(c, x, end, back, front, base, pattern) {
       detail(c, x, y + .5, width, .5, light);
       for (let px = x + 7 + ((y - back) * 7) % 36; px < end; px += 36) {
         detail(c, px, y + .5, .5, 4.5, edge);
-        detail(c, px + 3, y + 2.5, 6, .5, light);
+        const span = 5 + Math.floor(rnd(px + y) * 13);
+        detail(c, px + 3, y + 2.5, span, .5, light);
+        if ((px + y) % 3 === 0) detail(c, px + 5, y + 3.5, 3, .5, edge);
       }
     }
   } else {
@@ -5385,7 +5435,11 @@ function drawRoomFloor(c, x, end, back, front, base, pattern) {
       detail(c, px, y, i % 3 === 0 ? 1.5 : .5, .5, i % 4 ? light : edge);
     }
   }
-  R(c, x, back, width, 2, '#4b354329');
+  const contact = c.createLinearGradient(0, back, 0, back + 11);
+  contact.addColorStop(0, '#4b354344');
+  contact.addColorStop(1, '#4b354300');
+  c.fillStyle = contact;
+  c.fillRect(x, back, width, 11);
 }
 
 function drawStorey(c, storey, wall, floor) {
@@ -5433,11 +5487,20 @@ function drawStorey(c, storey, wall, floor) {
     c.restore();
     housePoly(c, shade(base, -.10), [x, top], [x + inset, top + 6], [x + inset, back], [x, front]);
     housePoly(c, shade(base, -.045), [end, top], [end - inset, top + 6], [end - inset, back], [end, front]);
-    R(c, x + inset, back - 12, end - x - inset * 2, 10, shade(base, .085));
-    for (let px = x + inset + 3; px < end - inset; px += 5) R(c, px, back - 10, 1, 7, shade(base, -.025));
+    const panelWidth = end - x - inset * 2;
+    R(c, x + inset, back - 12, panelWidth, 10, shade(base, .08));
+    for (let px = x + inset + 4; px + 11 < end - inset; px += 16) {
+      const border = shade(base, -.025), face = shade(base, .11);
+      bevel(c, px, back - 10, 12, 7, face, border);
+      detail(c, px + 2, back - 9, 8, .5, shade(base, .17));
+    }
     R(c, x + inset, back - 13, end - x - inset * 2, 1, shade(base, -.09));
     R(c, x + inset, back - 2, end - x - inset * 2, 2, shade(base, -.13));
-    R(c, x, top, end - x, 3, '#63434a37');
+    const ceilingShade = c.createLinearGradient(0, top, 0, top + 14);
+    ceilingShade.addColorStop(0, '#56334442');
+    ceilingShade.addColorStop(1, '#56334400');
+    c.fillStyle = ceilingShade;
+    c.fillRect(x, top, end - x, 14);
     R(c, x + inset, back - 14, end - x - inset * 2, 1, '#fff0d38e');
     if (!bath && wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
   }
@@ -5474,14 +5537,21 @@ function drawHouseShell(c, wall, floor) {
   drawHouseRoof(c, l, r);
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
   for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
-    R(c, l - 4, y, W + 8, h, '#805650');
-    R(c, l - 3, y + 1, W + 6, 2, '#d0a184');
-    R(c, l - 3, y + 3, W + 6, 1, '#aa7663');
-    if (h > 5) for (let x = l + 1; x < r; x += 9) R(c, x, y + 4, 1, 2, '#926152');
+    R(c, l - 4, y, W + 8, h, '#76504c');
+    R(c, l - 3, y + 1, W + 6, 2, '#dfb18d');
+    detail(c, l - 3, y + 1, W + 6, .5, '#f3c9a2');
+    R(c, l - 3, y + 3, W + 6, 1, '#b47e65');
+    if (h > 5) {
+      for (let x = l + 4; x < r - 12; x += 27) detail(c, x, y + 4.5, 10, .5, '#a36e59');
+      detail(c, l - 2, y + h - 1, W + 4, .5, '#d09170');
+    }
   }
   for (const x of [l - 4, r]) {
-    R(c, x, STOREYS[1].wall, 4, STOREYS[0].front - STOREYS[1].wall, '#a67865');
-    R(c, x + 1, STOREYS[1].wall, 1, STOREYS[0].front - STOREYS[1].wall, '#d1a68a');
+    for (const { wall: y, front } of STOREYS) {
+      R(c, x, y, 4, front - y, '#a97c65');
+      detail(c, x + .5, y, .5, front - y, '#e9bd99');
+      detail(c, x + 3, y, 1, front - y, '#744f4c');
+    }
   }
   drawHouseStairs(c);
 }
@@ -5837,14 +5907,17 @@ ACT_LINES.rainTea = ['雨声和上次一样。'];
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
 ctx.imageSmoothingEnabled = false;
+// Keep the artwork grid independent of the display buffer. Sloped edges are
+// rasterized at higher resolution; CSS can then downsample at any zoom.
+const SCENE_SCALE = 4;
 const lightCv = document.createElement('canvas');
 const lctx = lightCv.getContext('2d');
 // 扩建后画布跟着变宽
 HOOK.resize = () => {
-  cv.width = lightCv.width = (W + HOUSE_MARGIN) * PIXEL_SCALE;
-  cv.height = lightCv.height = HOUSE_HEIGHT * PIXEL_SCALE;
-  ctx.scale(PIXEL_SCALE, PIXEL_SCALE);
-  lctx.scale(PIXEL_SCALE, PIXEL_SCALE);
+  cv.width = lightCv.width = (W + HOUSE_MARGIN) * SCENE_SCALE;
+  cv.height = lightCv.height = HOUSE_HEIGHT * SCENE_SCALE;
+  ctx.scale(SCENE_SCALE, SCENE_SCALE);
+  lctx.scale(SCENE_SCALE, SCENE_SCALE);
   ctx.imageSmoothingEnabled = false;
   document.getElementById('stage').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
@@ -5935,12 +6008,14 @@ function drawWindowLight(c) {
     c.save();
     housePath(c, [[left, front], [left + 9, back], [right - 9, back], [right, front]]);
     c.clip();
-    const lean = afternoon ? -1 : 1;
-    for (let row = 0; row < front - back - 2; row += 1) {
-      const px = center - 9 + Math.round(row * .65) * lean, y = back + row + 1;
-      R(c, px - 2, y, 21, 1, pale);
-      R(c, px, y, 8, 1, bright);
-      R(c, px + 10, y, 7, 1, bright);
+    const direction = afternoon ? -1 : 1;
+    const start = center - 12, depth = front - back, end = start + direction * depth * .58;
+    const light = c.createLinearGradient(0, back, 0, front);
+    light.addColorStop(0, bright);
+    light.addColorStop(1, pale);
+    for (const [offset, width] of [[0, 10], [12, 10]]) {
+      housePoly(c, light, [start + offset, back], [start + offset + width, back],
+        [end + offset + width + 2, front], [end + offset - 1, front]);
     }
     c.restore();
   }
