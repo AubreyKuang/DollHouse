@@ -1,4 +1,5 @@
 const assert = require('node:assert/strict');
+const { createHash } = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
@@ -19,7 +20,7 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
     document: { body: { dataset: { mode } }, getElementById: id => id === 'cv' ? canvas : { style: { setProperty() {} } }, createElement: () => canvas },
     localStorage: { getItem: key => data.get(key) ?? null, setItem: (key, value) => data.set(key, value) },
   });
-  for (const [, script] of read('index.html').matchAll(/<script src="([^"]+)"/g)) {
+  for (const [, script] of read('index.html').matchAll(/<script src="([^"?]+)(?:\?[^"]*)?"/g)) {
     if (script === (withView ? 'js/ui.js' : 'js/view.js')) break;
     vm.runInContext(read(script), context, { filename: script });
   }
@@ -32,6 +33,20 @@ test('all entry points open residents and draw the room without external art', (
     const html = read(file);
     assert.match(html, /<details id="side" open>/);
     assert.doesNotMatch(html, /id="(?:cottage|doll)Atlas"/);
+  }
+});
+
+test('both online entry points request scripts using their current content versions', () => {
+  const scripts = [...read('index.html').matchAll(/<script src="(js\/[^"?]+)([^"]*)"/g)];
+  assert.ok(scripts.length > 0);
+  const dev = read('dev.html');
+  const offline = read('pixel-dollhouse.html');
+  assert.doesNotMatch(offline, /<script src=/);
+  for (const [, path, version] of scripts) {
+    const hash = createHash('sha256').update(read(path)).digest('hex').slice(0, 12);
+    assert.equal(version, '?v=' + hash, path);
+    assert.ok(dev.includes(`src="${path}${version}"`), path);
+    assert.ok(offline.includes(read(path)), path);
   }
 });
 
