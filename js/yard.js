@@ -21,35 +21,55 @@ const swingOffset = t => Math.round(Math.sin(t * 5) * 3);
 Object.assign(DRAW, {
   gardenSwing(c, x, y, f, t) {
     contactShadow(c, x + 1, y + 14, 46);
-    drawCottageSprite(c, 'gardenSwing', x, y - 17, 48, 32);
+    housePoly(c, '#82604e', [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
+    housePoly(c, '#82604e', [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
+    bevel(c, x + 6, y - 16, 36, 4, '#bc8968', '#765647');
+    detail(c, x + 8, y - 15, 32, .5, '#e1b48b');
     for (const seat of [0, 1]) {
       const left = x + 10 + seat * 16;
       const active = f.users?.some(d => d.state === 'act' && d.act?.seat === seat);
       const off = active ? swingOffset(t) : 0;
-      R(c, left, y - 13, 1, 23 + off, '#e7d6a4');
-      R(c, left + 8, y - 13, 1, 23 + off, '#e7d6a4');
+      R(c, left, y - 12, 1, 22 + off, '#e7d6a4');
+      R(c, left + 8, y - 12, 1, 22 + off, '#e7d6a4');
       for (const rope of [left, left + 8]) {
-        detail(c, rope, y - 13, .5, 23 + off, '#f4e5bb');
+        detail(c, rope, y - 12, .5, 22 + off, '#f4e5bb');
         R(c, rope, y - 13, 1, 2, '#9a745d');
       }
       bevel(c, left - 1, y + 9 + off, 11, 3, seat ? '#e3ae8d' : '#d99ca1', '#7d514f');
     }
   },
   gardenBench(c, x, y) {
-    drawCottageSprite(c, 'gardenBench', x, y - 6, 32, 21);
+    contactShadow(c, x + 2, y + 14, 28);
+    R(c, x + 5, y + 9, 3, 6, '#63715a'); R(c, x + 24, y + 9, 3, 6, '#63715a');
+    box(c, x + 2, y - 2, 28, 9, '#9bb48c', '#506e58');
+    R(c, x + 3, y + 1, 26, 1, '#c4d2a6'); R(c, x + 3, y + 4, 26, 1, '#6d8b6e');
+    bevel(c, x + 1, y + 6, 30, 4, '#b8c8a0', '#506e58');
+    detail(c, x + 3, y + 7, 26, .5, '#d6d9b4');
   },
   flowerBox(c, x, y, f, t) {
-    drawCottageSprite(c, 'flowerBox', x, y - 7, 32, 22);
-    if (f?.active) for (const [i, dx] of [5, 11, 17, 23, 27].entries()) {
-      detail(c, x + dx + 2, y - 8 + Math.floor((t * 12 + i * 3) % 10), 1, 2, '#87d4e4');
+    contactShadow(c, x + 1, y + 13, 30);
+    bevel(c, x + 1, y + 5, 30, 9, '#b68063', '#795a4f');
+    R(c, x + 2, y + 6, 28, 2, '#edb38b');
+    for (const [i, px] of [5, 11, 17, 23, 27].entries()) {
+      const top = y + i % 2 * 3 - 4;
+      R(c, x + px, top + 3, 1, 8, '#4a8158');
+      R(c, x + px - 2, top + 6, 2, 1, '#6ca068');
+      const petals = i % 2 ? '#edbbb5' : '#fff5d9';
+      R(c, x + px - 2, top + 1, 5, 1, petals);
+      R(c, x + px - 1, top, 3, 3, petals);
+      R(c, x + px, top + 1, 1, 1, '#d5a33f');
+      if (f.active) R(c, x + px + 2, y - 8 + Math.floor((t * 12 + i * 3) % 10), 1, 2, '#87d4e4');
     }
   },
   picnicTable(c, x, y, f) {
-    drawCottageSprite(c, 'picnicTable', x, y - 5, 48, 20);
-    if (f?.active) {
-      bevel(c, x + 17, y - 4, 5, 3, '#f8f4dc', '#be8d79');
-      bevel(c, x + 28, y - 6, 3, 4, '#da9295', '#b77984');
-    }
+    contactShadow(c, x + 4, y + 13, 40);
+    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, '#846552');
+    box(c, x + 2, y + 7, 44, 4, '#c28e63', '#846552');
+    box(c, x + 5, y, 38, 7, '#f1c8a0', '#846552');
+    R(c, x + 12, y + 1, 24, 7, '#eeb6b1');
+    for (let px = 12; px < 36; px += 4) R(c, x + px, y + 1, 2, 7, '#fff1dd');
+    R(c, x + 12, y + 3, 24, 2, '#d991945a');
+    if (f.active) { R(c, x + 17, y, 5, 3, '#f8f4dc'); R(c, x + 28, y - 2, 3, 4, '#b77984'); }
   },
   puzzleDesk(c, x, y, f, t) {
     for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, '#9f765b');
