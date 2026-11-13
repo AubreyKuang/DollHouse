@@ -99,11 +99,52 @@ function chooseKind(d, p) {
   ]);
 }
 
+const availableForHouseChat = d => d.state === 'idle' ||
+  (d.state === 'walk' && d.act?.type === 'wander');
+
+function houseChatLines(d) {
+  if (G.weather === 'rain') return ['听，雨打在窗上。', '听见了，屋里倒是挺暖和。', '等雨小点再出去吧。'];
+  if (G.weather === 'snow') return ['窗外开始积雪了。', '难怪屋里一下子亮了起来。', '明早可以去院子看看。'];
+  if (d.needs.energy < 35) return ['我今天有点累。', '那就先歇一会儿，我陪你坐坐。', '嗯，安静待一会儿也挺好。'];
+  return ({
+    foodie: ['下顿吃什么？我在想煮点面。', '好啊，我帮你摆碗。', '那我多煮一点。'],
+    nerd: ['我刚看到一段特别有意思。', '讲给我听听？', '等我把那页找出来给你看。'],
+    maker: ['我想给窗边做个小架子。', '放几盆花应该挺好看。', '好主意，我给花盆多留点位置。'],
+    lazy: ['今天就想窝在家。', '也好，咱们可以慢慢过。', '嗯，先把这杯喝完。'],
+  }[d.persona] || ['今天屋里好安静啊。', '嗯，刚好能坐下来聊会儿。', '那我再待一会儿。']);
+}
+
+function houseExchangeActive(d) {
+  const speaker = d.act?.exchangeFrom;
+  return Boolean(d.act?.exchange || (speaker && speaker.act?.exchange?.partnerAct === d.act));
+}
+
+function startHouseExchange(d, p, lines) {
+  d.act.exchange = { partner: p, partnerAct: p.act, lines, next: 1, delay: 1.6 };
+  p.act.exchangeFrom = d;
+  say(d, lines[0], 1.55);
+}
+
+function tickHouseExchange(d, dt) {
+  const talk = d.act.exchange;
+  if (!talk || !G.dolls.includes(talk.partner) || talk.partner.act !== talk.partnerAct || talk.partner.state !== 'act' || !canSee(d, talk.partner)) {
+    delete d.act.exchange;
+    return;
+  }
+  if (talk.next >= talk.lines.length) return;
+  talk.delay -= dt;
+  if (talk.delay > 0) return;
+  const speaker = talk.next % 2 ? talk.partner : d;
+  say(speaker, talk.lines[talk.next++], 1.55);
+  talk.delay += 1.6;
+}
+
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p, introduced = false) {
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
   let kind = (d.act && d.act.kind) || chooseKind(d, p);
   if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
+  const exchange = d.act?.exchange;
   const S = SOCIAL[kind], r = rel(d, p);
   const wereLovers = r.lovers;
   const t = 5 + Math.random() * 3;
@@ -113,8 +154,9 @@ function startSocial(d, p, introduced = false) {
   for (const x of [d, p]) if (!isE(x)) x.needs.energy = Math.max(0, x.needs.energy - 3);   // 内向的人社交会累
   const PD = PERSONAS[d.persona], PP = PERSONAS[p.persona];
   d.act.t = p.act.t = t * ((PD.dur && PD.dur.chat) || 1);
-  // 普通聊天用各自性格的台词，一听就知道是谁
-  say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
+  const lines = exchange?.lines || (kind === 'chat' ? houseChatLines(d) : null);
+  if (lines) startHouseExchange(d, p, lines);
+  else say(d, kind === 'chat' && PD.chat ? pick(PD.chat) : kind === 'flirt' && loverOf(d) && loverOf(d) !== p ? pick(['你今天……特别好看', '别告诉别人哦', '我们去没人的地方聊聊？']) : pick(S.a));
   let reply = kind === 'chat' && PP.chat ? pick(PP.chat) : pick(S.b.length ? S.b : ['……']);
 
   const spark = r.f >= 45 ? 1 : 0;   // 足够熟了，日常相处也会慢慢心动
@@ -178,7 +220,8 @@ function startSocial(d, p, introduced = false) {
   const routine = r.lovers && (kind === 'hug' || kind === 'kiss') && r.logAt > absNow() - 240;
   if (r.lovers && (kind === 'hug' || kind === 'kiss') && !routine) r.logAt = absNow();
   countHouseActivity('social',d.name+' × '+p.name);
-  if(kind==='chat'&&Math.random()<.32)shareHouseNews(d,p);
+  if (exchange?.log) addLog(exchange.log);
+  if (kind === 'chat' && !exchange && Math.random() < .32) shareHouseNews(d, p);
   if (!routine && ['argue', 'hug', 'kiss', 'flirt', 'joke'].includes(kind)) {
     const outcome = kind === 'flirt' ? (flirtOk ? 'accepted' : 'rejected') : 'completed';
     const emotion = kind === 'joke' ? -.38 : kind === 'argue' ? -.9 : outcome === 'rejected' ? -.85 : .55;
@@ -218,7 +261,10 @@ function startSocial(d, p, introduced = false) {
       kind === 'argue' ? 'argued' : kind === 'flirt' && !flirtOk ? 'rejected' : null;
     recordPaperMeeting(d, p, kind, outcome);
   }
-  setTimeout(() => p.act && p.act.partner === d && say(p, reply), 1300);
+  if (!lines) {
+    const replyAct = p.act;
+    setTimeout(() => p.act === replyAct && say(p, reply), 1300);
+  }
   SFX.play(kind === 'argue' ? 'deny' : 'chat');
 }
 
@@ -322,7 +368,7 @@ function socialTick(dt) {
 // 互动进行中：偶尔再说一句、冒爱心
 function tickSocial(d, dt) {
   const a = d.act, S = SOCIAL[a.kind] || SOCIAL.chat;
-  if (a.passive || Math.random() > dt * 0.45) return;
+  if (a.passive || a.exchange || Math.random() > dt * 0.45) return;
   const who = Math.random() < 0.5 ? d : a.partner;
   const lines = who === d ? S.a : (S.b.length ? S.b : S.a);
   say(who, pick(lines), 1.8);

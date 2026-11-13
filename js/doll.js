@@ -1,5 +1,7 @@
 // 小人像素绘制：12×20 的小人，头身比偏大，按层叠画出 腿→身体→手→头→头发→配饰
 
+const DOLL_INK = '#3b2a2f';
+
 function dollColors(L) {
   return {
     skin: OUTFIT.skin[L.skin] || OUTFIT.skin[0],
@@ -34,7 +36,7 @@ const HAIR = {
 };
 
 function blob(c, x, y, rects, col) {
-  for (const [a, b, w, h] of rects) R(c, x + a - 1, y + b - 1, w + 2, h + 2, INK);
+  for (const [a, b, w, h] of rects) R(c, x + a - 1, y + b - 1, w + 2, h + 2, DOLL_INK);
   for (const [a, b, w, h] of rects) R(c, x + a, y + b, w, h, col);
 }
 
@@ -68,7 +70,7 @@ function drawDoll(c, cx, by, L, o = {}) {
     if (pose === 'lift') { upL = fr % 2; upR = 1 - fr % 2; }
     if (pose === 'dance') { upL = fr % 2 ? 2 : 0; }
     const leg = (lx, up) => {
-      R(c, x + lx - 1, y + 15, 4, 5 - up, INK);
+      R(c, x + lx - 1, y + 15, 4, 5 - up, DOLL_INK);
       R(c, x + lx, y + 15, 2, 4 - up, legCol);
       if (L.bottom === 'shorts' && !isDress) R(c, x + lx, y + 15, 2, 1, C.bot);
       R(c, x + lx, y + 19 - up, 2, 1, C.shoe);
@@ -79,7 +81,7 @@ function drawDoll(c, cx, by, L, o = {}) {
 
   // 身体
   const yb = y + bob;
-  box(c, x + 2, yb + 9, 8, 7, C.top);
+  box(c, x + 2, yb + 9, 8, 7, C.top, DOLL_INK);
   const front = view === 'down';
   if (L.top === 'tee' && front) R(c, x + 5, yb + 10, 2, 1, C.skin);
   if (L.top === 'hoodie') { R(c, x + 3, yb + 13, 6, 1, shade(C.top, -0.15)); if (front) { R(c, x + 5, yb + 10, 1, 2, '#fff'); R(c, x + 7, yb + 10, 1, 2, '#fff'); } }
@@ -94,14 +96,14 @@ function drawDoll(c, cx, by, L, o = {}) {
   // 下装（连衣裙自带裙摆）
   if (isDress || L.bottom === 'skirt') {
     const sc = isDress ? C.top : C.bot;
-    R(c, x + 1, yb + 14, 10, 4, INK); R(c, x + 2, yb + 14, 8, 3, sc); R(c, x + 2, yb + 16, 8, 1, shade(sc, -0.15));
+    R(c, x + 1, yb + 14, 10, 4, DOLL_INK); R(c, x + 2, yb + 14, 8, 3, sc); R(c, x + 2, yb + 16, 8, 1, shade(sc, -0.15));
   } else if (pose !== 'sit') { R(c, x + 3, yb + 14, 6, 1, C.bot); }
 
   // 手臂
   const sleeve = L.top === 'hoodie' || L.top === 'suit' || L.top === 'stripe' ? 3 : 2;
   const arm = (ax, dy, up) => {
-    if (up) { R(c, x + ax - 1, yb + 5, 3, 7, INK); R(c, x + ax, yb + 6, 1, 5, C.top); R(c, x + ax, yb + 5, 1, 1, C.skin); return; }
-    R(c, x + ax - 1, yb + 9 + dy, 3, 6, INK);
+    if (up) { R(c, x + ax - 1, yb + 5, 3, 7, DOLL_INK); R(c, x + ax, yb + 6, 1, 5, C.top); R(c, x + ax, yb + 5, 1, 1, C.skin); return; }
+    R(c, x + ax - 1, yb + 9 + dy, 3, 6, DOLL_INK);
     R(c, x + ax, yb + 10 + dy, 1, sleeve, L.top === 'overall' ? '#fffaf0' : C.top);
     R(c, x + ax, yb + 10 + dy + sleeve, 1, 4 - sleeve, C.skin);
   };
@@ -118,17 +120,17 @@ function drawDoll(c, cx, by, L, o = {}) {
 }
 
 function drawHead(c, x, y, L, C, view, o) {
-  box(c, x + 1, y + 1, 10, 9, C.skin);
+  box(c, x + 1, y + 1, 10, 9, C.skin, DOLL_INK);
   if (view === 'down') {
-    if (L.acc === 'glasses') { R(c, x + 3, y + 4, 3, 3, INK); R(c, x + 6, y + 4, 3, 3, INK); R(c, x + 4, y + 5, 1, 1, '#cfeaf7'); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
-    if (o.sleep || o.blink) { R(c, x + 3, y + 6, 2, 1, INK); R(c, x + 7, y + 6, 2, 1, INK); }
-    else if (L.acc === 'glasses') { R(c, x + 4, y + 5, 1, 1, INK); R(c, x + 7, y + 5, 1, 1, INK); }
-    else { R(c, x + 4, y + 5, 1, 2, INK); R(c, x + 7, y + 5, 1, 2, INK); }
+    if (L.acc === 'glasses') { R(c, x + 3, y + 4, 3, 3, DOLL_INK); R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 4, y + 5, 1, 1, '#cfeaf7'); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
+    if (o.sleep || o.blink) { R(c, x + 3, y + 6, 2, 1, DOLL_INK); R(c, x + 7, y + 6, 2, 1, DOLL_INK); }
+    else if (L.acc === 'glasses') { R(c, x + 4, y + 5, 1, 1, DOLL_INK); R(c, x + 7, y + 5, 1, 1, DOLL_INK); }
+    else { R(c, x + 4, y + 5, 1, 2, DOLL_INK); R(c, x + 7, y + 5, 1, 2, DOLL_INK); }
     R(c, x + 2, y + 7, 2, 1, '#f59aa8'); R(c, x + 8, y + 7, 2, 1, '#f59aa8');
     if (o.happy) R(c, x + 5, y + 8, 2, 1, '#c0505a');
   } else if (view === 'right') {
-    if (L.acc === 'glasses') { R(c, x + 6, y + 4, 3, 3, INK); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
-    if (o.blink) R(c, x + 7, y + 6, 2, 1, INK); else R(c, x + 7, y + 5, 1, 2, INK);
+    if (L.acc === 'glasses') { R(c, x + 6, y + 4, 3, 3, DOLL_INK); R(c, x + 7, y + 5, 1, 1, '#cfeaf7'); }
+    if (o.blink) R(c, x + 7, y + 6, 2, 1, DOLL_INK); else R(c, x + 7, y + 5, 1, 2, DOLL_INK);
     R(c, x + 8, y + 7, 2, 1, '#f59aa8');
     if (o.happy) R(c, x + 9, y + 8, 1, 1, '#c0505a');
   }
