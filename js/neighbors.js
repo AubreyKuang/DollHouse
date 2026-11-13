@@ -43,12 +43,14 @@ function contactNeighbor(d, other, meal = false) {
 function tickNeighborVisit() {
   const n = G.community.neighbor;
   if (communityDoll(NEIGHBOR_PID) || G.community.outing || G.time < 14 * 60 || G.time >= 17 * 60 ||
-      n.lastMonth === G.day || absNow() < G.community.nextEventAt) return false;
+      !autoVisitAllowed() || n.lastRoll === G.day || n.lastMonth === G.day || absNow() < G.community.nextEventAt) return false;
   const host = availableHosts().filter(d => d.act?.type !== 'leave' && d.needs.energy >= 34 && d.needs.hunger >= 25).sort((a, b) => {
     const interest = d => (G.rel[relKey(d, NEIGHBOR_PROFILE)]?.f ?? 25) + (['social', 'foodie', 'maker'].includes(d.persona) ? 8 : 0);
     return interest(b) - interest(a);
   })[0];
   if (!host) return false;
+  n.lastRoll = G.day;
+  if (Math.random() >= (n.borrowed ? .45 : .20)) return false;
   let friend = neighborProfile();
   if (friend === NEIGHBOR_PROFILE) {
     friend = { ...NEIGHBOR_PROFILE, look: { ...NEIGHBOR_PROFILE.look } };
@@ -57,6 +59,7 @@ function tickNeighborVisit() {
   const exchange = n.borrowed ? 'returnTool' : n.visits % 3 === 1 ? 'borrow' : 'bread';
   if (!startGetTogether(host, 'visit', { friend, exchange })) return false;
   n.lastMonth = G.day;
+  G.community.lastAutoVisit = G.day;
   n.visits++;
   save();
   return true;

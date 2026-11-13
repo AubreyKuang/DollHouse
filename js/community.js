@@ -20,6 +20,7 @@ function restoreCommunity(saved) {
     applications: saved?.applications || [],
     active: saved?.active || null,
     lastRoll: saved?.lastRoll || 0,
+    lastAutoVisit: saved?.lastAutoVisit ?? -1,
     nextEventAt: saved?.nextEventAt || 0,
     neighbor: saved?.neighbor || { ties: {}, lastMonth: 0, visits: 0 },
     outing: saved?.outing ? { ...saved.outing, resume: saved.outing.phase === 'leaving' } : null,
@@ -209,6 +210,9 @@ function endGetTogether() {
   save();
 }
 
+// Leave one full quiet month between spontaneous visits of either kind.
+const autoVisitAllowed = () => G.day - G.community.lastAutoVisit >= 2;
+
 function communityTick() {
   const community = G.community;
   tickNeighborOuting();
@@ -223,12 +227,12 @@ function communityTick() {
     else if (!tickPicnicWeather(event) && absNow() >= event.endsAt) endGetTogether();
     return;
   }
-  if (community.outing || resumePicnic() || tickNeighborVisit()) return;
+  if (community.outing || resumePicnic() || !autoVisitAllowed() || tickNeighborVisit()) return;
   if (G.time < 17.5 * 60 || G.time >= 21 * 60 || community.lastRoll === G.day || absNow() < community.nextEventAt) return;
   const hosts = availableHosts();
   if (!hosts.length) return;
   community.lastRoll = G.day;
-  if (Math.random() >= .67) return;
+  if (Math.random() >= .20) return;
   const host = weighted(hosts.map(d => [d, isE(d) ? 2.5 : 1]));
   const party = isE(host) ? .48 : .22;
   const kind = Math.random() < party ? weighted([
@@ -237,7 +241,10 @@ function communityTick() {
     ['games', ['nerd', 'genki'].includes(host.persona) ? 3 : 1],
     ['picnic', G.weather === 'snow' ? 0 : 2],
   ]) : 'visit';
-  startGetTogether(host, kind);
+  if (startGetTogether(host, kind)) {
+    community.lastAutoVisit = G.day;
+    save();
+  }
 }
 
 function moveInApplicant(pid) {
