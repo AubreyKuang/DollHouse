@@ -639,3 +639,120 @@ test('the monthly paper waits while the player is mid-drag', () => {
     assert.equal(G.paperPending, false);
   `, { withView: true });
 });
+
+test('a reading corner follows the same chair through a move and reload', () => {
+  runGame(`
+    load();
+    const d = G.dolls[0];
+    const f = addFurniture('chair', 11, 18);
+    addFurniture('window', 10, -3);
+    assert.equal(cornerKind(f), 'read');
+    noteCornerUse(d, f);
+    noteCornerUse(d, f);
+    assert.equal(cornerOwner(f), undefined);
+    G.day++;
+    noteCornerUse(d, f);
+    assert.equal(cornerOwner(f), d.pid);
+    removeFurniture(f);
+    G.build.placing = { id: f.id, key: f.key, moved: true, orig: { x: f.x, y: f.y } };
+    const snapshot = JSON.parse(JSON.stringify(houseSaveData()));
+    assert.ok(snapshot.furniture.some(item => item.key === f.key));
+    G.build.placing = null;
+    addFurniture(f.id, 12, 18, f);
+    applySave(JSON.parse(JSON.stringify(houseSaveData())));
+    const moved = G.furniture.find(item => item.key === f.key);
+    assert.equal(moved.x, 12);
+    assert.equal(cornerOwner(moved), d.pid);
+  `, { withView: true });
+});
+
+test('a shared project resumes after reload and only finishes once both reach the bench', () => {
+  runGame(`
+    load();
+    const [a, b] = G.dolls;
+    const bench = addFurniture('craftBench', 10, 6);
+    rebuild();
+    const [one, two] = approachTiles(bench);
+    placeDollAt(a, one.x, one.y);
+    placeDollAt(b, two.x + 1, two.y);
+    assert.ok(startKeepsakeProject(a, b, 'sage'));
+    arrive(a);
+    tickKeepsakes(8);
+    assert.equal(G.keepsakes.pieces.length, 0);
+    applySave(JSON.parse(JSON.stringify(houseSaveData())));
+    const [c, d] = G.dolls;
+    tickKeepsakes(0);
+    for (const person of [c, d]) {
+      const last = person.path.at(-1);
+      if (last) placeDollAt(person, last.x, last.y);
+      person.path = [];
+      arrive(person);
+    }
+    assert.notEqual(c.tx, d.tx);
+    tickKeepsakes(5);
+    tickKeepsakes(10);
+    const [piece] = G.keepsakes.pieces;
+    assert.equal(G.keepsakes.pieces.length, 1);
+    assert.equal(piece.finish, 'sage');
+    assert.equal(unplacedKeepsakes().length, 1);
+    const placed = addFurniture('handmadePlanter', 4, 7, { piece: piece.key });
+    assert.equal(unplacedKeepsakes().length, 0);
+    applySave(JSON.parse(JSON.stringify(houseSaveData())));
+    const saved = G.furniture.find(f => f.key === placed.key);
+    assert.equal(saved.piece, piece.key);
+    assert.deepEqual(keepsakePiece(saved.piece).makers, [c.name, d.name]);
+    G.furniture = G.furniture.filter(f => f !== saved);
+    assert.equal(unplacedKeepsakes().length, 1);
+  `);
+});
+
+test('rainy picnic companions reunite on a later rainy month and both appear in the paper', () => {
+  runGame(`
+    load();
+    const [a, b] = G.dolls;
+    noteRainTradition(a, b);
+    G.weather = 'rain';
+    G.time = 14 * 60;
+    tickKeepsakes(1);
+    assert.equal(a.act, null);
+    G.day++;
+    tickKeepsakes(1);
+    assert.equal(a.act.type, 'rainTea');
+    for (const person of [a, b]) {
+      const last = person.path.at(-1);
+      if (last) placeDollAt(person, last.x, last.y);
+      person.path = [];
+      arrive(person);
+      assert.equal(roomOf(person), 'study');
+    }
+    assert.equal(Math.abs(a.tx - b.tx) + Math.abs(a.ty - b.ty), 1);
+    tickKeepsakes(1);
+    tickKeepsakes(1);
+    assert.equal(G.log.filter(e => e.text.includes('又下雨了')).length, 1);
+    finishHouseMonth();
+    const story = G.paper.at(-1).stories.find(s => s.label === '两人的小传统');
+    assert.ok(story);
+    assert.deepEqual(story.people.map(p => p.name), [a.name, b.name]);
+  `);
+});
+
+test('a rainy tradition invites the same former guest back after a save', () => {
+  runGame(`
+    load();
+    const [host] = G.dolls;
+    const friend = { ...newcomerProfile(), name: '老朋友', pid: 'rain-guest', hostPid: host.pid, visits: 1 };
+    G.community.friends.push(friend);
+    noteRainTradition(host, friend);
+    G.day += 2;
+    G.weather = 'rain';
+    G.time = 15 * 60;
+    applySave(JSON.parse(JSON.stringify(houseSaveData())));
+    tickKeepsakes(0);
+    assert.equal(G.community.active.guestPid, friend.pid);
+    assert.equal(G.community.active.hostPid, host.pid);
+    tickKeepsakes(0);
+    const guest = communityDoll(friend.pid);
+    assert.equal(guest.act.type, 'rainTea');
+    assert.equal(G.keepsakes.traditions[relKey(host, friend)].last, G.day - 2);
+  `);
+});
