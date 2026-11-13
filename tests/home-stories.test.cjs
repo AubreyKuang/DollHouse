@@ -241,6 +241,21 @@ test('all three activities finish with personality lines and no unexpected costs
   for(const theme of Object.values(HOME_LINES))for(const persona of Object.keys(PERSONAS))assert.equal(theme[persona].length,2);
 `));
 
+test('birthday and teaching controls select real roles and show the correct material cost', () => game(`
+  const [learner,,,teacher]=residents();teacher.job='chef';teacher.lastWorkDay=G.day;
+  $('#btnHome').onclick();
+  assert.equal($('#homeOccasions').children.length,1);
+  $('#homeOccasions').children[0].children.at(-1).onclick();
+  assert.equal(homeKind,'birthday');assert.equal($('#homeFocus').value,'p-jing');
+  assert.ok(selectedHomePeople().includes('p-jing'));assert.match($('#homePlanStatus').textContent,/¥20/);
+  $('#homeKinds').children.find(n=>n.textContent.includes('教我一道菜')).onclick();
+  assert.equal($('#homeFocusLabel').hidden,false);assert.equal($('#homeFocus').value,learner.pid);
+  assert.ok(selectedHomePeople().includes(teacher.pid));assert.equal($('#homeStart').disabled,false);
+  assert.match($('#homePlanStatus').textContent,/¥15/);
+  $('#homeStart').onclick();assert.equal(G.home.active.detail.learner,learner.pid);
+  assert.equal(G.home.active.detail.teacher,teacher.pid);assert.equal($('#homeDialog').open,false);
+`, undefined, true));
+
 test('import isolates monthly snapshots and undo brings back the prior timeline', () => game(`
   const exported=exportHomeSave();
   G.day=9;snapshotHouseMonth();
