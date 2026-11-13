@@ -1,6 +1,24 @@
-// 全部像素图都在这里用 fillRect 现场画出来，没有任何图片文件
+// 道具保持逻辑格尺寸，细节贴图由 Canvas 与动画合成。
 const INK = '#493743';
 const PIXEL_SCALE = 2;
+
+const cottageAtlas = document.getElementById('cottageAtlas');
+const COTTAGE_SPRITES = {
+  bigbed: [0, 0, 120, 96], sofa: [128, 0, 128, 76], piano: [256, 0, 112, 99],
+  shelf: [0, 128, 78, 112], window: [128, 128, 124, 105], oak: [256, 128, 128, 128],
+  desk: [0, 256, 112, 90], arcade: [128, 256, 74, 112], plant: [256, 256, 82, 112],
+  toilet: [0, 384, 88, 100], washstand: [128, 384, 78, 112], shower: [256, 384, 62, 112],
+};
+const cottageArtReady = () => Boolean(cottageAtlas?.complete && cottageAtlas.naturalWidth);
+
+function drawCottageSprite(c, id, x, y, w, h) {
+  if (!cottageArtReady()) return false;
+  c.save();
+  c.imageSmoothingEnabled = true;
+  c.drawImage(cottageAtlas, ...COTTAGE_SPRITES[id], x, y, w, h);
+  c.restore();
+  return true;
+}
 
 // Fine details snap to the same half-tile-pixel grid in the house and portraits.
 function detail(c, x, y, w, h, color) {
@@ -65,6 +83,20 @@ const WOOD = '#ae7856', WOOD_L = '#d7a77a', WOOD_D = '#785247';
 
 function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
   const w = double ? 48 : 32;
+  if (double && cottageArtReady()) {
+    contactShadow(c, x + 1, y + 30, 46);
+    drawCottageSprite(c, 'bigbed', x + 1, y - 1, 46, 33);
+    if (f?.occ) {
+      for (const [slot, center] of [13, 35].entries()) f.occ(slot, x + center, y + 18);
+      const [sx, sy, sw, sh] = COTTAGE_SPRITES.bigbed, quiltStart = 47;
+      c.save();
+      c.imageSmoothingEnabled = true;
+      c.drawImage(cottageAtlas, sx, sy + quiltStart, sw, sh - quiltStart,
+        x + 1, y - 1 + 33 * quiltStart / sh, 46, 33 * (sh - quiltStart) / sh);
+      c.restore();
+    }
+    return;
+  }
   const edge = '#623f46', walnut = '#a06d58', honey = '#d9a386';
   const hi = shade(linen, .13), dark = shade(linen, -.15);
   contactShadow(c, x + 1, y + 30, w - 2);
@@ -99,6 +131,10 @@ const DRAW = {
   bed(c, x, y, f) { drawBed(c, x, y, f, false); },
   bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
+    if (drawCottageSprite(c, 'sofa', x, y - 7, 32, 22)) {
+      contactShadow(c, x + 2, y + 15, 28);
+      return;
+    }
     const edge = '#46615d', body = '#6b9e91', shadow = '#507e72', light = '#bad2bc';
     contactShadow(c, x, y + 14, 32);
     for (const foot of [x + 4, x + 26]) {
@@ -174,6 +210,7 @@ const DRAW = {
     }
   },
   shelf(c, x, y) {
+    if (drawCottageSprite(c, 'shelf', x + 2, y - 22, 28, 37)) return;
     const covers = ['#b97482', '#7899aa', '#dcb278', '#81a48b', '#9583aa', '#c28867'];
     contactShadow(c, x + 1, y + 14, 30);
     bevel(c, x, y - 22, 32, 37, WOOD, WOOD_D);
@@ -209,6 +246,10 @@ const DRAW = {
     } else { R(c, x + 5, y - 15, 22, 12, '#4c5a68'); R(c, x + 6, y - 14, 4, 1, '#ffffff44'); }
   },
   arcade(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'arcade', x + 1, y - 18, 14, 33)) {
+      if (f?.active) detail(c, x + 6 + Math.floor(t * 5) % 4, y - 8, 1, 1, '#b3e8aa');
+      return;
+    }
     box(c, x + 1, y - 18, 14, 33, '#9582b1'); R(c, x + 2, y - 17, 12, 3, '#efd189');
     box(c, x + 3, y - 13, 10, 9, '#1d1b2a');
     if (f && f.active) { const k = Math.floor(t * 6) % 3; R(c, x + 5 + k * 2, y - 10, 2, 2, '#88ab83'); R(c, x + 9 - k, y - 7, 2, 1, '#ca8290'); }
@@ -217,6 +258,10 @@ const DRAW = {
     R(c, x + 9, y - 3, 2, 2, '#7e9fbd'); R(c, x + 12, y - 3, 1, 2, '#efd189');
   },
   piano(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'piano', x, y - 14, 32, 29)) {
+      if (f?.active) detail(c, x + 3 + Math.floor(t * 9) % 13 * 2, y + 2, 1, 2, '#f7cfa8');
+      return;
+    }
     const edge = '#493441', walnut = '#725057', glint = '#a97a72';
     contactShadow(c, x + 1, y + 14, 30);
     bevel(c, x, y - 14, 32, 29, walnut, edge);
@@ -248,6 +293,10 @@ const DRAW = {
     R(c, x + 2, y + 13, 3, 3, '#a9b6c0'); R(c, x + 27, y + 13, 3, 3, '#a9b6c0');
   },
   plant(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'plant', x + 1, y - 16, 14, 30)) {
+      if (f?.active) detail(c, x + 4 + Math.floor(t * 4) % 8, y + 2, .5, 1, '#b9e4dc');
+      return;
+    }
     const sway = f?.active ? Math.round(Math.sin(t * 6)) : 0;
     const leaf = '#83aa80', edge = '#52765f', glint = '#a8c59a';
     contactShadow(c, x + 3, y + 13, 10);
@@ -318,6 +367,20 @@ const DRAW = {
     R(c, x, y + 33, 16, 3, '#be816e'); R(c, x + 1, y + 34, 14, 1, '#a85c48');                  // 门口地垫
   },
   window(c, x, y) {
+    if (cottageArtReady()) {
+      R(c, x + 6, y + 5, 20, 21, G.sky || '#a5ccdc');
+      if (G.night) {
+        R(c, x + 18, y + 8, 3, 3, '#fff5c7');
+        detail(c, x + 10, y + 15, .5, .5, '#fff');
+      } else {
+        R(c, x + 8, y + 9, 6, 2, '#fff2db');
+        R(c, x + 10, y + 8, 4, 1, '#fff2db');
+        R(c, x + 18, y + 18, 8, 1, '#f8eedf');
+      }
+      if (typeof drawWindowWeather === 'function') drawWindowWeather(c, x + 7, y + 6, 18, 19);
+      drawCottageSprite(c, 'window', x, y + 1, 32, 28);
+      return;
+    }
     const walnut = '#925f57', pine = '#bf8a65', cream = '#fff0d4';
     bevel(c, x + 2, y + 3, 28, 26, '#d5a183', walnut);
     bevel(c, x + 4, y + 5, 24, 22, cream, '#d3ab89');

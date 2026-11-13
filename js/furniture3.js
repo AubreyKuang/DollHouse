@@ -34,6 +34,10 @@ JOIN.strum = { verb: '听{n}弹尤克里里', like: 'strum', dance: .3,
 const FURNITURE_OUTLINE = '#715d67';
 Object.assign(DRAW, {
   toilet(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'toilet', x + 1, y - 8, 14, 23)) {
+      if (f?.active) detail(c, x + 6, y + 4, 2, .5, '#e1f3e7');
+      return;
+    }
     const ceramic = '#fff2df', edge = '#927b80';
     contactShadow(c, x + 3, y + 14, 10);
     bevel(c, x + 3, y - 10, 10, 14, ceramic, edge);
@@ -48,6 +52,10 @@ Object.assign(DRAW, {
     if (f?.active && Math.floor(t * 4) % 2) detail(c, x + 6, y + 4, 4, .5, '#e1f3e7');
   },
   washstand(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'washstand', x, y - 14, 16, 29)) {
+      if (f?.active) detail(c, x + 8, y - 1 + Math.floor(t * 9) % 3, .5, 2, '#f6fffc');
+      return;
+    }
     const edge = '#607f77', brass = '#b8875e';
     contactShadow(c, x + 2, y + 14, 12);
     bevel(c, x + 3, y - 14, 10, 11, '#b4d5d2', '#a68b79');
@@ -65,6 +73,10 @@ Object.assign(DRAW, {
     if (f?.active) detail(c, x + 9.5, y - 1 + Math.floor(t * 9) % 3, .5, 2, '#f6fffc');
   },
   shower(c, x, y, f, t) {
+    if (drawCottageSprite(c, 'shower', x + 1, y - 22, 14, 36)) {
+      if (f?.active) detail(c, x + 9, y - 14 + Math.floor(t * 20) % 19, .5, 3, '#f6fffa');
+      return;
+    }
     const edge = '#6e8985', frame = '#a4bcb2';
     bevel(c, x + 1, y - 22, 14, 36, '#d6e6dd', edge);
     R(c, x + 2, y - 20, 5, 31, '#abcac6');

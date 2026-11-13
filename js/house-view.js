@@ -262,6 +262,14 @@ function drawRoomFloor(c, x, end, back, front, base, pattern) {
         R(c, px + 1, y + 1, 7, 1, '#deebe1');
       }
     }
+  } else if (pattern === 'plank' && cottageArtReady()) {
+    c.save();
+    c.globalAlpha *= .62;
+    c.beginPath();
+    c.rect(x, back, width, front - back);
+    c.clip();
+    for (let px = x; px < end; px += 56) drawCottageSprite(c, 'oak', px, back, 56, front - back);
+    c.restore();
   } else if (pattern === 'plank') {
     for (let y = back; y < front; y += 5) {
       detail(c, x, y, width, .5, edge);

@@ -202,6 +202,10 @@ $('#btnReset').onclick = () => {
 };
 
 const iconCache = {};
+cottageAtlas?.addEventListener('load', () => {
+  for (const id of Object.keys(COTTAGE_SPRITES)) delete iconCache[id];
+  if (G.mode === 'build') renderPalette();
+});
 function renderPalette() {
   const pal = $('#palette'); pal.innerHTML = '';
   $('#btnTrash').classList.toggle('on', G.build.trash);

@@ -68,6 +68,7 @@ Object.assign(DRAW, {
     const b = Math.floor(t * 3) % 6; R(c, x + 20, y - 3 - b * 2, 1, 1, '#ffffff');
   },
   desk(c, x, y) {
+    if (drawCottageSprite(c, 'desk', x, y - 9, 32, 24)) return;
     R(c, x + 2, y + 4, 2, 11, WOOD_D); box(c, x + 20, y + 3, 10, 12, WOOD);
     R(c, x + 22, y + 7, 6, 1, WOOD_D); R(c, x + 22, y + 11, 6, 1, WOOD_D);
     box(c, x, y - 3, 32, 7, WOOD_L);
