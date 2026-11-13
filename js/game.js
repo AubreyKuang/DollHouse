@@ -720,11 +720,16 @@ function furniturePath(d, f, x = d.tx, y = d.ty) {
   return tiles.some(tile => tile.x === x && tile.y === y) ? [] : findPath(x, y, tiles);
 }
 
+function furnitureOrderPath(d, f) {
+  const from = d.act?.onFurn ? d.act.back : null;
+  return from ? furniturePath(d, f, from.x, from.y) : furniturePath(d, f);
+}
+
 // 选中的小人被点到的家具上去
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
   let blocked = furnitureOrderBlock(d, f);
-  const path = blocked ? null : d.act?.onFurn ? furniturePath(d, f, d.act.back.x, d.act.back.y) : furniturePath(d, f);
+  const path = blocked ? null : furnitureOrderPath(d, f);
   if (!blocked && !path) blocked = `从这里走不到「${F.name}」旁边，试试别件家具`;
   if (blocked) { HOOK.toast(blocked, true); SFX.play('deny'); return false; }
   if (d.act) endAct(d);

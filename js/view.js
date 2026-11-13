@@ -307,9 +307,13 @@ function drawBuildOverlay(c, t) {
 }
 
 // The marker is inside the same hit area used by furniture clicks.
+let furnitureTargets = [];
+let furnitureTargetResident;
+let furnitureArrangement;
 function drawFurnitureTargets(c, resident) {
-  for (const furniture of G.furniture) {
-    if (furniture.piece || furnitureOrderBlock(resident, furniture)) continue;
+  if (resident !== furnitureTargetResident) return;
+  for (const furniture of furnitureTargets) {
+    if (!G.furniture.includes(furniture) || furnitureOrderBlock(resident, furniture)) continue;
     const { x, w, top, bottom } = houseFurnitureRect(furniture);
     const hovered = furniture === hoverFurniture;
     if (hovered) {
@@ -324,15 +328,27 @@ function drawFurnitureTargets(c, resident) {
 }
 
 function furnitureOrderHint(resident, furniture) {
-  if (resident.state === 'away') return `${resident.name} 还没回家`;
+  if (resident.state === 'away') return `${resident.name} · ${awayText(resident)}`;
   if (resident.state === 'lift') return `把 ${resident.name} 放到家具旁或空地上`;
   if (inHomeTime(resident) || CARE_ACTIONS.includes(resident.act?.type) || resident.act?.type === 'leave') {
     return `已选 ${resident.name} · ${doingText(resident)}，等这件事做完再安排吧`;
   }
-  if (!furniture) return `已选 ${resident.name} · ${doingText(resident)} · 点带金色标记的家具安排活动`;
+  if (furnitureArrangement?.resident === resident &&
+      (!furniture || resident.act === furnitureArrangement.act)) {
+    const order = furnitureArrangement;
+    if (resident.act === order.act) {
+      return resident.state === 'act' ? `${resident.name}已开始${order.action}`
+        : `已安排 · ${resident.name}正走向${order.target}`;
+    }
+    if (!order.started) return `${resident.name}的安排已中断，可以再选一件家具`;
+  }
+  if (!furniture) return furnitureTargets.length
+    ? `已选 ${resident.name} · 点带金色标记的家具安排活动`
+    : `${resident.name}暂时没有可用的家具，试试换一位住户`;
   if (furniture.piece) return `查看「${FURNITURE[furniture.id].name}」的来历`;
   const blocked = furnitureOrderBlock(resident, furniture);
   if (blocked) return blocked;
+  if (!furnitureTargets.includes(furniture)) return `走不到「${FURNITURE[furniture.id].name}」，试试带金色标记的家具`;
   return `让 ${resident.name} 去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`;
 }
 
@@ -529,7 +545,7 @@ cv.addEventListener('pointermove', e => {
   hoverFurniture = hd || press?.d || hitBedDoor(p) ? null : furnAt(p);
   const resident = G.dolls.find(d => d.uid === G.sel);
   cv.style.cursor = press?.d ? 'grabbing' : hd ? 'grab'
-    : resident && hoverFurniture && (hoverFurniture.piece || !furnitureOrderBlock(resident, hoverFurniture)) ? 'pointer' : 'default';
+    : resident && hoverFurniture && (hoverFurniture.piece || furnitureTargets.includes(hoverFurniture)) ? 'pointer' : 'default';
   if (!press || !press.d) return;
   const d = press.d;
   if (!press.moved && Math.hypot(p.x - press.p.x, p.y - press.p.y) > 3) {
@@ -605,9 +621,13 @@ cv.addEventListener('pointerup', e => {
 });
 
 function arrangeFurniture(resident, furniture) {
+  const action = furnitureAction(resident, furniture);
   if (!orderUse(resident, furniture)) return;
+  furnitureArrangement = { resident, act: resident.act, action, target: FURNITURE[furniture.id].name };
+  hoverFurniture = null;
   const note = savedMealNote(furniture);
-  HOOK.toast(note || `已安排 ${resident.name}去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`, true);
+  if (note) HOOK.toast(note, true);
+  refreshSceneHint();
 }
 function cancelDollDrag(e) {
   if (!press || press.pointerId !== e.pointerId) return;

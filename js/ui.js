@@ -598,13 +598,20 @@ studyQuietTimer.onclick = () => {
 function refreshSceneHint() {
   const hint = $('#hint');
   const resident = G.dolls.find(d => d.uid === G.sel);
+  const available = (person, furniture) => !furniture.piece &&
+    !furnitureOrderBlock(person, furniture) && furnitureOrderPath(person, furniture);
+  furnitureTargetResident = resident;
+  furnitureTargets = G.mode === 'live' && resident
+    ? G.furniture.filter(furniture => available(resident, furniture)) : [];
+  if (furnitureArrangement && furnitureArrangement.resident.act === furnitureArrangement.act &&
+      furnitureArrangement.resident.state === 'act') furnitureArrangement.started = true;
   const text = G.mode === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。'
     : resident ? furnitureOrderHint(resident, hoverFurniture)
-    : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
+    : '选一位住户，再选一件家具。';
   if (hint.textContent !== text) hint.textContent = text;
   const strip = $('#residentQuick'), action = $('#quickFurniture');
   const quietHint = $('#studyQuietHint');
-  studyQuietButton.hidden = G.mode !== 'live';
+  $('#studySettings').hidden = studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
   studyQuietTimer.hidden = studyQuietButton.hidden;
   studyQuietTimer.disabled = G.studyQuiet;
@@ -627,16 +634,21 @@ function refreshSceneHint() {
     const pressed = String(Number(button.dataset.resident) === G.sel);
     if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
   }
-  const available = furniture => !furniture.piece && !furnitureOrderBlock(resident, furniture)
-    && (resident.act?.onFurn ? furniturePath(resident, furniture, resident.act.back.x, resident.act.back.y)
-      : furniturePath(resident, furniture));
-  const target = !strip.hidden && resident && (G.furniture.find(f => f.id === 'sofa' && available(f))
-    || G.furniture.find(available));
-  action.hidden = !target;
+  const target = furnitureTargets.find(f => f.id === 'sofa') || furnitureTargets[0];
+  const alternative = !target && !strip.hidden && resident && G.dolls.find(person =>
+    person !== resident && G.furniture.some(furniture => available(person, furniture)));
+  action.hidden = !target && !alternative;
   if (target) {
     const label = `让${resident.name}去${furnitureAction(resident, target)} · ${FURNITURE[target.id].name}`;
     if (action.textContent !== label) action.textContent = label;
     action.onclick = () => arrangeFurniture(resident, target);
+  } else if (alternative) {
+    const label = `改选${alternative.name}`;
+    if (action.textContent !== label) action.textContent = label;
+    action.onclick = () => {
+      G.sel = alternative.uid;
+      HOOK.select();
+    };
   }
 }
 

@@ -149,6 +149,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .resident-quick-person :is(b,small){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .resident-quick-person small{font-size:10px}
 .scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.scene-action{min-height:48px}
+#studySettings{align-self:flex-start;margin:4px 0;color:var(--hud-ink);font-size:12px}
+#studySettings summary{width:max-content;min-height:32px;align-content:center;cursor:pointer}
+#studySettings:not([open]) > :not(summary){display:none}
 .scene-action .hint{flex:1 1 13em;margin:3px 2px}
 #quickFurniture,#cancelFurniture,#studyQuiet,#studyQuietTimer{min-height:44px}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}

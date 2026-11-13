@@ -156,6 +156,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .resident-quick-person :is(b,small){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .resident-quick-person small{font-size:10px}
 .scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.scene-action{min-height:48px}
+#studySettings{align-self:flex-start;margin:4px 0;color:var(--hud-ink);font-size:12px}
+#studySettings summary{width:max-content;min-height:32px;align-content:center;cursor:pointer}
+#studySettings:not([open]) > :not(summary){display:none}
 .scene-action .hint{flex:1 1 13em;margin:3px 2px}
 #quickFurniture,#cancelFurniture,#studyQuiet,#studyQuietTimer{min-height:44px}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
@@ -594,8 +598,11 @@ body{
     </div>
     <div id="residentQuick" class="resident-quick" role="group" aria-label="选择住户"></div>
     <div class="scene-action">
-      <p id="hint" class="hint">点住户，再点家具安排活动 · 拖到另一位身边可互动</p>
+      <p id="hint" class="hint" role="status">选一位住户，再选一件家具。</p>
       <button type="button" id="quickFurniture" class="btn small" hidden></button>
+    </div>
+    <details id="studySettings">
+      <summary>书房设置</summary>
       <button type="button" id="studyQuiet" class="btn small" aria-pressed="false"
         aria-describedby="studyQuietHint">书房安静阅读</button>
       <button type="button" id="studyQuietTimer" class="btn small" aria-pressed="false"
@@ -643,7 +650,7 @@ body{
         </div>
         <span class="hint" id="bookMoveStatus" role="status"></span>
       </div>
-    </div>
+    </details>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
       <span id="homeNowText" aria-live="polite"></span>
@@ -3564,11 +3571,16 @@ function furniturePath(d, f, x = d.tx, y = d.ty) {
   return tiles.some(tile => tile.x === x && tile.y === y) ? [] : findPath(x, y, tiles);
 }
 
+function furnitureOrderPath(d, f) {
+  const from = d.act?.onFurn ? d.act.back : null;
+  return from ? furniturePath(d, f, from.x, from.y) : furniturePath(d, f);
+}
+
 // 选中的小人被点到的家具上去
 function orderUse(d, f) {
   const F = FURNITURE[f.id];
   let blocked = furnitureOrderBlock(d, f);
-  const path = blocked ? null : d.act?.onFurn ? furniturePath(d, f, d.act.back.x, d.act.back.y) : furniturePath(d, f);
+  const path = blocked ? null : furnitureOrderPath(d, f);
   if (!blocked && !path) blocked = `从这里走不到「${F.name}」旁边，试试别件家具`;
   if (blocked) { HOOK.toast(blocked, true); SFX.play('deny'); return false; }
   if (d.act) endAct(d);
@@ -8920,9 +8932,13 @@ function drawBuildOverlay(c, t) {
 }
 
 // The marker is inside the same hit area used by furniture clicks.
+let furnitureTargets = [];
+let furnitureTargetResident;
+let furnitureArrangement;
 function drawFurnitureTargets(c, resident) {
-  for (const furniture of G.furniture) {
-    if (furniture.piece || furnitureOrderBlock(resident, furniture)) continue;
+  if (resident !== furnitureTargetResident) return;
+  for (const furniture of furnitureTargets) {
+    if (!G.furniture.includes(furniture) || furnitureOrderBlock(resident, furniture)) continue;
     const { x, w, top, bottom } = houseFurnitureRect(furniture);
     const hovered = furniture === hoverFurniture;
     if (hovered) {
@@ -8937,15 +8953,27 @@ function drawFurnitureTargets(c, resident) {
 }
 
 function furnitureOrderHint(resident, furniture) {
-  if (resident.state === 'away') return `${resident.name} 还没回家`;
+  if (resident.state === 'away') return `${resident.name} · ${awayText(resident)}`;
   if (resident.state === 'lift') return `把 ${resident.name} 放到家具旁或空地上`;
   if (inHomeTime(resident) || CARE_ACTIONS.includes(resident.act?.type) || resident.act?.type === 'leave') {
     return `已选 ${resident.name} · ${doingText(resident)}，等这件事做完再安排吧`;
   }
-  if (!furniture) return `已选 ${resident.name} · ${doingText(resident)} · 点带金色标记的家具安排活动`;
+  if (furnitureArrangement?.resident === resident &&
+      (!furniture || resident.act === furnitureArrangement.act)) {
+    const order = furnitureArrangement;
+    if (resident.act === order.act) {
+      return resident.state === 'act' ? `${resident.name}已开始${order.action}`
+        : `已安排 · ${resident.name}正走向${order.target}`;
+    }
+    if (!order.started) return `${resident.name}的安排已中断，可以再选一件家具`;
+  }
+  if (!furniture) return furnitureTargets.length
+    ? `已选 ${resident.name} · 点带金色标记的家具安排活动`
+    : `${resident.name}暂时没有可用的家具，试试换一位住户`;
   if (furniture.piece) return `查看「${FURNITURE[furniture.id].name}」的来历`;
   const blocked = furnitureOrderBlock(resident, furniture);
   if (blocked) return blocked;
+  if (!furnitureTargets.includes(furniture)) return `走不到「${FURNITURE[furniture.id].name}」，试试带金色标记的家具`;
   return `让 ${resident.name} 去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`;
 }
 
@@ -9142,7 +9170,7 @@ cv.addEventListener('pointermove', e => {
   hoverFurniture = hd || press?.d || hitBedDoor(p) ? null : furnAt(p);
   const resident = G.dolls.find(d => d.uid === G.sel);
   cv.style.cursor = press?.d ? 'grabbing' : hd ? 'grab'
-    : resident && hoverFurniture && (hoverFurniture.piece || !furnitureOrderBlock(resident, hoverFurniture)) ? 'pointer' : 'default';
+    : resident && hoverFurniture && (hoverFurniture.piece || furnitureTargets.includes(hoverFurniture)) ? 'pointer' : 'default';
   if (!press || !press.d) return;
   const d = press.d;
   if (!press.moved && Math.hypot(p.x - press.p.x, p.y - press.p.y) > 3) {
@@ -9218,9 +9246,13 @@ cv.addEventListener('pointerup', e => {
 });
 
 function arrangeFurniture(resident, furniture) {
+  const action = furnitureAction(resident, furniture);
   if (!orderUse(resident, furniture)) return;
+  furnitureArrangement = { resident, act: resident.act, action, target: FURNITURE[furniture.id].name };
+  hoverFurniture = null;
   const note = savedMealNote(furniture);
-  HOOK.toast(note || `已安排 ${resident.name}去${furnitureAction(resident, furniture)} · ${FURNITURE[furniture.id].name}`, true);
+  if (note) HOOK.toast(note, true);
+  refreshSceneHint();
 }
 function cancelDollDrag(e) {
   if (!press || press.pointerId !== e.pointerId) return;
@@ -10004,13 +10036,20 @@ studyQuietTimer.onclick = () => {
 function refreshSceneHint() {
   const hint = $('#hint');
   const resident = G.dolls.find(d => d.uid === G.sel);
+  const available = (person, furniture) => !furniture.piece &&
+    !furnitureOrderBlock(person, furniture) && furnitureOrderPath(person, furniture);
+  furnitureTargetResident = resident;
+  furnitureTargets = G.mode === 'live' && resident
+    ? G.furniture.filter(furniture => available(resident, furniture)) : [];
+  if (furnitureArrangement && furnitureArrangement.resident.act === furnitureArrangement.act &&
+      furnitureArrangement.resident.state === 'act') furnitureArrangement.started = true;
   const text = G.mode === 'build' ? '选「院子家具」可以布置屋外，住户会自己去使用。'
     : resident ? furnitureOrderHint(resident, hoverFurniture)
-    : '点住户，再点家具安排活动 · 拖到另一位身边可互动';
+    : '选一位住户，再选一件家具。';
   if (hint.textContent !== text) hint.textContent = text;
   const strip = $('#residentQuick'), action = $('#quickFurniture');
   const quietHint = $('#studyQuietHint');
-  studyQuietButton.hidden = G.mode !== 'live';
+  $('#studySettings').hidden = studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
   studyQuietTimer.hidden = studyQuietButton.hidden;
   studyQuietTimer.disabled = G.studyQuiet;
@@ -10033,16 +10072,21 @@ function refreshSceneHint() {
     const pressed = String(Number(button.dataset.resident) === G.sel);
     if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
   }
-  const available = furniture => !furniture.piece && !furnitureOrderBlock(resident, furniture)
-    && (resident.act?.onFurn ? furniturePath(resident, furniture, resident.act.back.x, resident.act.back.y)
-      : furniturePath(resident, furniture));
-  const target = !strip.hidden && resident && (G.furniture.find(f => f.id === 'sofa' && available(f))
-    || G.furniture.find(available));
-  action.hidden = !target;
+  const target = furnitureTargets.find(f => f.id === 'sofa') || furnitureTargets[0];
+  const alternative = !target && !strip.hidden && resident && G.dolls.find(person =>
+    person !== resident && G.furniture.some(furniture => available(person, furniture)));
+  action.hidden = !target && !alternative;
   if (target) {
     const label = `让${resident.name}去${furnitureAction(resident, target)} · ${FURNITURE[target.id].name}`;
     if (action.textContent !== label) action.textContent = label;
     action.onclick = () => arrangeFurniture(resident, target);
+  } else if (alternative) {
+    const label = `改选${alternative.name}`;
+    if (action.textContent !== label) action.textContent = label;
+    action.onclick = () => {
+      G.sel = alternative.uid;
+      HOOK.select();
+    };
   }
 }
 
