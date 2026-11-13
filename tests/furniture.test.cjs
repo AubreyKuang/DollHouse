@@ -767,6 +767,34 @@ test('choosing the study seats only the host and guest, and credits their conver
   assert.equal(G.community.active.quietDone,true);
 `));
 
+for (const [persona, mbti, plan, matched, trust] of [
+  ['active', 'INTJ', 'umbrella', true, 4],
+  ['tidy', 'INTJ', 'study', true, 9],
+  ['foodie', 'ESFJ', 'inside', true, 4],
+  ['foodie', 'ESFJ', 'study', false, 5],
+]) test('rainy picnic wish: ' + persona + ' guest and ' + plan, () => runGame(`
+  load();G.time=12*60;G.weather='rain';
+  const host=residents()[0];host.job='none';
+  assert.ok(startGetTogether(host,'picnic'));communityTick();
+  const event=G.community.active, guest=communityDoll(event.guestPid);
+  guest.persona='${persona}';guest.mbti='${mbti}';
+  const initial=trustOf(guest,host);
+  assert.ok(choosePicnicPlan('${plan}'));
+  assert.equal(event.guestWishMatched,${matched});
+  assert.ok(joinGetTogether(guest));
+  for(let i=0;i<720&&guest.act?.type==='visitGather';i++)updateDoll(guest,.05);
+  assert.equal(trustOf(guest,host),initial);
+  assert.ok(joinGetTogether(host));
+  for(let i=0;i<720&&host.act?.type==='visitGather';i++)updateDoll(host,.05);
+  assert.equal(trustOf(guest,host),initial+${trust});
+  assert.equal(!!event.guestWishDone,${matched});
+  assert.ok(save());load();
+  const saved=G.community.active, savedHost=communityDoll(saved.hostPid), savedGuest=communityDoll(saved.guestPid);
+  creditPicnicGuestWish(savedGuest,saved,savedHost,savedGuest);
+  assert.equal(trustOf(savedGuest,savedHost),initial+${trust});
+  assert.equal(G.log.filter(e=>e.text.includes('给这场雨天野餐做的安排')).length,Number(${matched}));
+`));
+
 test('a postponed picnic keeps its selected time window and waits for the host to have time', () => runGame(`
   load();
   const host = residents()[0];

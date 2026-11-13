@@ -153,7 +153,10 @@ function arriveAtGathering(d) {
     music: d.act.dance ? '这首歌好适合跳舞！' : '我在旁边听一会儿',
     games: '这局谁先来？我想试试！',
   };
-  if (event.kind === 'picnic') arrivePicnic(d, event);
+  if (event.kind === 'picnic') {
+    arrivePicnic(d, event);
+    creditPicnicGuestWish(d, event, host, guest);
+  }
   else say(d, lines[event.kind]);
   if (event.exchange && host?.act?.type === 'visitStay' && guest?.act?.type === 'visitStay') finishNeighborExchange(event, host, guest);
   if (event.kind === 'music' && d === host) SFX.play('piano');

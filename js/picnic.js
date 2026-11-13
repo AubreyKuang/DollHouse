@@ -9,6 +9,18 @@ const PICNIC_WINDOWS = {
   morning: { label: '上午开场', start: 10 * 60, end: 14 * 60 },
   afternoon: { label: '下午开场', start: 15 * 60, end: 19 * 60 },
 };
+const PICNIC_PREFERENCE_TRUST = 4;
+const PICNIC_GUEST_WISHES = {
+  inside: '想进客厅，和大家一起吃点心。',
+  study: '想找个安静的地方，和主人聊一会儿。',
+  umbrella: '想撑伞留在院子里，听一会儿雨。',
+};
+
+function picnicGuestPreference(guest) {
+  if (['genki', 'active'].includes(guest.persona)) return 'umbrella';
+  if (!isE(guest) || ['nerd', 'lazy'].includes(guest.persona)) return 'study';
+  return 'inside';
+}
 
 function preparePicnic(event, rescheduled) {
   if (!rescheduled && G.weather !== 'rain' && seasonOf(G.day).id !== 'winter' && Math.random() < .28) {
@@ -87,6 +99,7 @@ function choosePicnicPlan(plan, window) {
     event.quietTiles = seats;
   }
   event.rainMode = plan;
+  event.guestWishMatched = picnicGuestPreference(guest) === plan;
   delete event.rainDeadline;
   const result = {
     inside: '把野餐搬进了客厅，点心还是一样好吃。',
@@ -133,6 +146,15 @@ function resumePicnic() {
   HOOK.community();
   save();
   return true;
+}
+
+function creditPicnicGuestWish(d, event, host, guest) {
+  if (!event.guestWishMatched || event.guestWishDone || !host || !guest || (d !== host && d !== guest)) return;
+  if (![host, guest].every(person => person.state === 'act' && person.act?.type === 'visitStay')) return;
+  event.guestWishDone = true;
+  addTrust(guest, host, PICNIC_PREFERENCE_TRUST);
+  addLog(`🌧 ${guest.name}喜欢${host.name}给这场雨天野餐做的安排。`);
+  save();
 }
 
 function arrivePicnic(d, event) {

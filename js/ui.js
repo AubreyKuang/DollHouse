@@ -621,6 +621,12 @@ function updateCommunityStatus() {
   const outing = G.community.outing;
   status.hidden = !event && !pending && !outing;
   $('#picnicNotice').hidden = !event?.rainDeadline;
+  if (event?.rainDeadline) {
+    const visitor = communityDoll(event.guestPid);
+    const wish = visitor ? `${visitor.name}：${PICNIC_GUEST_WISHES[picnicGuestPreference(visitor)]} 两人都到场后，合意的安排会增加信任。` : '';
+    const hint = $('#picnicGuestWish');
+    if (hint.textContent !== wish) hint.textContent = wish;
+  }
   for (const button of $('#picnicPlans').querySelectorAll('[data-picnic-window]')) button.disabled = !!pending;
   if ($('#neighborDialog').open) updateNeighborDialog();
   if (!event) {

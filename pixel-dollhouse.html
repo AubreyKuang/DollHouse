@@ -601,7 +601,8 @@ body{
     </section>
     <section id="picnicNotice" class="picnic-notice" hidden aria-label="野餐遇雨">
       <strong>🌧 野餐下雨了，主人要怎么安排？</strong>
-      <p class="hint">改期会保留同一位访客。天气放晴、主人有空，且能在所选时段内办完整场时才开场。</p>
+      <p id="picnicGuestWish" class="hint"></p>
+      <p class="hint">改期会保留同一位访客，等天晴且主人能在所选时段办完才开场。</p>
       <div id="picnicPlans"></div>
     </section>
   </div>
@@ -5740,7 +5741,10 @@ function arriveAtGathering(d) {
     music: d.act.dance ? '这首歌好适合跳舞！' : '我在旁边听一会儿',
     games: '这局谁先来？我想试试！',
   };
-  if (event.kind === 'picnic') arrivePicnic(d, event);
+  if (event.kind === 'picnic') {
+    arrivePicnic(d, event);
+    creditPicnicGuestWish(d, event, host, guest);
+  }
   else say(d, lines[event.kind]);
   if (event.exchange && host?.act?.type === 'visitStay' && guest?.act?.type === 'visitStay') finishNeighborExchange(event, host, guest);
   if (event.kind === 'music' && d === host) SFX.play('piano');
@@ -6056,6 +6060,18 @@ const PICNIC_WINDOWS = {
   morning: { label: '上午开场', start: 10 * 60, end: 14 * 60 },
   afternoon: { label: '下午开场', start: 15 * 60, end: 19 * 60 },
 };
+const PICNIC_PREFERENCE_TRUST = 4;
+const PICNIC_GUEST_WISHES = {
+  inside: '想进客厅，和大家一起吃点心。',
+  study: '想找个安静的地方，和主人聊一会儿。',
+  umbrella: '想撑伞留在院子里，听一会儿雨。',
+};
+
+function picnicGuestPreference(guest) {
+  if (['genki', 'active'].includes(guest.persona)) return 'umbrella';
+  if (!isE(guest) || ['nerd', 'lazy'].includes(guest.persona)) return 'study';
+  return 'inside';
+}
 
 function preparePicnic(event, rescheduled) {
   if (!rescheduled && G.weather !== 'rain' && seasonOf(G.day).id !== 'winter' && Math.random() < .28) {
@@ -6134,6 +6150,7 @@ function choosePicnicPlan(plan, window) {
     event.quietTiles = seats;
   }
   event.rainMode = plan;
+  event.guestWishMatched = picnicGuestPreference(guest) === plan;
   delete event.rainDeadline;
   const result = {
     inside: '把野餐搬进了客厅，点心还是一样好吃。',
@@ -6180,6 +6197,15 @@ function resumePicnic() {
   HOOK.community();
   save();
   return true;
+}
+
+function creditPicnicGuestWish(d, event, host, guest) {
+  if (!event.guestWishMatched || event.guestWishDone || !host || !guest || (d !== host && d !== guest)) return;
+  if (![host, guest].every(person => person.state === 'act' && person.act?.type === 'visitStay')) return;
+  event.guestWishDone = true;
+  addTrust(guest, host, PICNIC_PREFERENCE_TRUST);
+  addLog(`🌧 ${guest.name}喜欢${host.name}给这场雨天野餐做的安排。`);
+  save();
 }
 
 function arrivePicnic(d, event) {
@@ -9241,6 +9267,12 @@ function updateCommunityStatus() {
   const outing = G.community.outing;
   status.hidden = !event && !pending && !outing;
   $('#picnicNotice').hidden = !event?.rainDeadline;
+  if (event?.rainDeadline) {
+    const visitor = communityDoll(event.guestPid);
+    const wish = visitor ? `${visitor.name}：${PICNIC_GUEST_WISHES[picnicGuestPreference(visitor)]} 两人都到场后，合意的安排会增加信任。` : '';
+    const hint = $('#picnicGuestWish');
+    if (hint.textContent !== wish) hint.textContent = wish;
+  }
   for (const button of $('#picnicPlans').querySelectorAll('[data-picnic-window]')) button.disabled = !!pending;
   if ($('#neighborDialog').open) updateNeighborDialog();
   if (!event) {
