@@ -176,6 +176,7 @@ const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
+const bookPaperButton = $('#bookPaper');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
@@ -218,6 +219,13 @@ bookPublicButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !togglePublicBook(chair)) return;
   refreshReadingSeats();
+};
+bookPaperButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !submitBookToPaper(chair)) return;
+  bookMoveStatus.textContent = '书摘已交给本期月报，窗边的便条已收起。';
+  refreshReadingSeats();
+  readingSeat.focus();
 };
 soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -269,6 +277,9 @@ function refreshReadingSeats() {
   bookDiscussButton.hidden = !recommendation || !chair.readingNotes || !!publicReaders;
   bookPublicButton.hidden = !recommendation || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
+  bookPaperButton.hidden = !publicReaders?.length;
+  const submitted = bookPaperSubmitted();
+  bookPaperButton.disabled = submitted || !bookPaperReader(chair);
   const sharing = String(!!publicReaders);
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
@@ -286,7 +297,7 @@ function refreshReadingSeats() {
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
   const hint = publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? '传阅已经开始。' : '座位空闲时可改回私下荐书。'}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? (submitted ? '本期月报已有书摘，可以继续传阅。' : '可继续传阅，也可在空座时收起便条，交给本期月报。') : '座位空闲时可改回私下荐书。'}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 

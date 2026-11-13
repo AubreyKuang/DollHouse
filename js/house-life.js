@@ -71,6 +71,10 @@ const PAPER_EVENTS = [
   [/听成了|吵了一架/, '小屋插曲', '💬', 58],
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
 ];
+const BOOK_PAPER_LABEL = '窗边书摘';
+function bookPaperSubmitted() {
+  return G.paperMoments.some(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
+}
 
 function paperLogStory(text) {
   const match = PAPER_EVENTS.find(([pattern]) => pattern.test(text));
@@ -115,7 +119,7 @@ function recordPaperMeeting(a, b, kind, outcome) {
     month: G.day, until: absNow() + 180, pending: outcome !== 'rejected' && outcome !== 'argued' && outcome !== 'breakup',
     steps, result,
   });
-  if (moments.length > 24) moments.shift();
+  if (moments.length > 24) moments.splice(moments.findIndex(moment => moment.result?.[0] !== BOOK_PAPER_LABEL), 1);
 }
 
 const PAPER_SHARED_USES = new Set(['swing', 'puzzle', 'picnic', 'chess']);
@@ -183,7 +187,13 @@ function finishHouseMonth(deferPaper = false) {
   }
   G.paperMoments = [];
   G.dayRelations = houseRelations();
-  const stories = selectPaperStories(candidates).map(story => ({ ...story, people: story.people || paperCast(story.text) }));
+  const stories = selectPaperStories(candidates);
+  const submitted = candidates.find(story => story.label === BOOK_PAPER_LABEL);
+  if (submitted && !stories.some(story => story.label === BOOK_PAPER_LABEL)) {
+    const { score, ...content } = submitted;
+    stories[2] = content;
+  }
+  for (const story of stories) story.people ||= paperCast(story.text);
   G.paper.push({ month: monthLabel(G.day), stories });
   if (G.paper.length > 30) G.paper.shift();
   G.daily = {};

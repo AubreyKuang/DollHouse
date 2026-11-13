@@ -437,6 +437,36 @@ test('a public recommendation rewards two distinct residents across reloads and 
   assert.equal(bookRecommendation(chair),null);
 `));
 
+test('a partially shared book can reserve a monthly paper slot instead of a second reading', () => game(`
+  const [author,reader,other]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:reader.pid,until:G.day+1,readBy:[]};
+  assert.equal(submitBookToPaper(seat),false);
+  assert.ok(finishBookRecommendation(reader,seat));
+  const write=save;
+  save=()=>false;
+  assert.equal(submitBookToPaper(seat),false);
+  assert.equal(bookPaperSubmitted(),false);
+  assert.equal(bookRecommendation(seat).readBy.length,1);
+  save=write;
+  assert.ok(submitBookToPaper(seat));
+  assert.equal(finishBookRecommendation(other,seat),false);
+  load();
+  assert.equal(bookPaperSubmitted(),true);
+  const chair=G.furniture.find(f=>f.key===seat.key);
+  G.keepsakes.bookRecommendations[seat.key]={from:author.pid,to:reader.pid,until:G.day+1,readBy:[reader.pid]};
+  assert.equal(submitBookToPaper(chair),false);
+  for(let i=0;i<30;i++)recordPaperMeeting(communityDoll(author.pid),communityDoll(reader.pid),'chat','together');
+  addLog('甲和乙分手了');addLog('甲陪乙过了生日');addLog('甲慢慢练出了新本领');
+  finishHouseMonth();
+  const issue=G.paper.at(-1);
+  assert.equal(issue.stories.length,3);
+  const story=issue.stories.find(story=>story.label==='窗边书摘');
+  assert.equal(story.steps.length,3);
+  assert.deepEqual(story.people.map(d=>d.name),[author.name,reader.name]);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

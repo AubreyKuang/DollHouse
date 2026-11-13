@@ -133,6 +133,32 @@ function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
 }
 
+function bookPaperReader(chair) {
+  const readers = publicBookReaders(bookRecommendation(chair));
+  return chair.readingNotes && isWindowChair(chair) && !chair.users.length && readers?.length === 1
+    ? communityDoll(readers[0]) : null;
+}
+
+function submitBookToPaper(chair) {
+  const reader = bookPaperReader(chair);
+  if (!reader || bookPaperSubmitted()) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  const author = communityDoll(note.from);
+  const moment = {
+    ids: [author.pid, reader.pid], month: G.day,
+    people: [author, reader].map(d => ({ name: d.name, look: { ...d.look } })),
+    steps: [`${author.name}把读过的书留在窗边。`, `${reader.name}读完了这段书摘。`, '你收起了便条，把书摘留给了月报。'],
+    result: [BOOK_PAPER_LABEL, '📖', `${reader.name}读完了${author.name}推荐的书摘，这段阅读被收进了月报。`, 77],
+  };
+  const previous = G.paperMoments;
+  G.paperMoments = [...previous, moment];
+  delete notes[chair.key];
+  if (save()) return true;
+  notes[chair.key] = note;
+  G.paperMoments = previous;
+  return false;
+}
+
 function togglePublicBook(chair) {
   const note = bookRecommendation(chair);
   const readers = publicBookReaders(note);

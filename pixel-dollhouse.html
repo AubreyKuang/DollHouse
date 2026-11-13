@@ -161,7 +161,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 #readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
-#readingSeatControls select,#soloReading,#readingNotes,#bookSeat,#bookMove,#bookDiscuss,#bookPublic{min-height:48px}
+#readingSeatControls select,#soloReading,#readingNotes,#bookSeat,#bookMove,#bookDiscuss,#bookPublic,#bookPaper{min-height:48px}
 #bookMoveControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
 #bookMoveStatus:empty{position:absolute}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
@@ -614,6 +614,7 @@ body{
           aria-describedby="readingSeatHint" hidden>读完当面聊</button>
         <button type="button" class="btn small" id="bookPublic" aria-pressed="false"
           aria-describedby="readingSeatHint" hidden>全屋传阅</button>
+        <button type="button" class="btn small" id="bookPaper" aria-describedby="readingSeatHint" hidden>收起便条，交给月报</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
         <div id="bookMoveControls" hidden>
           <label for="bookDestination">便条移到</label>
@@ -2490,6 +2491,10 @@ const PAPER_EVENTS = [
   [/听成了|吵了一架/, '小屋插曲', '💬', 58],
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
 ];
+const BOOK_PAPER_LABEL = '窗边书摘';
+function bookPaperSubmitted() {
+  return G.paperMoments.some(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
+}
 
 function paperLogStory(text) {
   const match = PAPER_EVENTS.find(([pattern]) => pattern.test(text));
@@ -2534,7 +2539,7 @@ function recordPaperMeeting(a, b, kind, outcome) {
     month: G.day, until: absNow() + 180, pending: outcome !== 'rejected' && outcome !== 'argued' && outcome !== 'breakup',
     steps, result,
   });
-  if (moments.length > 24) moments.shift();
+  if (moments.length > 24) moments.splice(moments.findIndex(moment => moment.result?.[0] !== BOOK_PAPER_LABEL), 1);
 }
 
 const PAPER_SHARED_USES = new Set(['swing', 'puzzle', 'picnic', 'chess']);
@@ -2602,7 +2607,13 @@ function finishHouseMonth(deferPaper = false) {
   }
   G.paperMoments = [];
   G.dayRelations = houseRelations();
-  const stories = selectPaperStories(candidates).map(story => ({ ...story, people: story.people || paperCast(story.text) }));
+  const stories = selectPaperStories(candidates);
+  const submitted = candidates.find(story => story.label === BOOK_PAPER_LABEL);
+  if (submitted && !stories.some(story => story.label === BOOK_PAPER_LABEL)) {
+    const { score, ...content } = submitted;
+    stories[2] = content;
+  }
+  for (const story of stories) story.people ||= paperCast(story.text);
   G.paper.push({ month: monthLabel(G.day), stories });
   if (G.paper.length > 30) G.paper.shift();
   G.daily = {};
@@ -6990,6 +7001,32 @@ function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
 }
 
+function bookPaperReader(chair) {
+  const readers = publicBookReaders(bookRecommendation(chair));
+  return chair.readingNotes && isWindowChair(chair) && !chair.users.length && readers?.length === 1
+    ? communityDoll(readers[0]) : null;
+}
+
+function submitBookToPaper(chair) {
+  const reader = bookPaperReader(chair);
+  if (!reader || bookPaperSubmitted()) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  const author = communityDoll(note.from);
+  const moment = {
+    ids: [author.pid, reader.pid], month: G.day,
+    people: [author, reader].map(d => ({ name: d.name, look: { ...d.look } })),
+    steps: [`${author.name}把读过的书留在窗边。`, `${reader.name}读完了这段书摘。`, '你收起了便条，把书摘留给了月报。'],
+    result: [BOOK_PAPER_LABEL, '📖', `${reader.name}读完了${author.name}推荐的书摘，这段阅读被收进了月报。`, 77],
+  };
+  const previous = G.paperMoments;
+  G.paperMoments = [...previous, moment];
+  delete notes[chair.key];
+  if (save()) return true;
+  notes[chair.key] = note;
+  G.paperMoments = previous;
+  return false;
+}
+
 function togglePublicBook(chair) {
   const note = bookRecommendation(chair);
   const readers = publicBookReaders(note);
@@ -9181,6 +9218,7 @@ const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
 const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
+const bookPaperButton = $('#bookPaper');
 const bookDestination = $('#bookDestination');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
@@ -9223,6 +9261,13 @@ bookPublicButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !togglePublicBook(chair)) return;
   refreshReadingSeats();
+};
+bookPaperButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || !submitBookToPaper(chair)) return;
+  bookMoveStatus.textContent = '书摘已交给本期月报，窗边的便条已收起。';
+  refreshReadingSeats();
+  readingSeat.focus();
 };
 soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -9274,6 +9319,9 @@ function refreshReadingSeats() {
   bookDiscussButton.hidden = !recommendation || !chair.readingNotes || !!publicReaders;
   bookPublicButton.hidden = !recommendation || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
+  bookPaperButton.hidden = !publicReaders?.length;
+  const submitted = bookPaperSubmitted();
+  bookPaperButton.disabled = submitted || !bookPaperReader(chair);
   const sharing = String(!!publicReaders);
   if (bookPublicButton.getAttribute('aria-pressed') !== sharing) bookPublicButton.setAttribute('aria-pressed', sharing);
   const discussing = String(recommendation?.discuss === true);
@@ -9291,7 +9339,7 @@ function refreshReadingSeats() {
     ? ` ${discussing === 'true' ? '已约当面聊。' : ''}读完时${communityDoll(recommendation.from).name}若在附近有空，可一起聊书，各得 6 点社交。独自读完得 8 点乐趣。`
     : '';
   const hint = publicReaders
-    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? '传阅已经开始。' : '座位空闲时可改回私下荐书。'}`
+    ? `已传阅 ${publicReaders.length}/${BOOK_PUBLIC_READERS} 人。推荐人以外的住户读完各得 ${BOOK_PUBLIC_FUN} 点乐趣。${publicReaders.length ? (submitted ? '本期月报已有书摘，可以继续传阅。' : '可继续传阅，也可在空座时收起便条，交给本期月报。') : '座位空闲时可改回私下荐书。'}`
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 
