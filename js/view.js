@@ -513,7 +513,7 @@ cv.addEventListener('pointerdown', e => {
   const f = furnAt(p);
   if (!f) return;
   if (f.id === 'door' && B.trash) { HOOK.toast('大门不能拆哦，可以拿起来换个位置', true); SFX.play('deny'); return; }
-  if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
+  if (B.trash) { removeFurniture(f); delete G.keepsakes.corners[f.key]; delete G.keepsakes.bookRecommendations[f.key]; if (!f.piece) stash(f.id); rebuild(); SFX.play('trash'); save(); HOOK.toast(`「${FURNITURE[f.id].name}」收进仓库了`, true); HOOK.refresh(); }
   else { removeFurniture(f); rebuild(); B.placing = { id: f.id, key: f.key, piece: f.piece, soloReading: f.soloReading, readingNotes: f.readingNotes, moved: true, orig: { x: f.x, y: f.y } }; B.hover = houseTile(p, f.id); SFX.play('pick'); HOOK.refresh(); }
 });
 cv.addEventListener('pointermove', e => {

@@ -116,6 +116,9 @@ function seasonTick() {
 function startHouseMonth() {
   if (G.monthEvents === G.day) return;
   G.monthEvents = G.day;
+  for (const [key, note] of Object.entries(G.keepsakes.bookRecommendations)) {
+    if (!Number.isInteger(note?.until) || note.until < G.day) delete G.keepsakes.bookRecommendations[key];
+  }
   birthdayCheck();
   const S = seasonOf(G.day), prevS = seasonOf(G.day - 1);
   if (S !== prevS) { addLog(`${S.icon} ${S.name}天来了`); HOOK.toast(`${S.icon} ${S.name}天来了`, true); }

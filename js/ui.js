@@ -181,7 +181,10 @@ soloReadingButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
   chair.soloReading = !chair.soloReading;
-  if (!chair.soloReading) delete chair.readingNotes;
+  if (!chair.soloReading) {
+    delete chair.readingNotes;
+    delete G.keepsakes.bookRecommendations[chair.key];
+  }
   refreshReadingSeats();
   save();
 };
@@ -189,6 +192,7 @@ readingNotesButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair?.soloReading || G.mode !== 'live') return;
   chair.readingNotes = !chair.readingNotes;
+  if (!chair.readingNotes) delete G.keepsakes.bookRecommendations[chair.key];
   refreshReadingSeats();
   save();
 };
@@ -216,8 +220,10 @@ function refreshReadingSeats() {
   const notes = String(chair.readingNotes === true);
   if (readingNotesButton.getAttribute('aria-pressed') !== notes) readingNotesButton.setAttribute('aria-pressed', notes);
   const note = $('#readingSeatHint');
+  const recommendation = bookRecommendation(chair);
   const text = chair.soloReading ? chair.readingNotes
-    ? (quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '熟人可留便条。读完时还在附近，才会聊几句。')
+    ? (recommendation ? `${communityDoll(recommendation.to).name}有一条荐书便条，在这里读完一段就能回应。`
+      : quietStudy(chair) ? '书房安静牌挂着，开放后才会留便条。' : '读完时，熟人还在附近就聊几句，走开了就留条荐书便条。')
     : '此席适合独处，路过的住户会让读者继续看书。'
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';

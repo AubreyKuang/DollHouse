@@ -274,6 +274,34 @@ test('a note never interrupts reading and only pays off on completion with an av
   `);
 });
 
+test('a missed reading chat leaves one recommendation until the end of the next month', () => game(`
+  const [author,writer,other]=residents();
+  const window=addFurniture('window',9,UPPER_WALL);
+  const chair=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[window,chair];rebuild();
+  writer.state='away';
+  finishReadingNote(author,{furn:chair,readingNote:writer.pid});
+  assert.equal(bookRecommendation(chair)?.to,writer.pid);
+  assert.equal(finishBookRecommendation(other,chair),false);
+  assert.equal(save(),true);load();
+  const seat=G.furniture.find(f=>f.key===chair.key),reader=communityDoll(writer.pid);
+  G.day++;
+  assert.equal(readingCornerBonus(reader,seat),24);
+  const note=bookRecommendation(seat);
+  G.day++;
+  assert.equal(bookRecommendation(seat),null);
+  G.day--;
+  assert.equal(bookRecommendation(seat),note);
+  reader.job='none';reader.state='idle';reader.needs.fun=50;
+  placeDollAt(reader,10,17);assert.ok(orderUse(reader,seat));arrive(reader);
+  endAct(reader);assert.equal(bookRecommendation(seat),note);
+  assert.ok(orderUse(reader,seat));arrive(reader);
+  reader.act.t=.01;updateDoll(reader,.05);
+  assert.equal(bookRecommendation(seat),null);
+  assert.equal(Math.round(reader.needs.fun),58);
+  assert.equal(finishBookRecommendation(reader,seat),false);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

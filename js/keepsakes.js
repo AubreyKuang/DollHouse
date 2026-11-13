@@ -7,6 +7,7 @@ function restoreKeepsakes(saved) {
     traditions: saved?.traditions || {},
     project: saved?.project || null,
     readingGreetings: saved?.readingGreetings || null,
+    bookRecommendations: Object.assign(Object.create(null), saved?.bookRecommendations),
   };
 }
 
@@ -89,11 +90,19 @@ function greetPassingReader(walker, from) {
 
 function finishReadingNote(reader, activity) {
   const chair = activity.furn;
+  if (finishBookRecommendation(reader, chair)) return;
   if (!activity.readingNote || !chair.readingNotes || !quietReading(chair) || quietStudy(chair)) return;
   const writer = communityDoll(activity.readingNote);
-  if (!writer || writer.state !== 'idle' || roomOf(writer) !== cornerRoom(chair) ||
+  if (!writer || writer.guest || tensionBetween(reader, writer)) return;
+  if (writer.state !== 'idle' || roomOf(writer) !== cornerRoom(chair) ||
       cornerDistance({ x: writer.tx, y: writer.ty }, chair) > 3 ||
-      !canSee(reader, writer) || tensionBetween(reader, writer)) return;
+      !canSee(reader, writer)) {
+    if (bookRecommendation(chair)) return;
+    G.keepsakes.bookRecommendations[chair.key] = { from: reader.pid, to: writer.pid, until: G.day + 1 };
+    say(reader, '把这一段推荐给你，下次来读吧。');
+    addLog(`📖 ${reader.name}在窗边给${writer.name}留了一条荐书便条。`);
+    return;
+  }
   const now = absNow();
   for (const d of [reader, writer]) {
     const departure = leaveAbs(d);
@@ -104,6 +113,26 @@ function finishReadingNote(reader, activity) {
   say(reader, '读完啦。刚好想跟你说说这一段。');
   say(writer, '我还在呢，慢慢说。');
   addLog(`📖 ${reader.name}读完了书，和留下便条的${writer.name}聊了几句。`);
+}
+
+function bookRecommendation(chair) {
+  const note = G.keepsakes.bookRecommendations[chair.key];
+  if (!Number.isInteger(note?.until) || note.until < G.day || note.from === note.to ||
+      !communityDoll(note.from) || !communityDoll(note.to)) return null;
+  return note;
+}
+
+function finishBookRecommendation(reader, chair) {
+  const note = bookRecommendation(chair);
+  if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;
+  const author = communityDoll(note.from);
+  if (tensionBetween(author, reader)) return false;
+  delete G.keepsakes.bookRecommendations[chair.key];
+  reader.needs.fun = Math.min(100, reader.needs.fun + 8);
+  bump(reader, author, 2);
+  say(reader, '原来你想推荐的是这一段。');
+  addLog(`📖 ${reader.name}读完了${author.name}推荐的那一段。`);
+  return true;
 }
 
 function readingNeighbor(d, f) {
@@ -118,6 +147,7 @@ function readingNeighbor(d, f) {
 }
 
 function readingCornerBonus(d, f) {
+  if (f.readingNotes && isWindowChair(f) && bookRecommendation(f)?.to === d.pid) return 24;
   if (quietReading(f) && !isE(d) && d.needs.social >= 85 && cornerKind(f) === 'read') return 12;
   return d.needs.social < 65 && readingNeighbor(d, f) ? 24 : 0;
 }
