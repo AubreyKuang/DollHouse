@@ -57,10 +57,7 @@ Object.assign(DRAW, {
     if (f && f.active) { const k = Math.floor(t * 4) % 2; R(c, x + 7 + k, y - 7, 1, 2, '#ffffffaa'); R(c, x + 8 - k, y - 10, 1, 2, '#ffffff77'); }
   },
   aquarium(c, x, y, f, t) {
-    box(c, x + 1, y + 2, 30, 13, WOOD_D); R(c, x + 3, y + 5, 26, 2, WOOD);
-    box(c, x + 2, y - 14, 28, 17, '#9fd8f0', '#4e4557'); R(c, x + 3, y - 13, 26, 3, '#c8ecf8');
-    R(c, x + 3, y - 1, 26, 3, '#e8d8a8');
-    R(c, x + 6, y - 6, 1, 5, '#5fae5a'); R(c, x + 7, y - 8, 1, 7, '#5fae5a'); R(c, x + 24, y - 7, 1, 6, '#3f7d3c'); R(c, x + 25, y - 5, 1, 4, '#5fae5a');
+    drawCottageSprite(c, 'aquarium', x, y - 14, 32, 29);
     const fx = x + 5 + Math.round((Math.sin(t * 0.8) + 1) * 9), fy = y - 9 + Math.round(Math.sin(t * 1.7));
     R(c, fx, fy, 3, 2, '#e1ad71'); R(c, fx - 1, fy, 1, 2, '#ca8290'); R(c, fx + 2, fy, 1, 1, INK);
     const gx = x + 22 - Math.round((Math.sin(t * 0.6 + 1) + 1) * 7);
@@ -68,13 +65,7 @@ Object.assign(DRAW, {
     const b = Math.floor(t * 3) % 6; R(c, x + 20, y - 3 - b * 2, 1, 1, '#ffffff');
   },
   desk(c, x, y) {
-    if (drawCottageSprite(c, 'desk', x, y - 9, 32, 24)) return;
-    R(c, x + 2, y + 4, 2, 11, WOOD_D); box(c, x + 20, y + 3, 10, 12, WOOD);
-    R(c, x + 22, y + 7, 6, 1, WOOD_D); R(c, x + 22, y + 11, 6, 1, WOOD_D);
-    box(c, x, y - 3, 32, 7, WOOD_L);
-    R(c, x + 4, y - 10, 1, 7, '#6b5a52'); R(c, x + 3, y - 12, 5, 3, '#efd189');
-    R(c, x + 10, y - 6, 3, 4, '#7e9fbd'); R(c, x + 13, y - 7, 2, 5, '#ca8290'); R(c, x + 15, y - 5, 2, 3, '#88ab83');
-    box(c, x + 19, y - 5, 8, 4, '#fffaf0', '#cbbfae'); R(c, x + 20, y - 4, 5, 1, '#a9b6c0');
+    drawCottageSprite(c, 'desk', x, y - 9, 32, 24);
   },
   pc(c, x, y, f, t) {
     R(c, x + 2, y + 4, 2, 11, '#675a6e'); R(c, x + 28, y + 4, 2, 11, '#675a6e');
@@ -99,10 +90,11 @@ Object.assign(DRAW, {
     }
   },
   easel(c, x, y, f, t) {
-    R(c, x + 3, y - 12, 1, 27, WOOD_D); R(c, x + 12, y - 12, 1, 27, WOOD_D); R(c, x + 8, y - 14, 1, 22, WOOD); R(c, x + 2, y + 2, 12, 1, WOOD_D);
-    box(c, x + 2, y - 12, 12, 13, '#fffaf0', '#8a7366');
-    R(c, x + 3, y - 11, 10, 5, '#a5ccdc'); R(c, x + 3, y - 6, 10, 4, '#8ccf7a'); R(c, x + 9, y - 10, 2, 2, '#efd189');
-    if (f && f.active) { const k = Math.floor(t * 3) % 3; R(c, x + 4 + k * 2, y - 5, 1, 1, ['#ca8290', '#e1ad71', '#9582b1'][k]); }
+    drawCottageSprite(c, 'easel', x, y - 14, 16, 29);
+    if (f?.active) {
+      const k = Math.floor(t * 3) % 3;
+      detail(c, x + 4 + k * 2, y - 4, 1, 1, ['#ca8290', '#e1ad71', '#9582b1'][k]);
+    }
   },
   treadmill(c, x, y, f, t) {
     R(c, x + 1, y + 6, 30, 8, INK); R(c, x + 2, y + 7, 28, 6, '#675a6e');
@@ -121,15 +113,12 @@ Object.assign(DRAW, {
     }
   },
   shelfwall(c, x, y) {
-    R(c, x + 1, y + 10, 30, 2, WOOD_D); R(c, x + 1, y + 12, 30, 1, 'rgba(0,0,0,.15)');
-    box(c, x + 3, y + 4, 6, 6, '#be816e'); R(c, x + 4, y + 1, 4, 3, '#5fae5a'); R(c, x + 5, y - 1, 2, 2, '#8ccf7a');
-    R(c, x + 12, y + 5, 2, 5, '#7e9fbd'); R(c, x + 14, y + 4, 2, 6, '#efd189'); R(c, x + 16, y + 6, 2, 4, '#ca8290');
-    box(c, x + 21, y + 4, 7, 6, '#fffaf0', '#d9a640'); R(c, x + 23, y + 6, 3, 2, '#e27fa6');
+    drawCottageSprite(c, 'shelfwall', x + 1, y, 30, 14);
   },
 });
 
 FURNITURE.mirror={name:"穿衣镜",w:1,h:1,use:"groom",mode:"front",need:{fun:9}};
-DRAW.mirror=(c,x,y)=>{ R(c,x+3,y-8,10,22,INK); R(c,x+5,y-6,6,17,"#add8dc"); R(c,x+6,y-4,1,8,"#f5ffff"); };
+DRAW.mirror = (c, x, y) => drawCottageSprite(c, 'mirror', x + 1, y - 9, 14, 24);
 TALL.mirror=9;
 
 Object.assign(ACT_NAMES,{meal:'用餐',groom:'整理仪容'});
