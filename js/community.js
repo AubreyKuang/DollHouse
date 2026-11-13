@@ -8,7 +8,7 @@ const GET_TOGETHERS = {
   tea: { name: '茶点派对', minutes: 175, icon: '🫖', places: ['teaTray', 'table', 'coffee', 'sofa'] },
   music: { name: '音乐派对', minutes: 175, icon: '🎵', places: ['recordPlayer', 'speaker', 'piano', 'ukulele'] },
   games: { name: '游戏派对', minutes: 175, icon: '🎲', places: ['chessTable', 'arcade', 'table'] },
-  picnic: { name: '院子野餐', minutes: 175, icon: '🧺', places: ['picnicTable'] },
+  picnic: { name: '院子野餐', minutes: 175, icon: '🧺', places: ['picnicTable', 'coveredPicnicTable'] },
 };
 
 Object.assign(ACT_NAMES, { visitGather: '去见朋友', visitStay: '和朋友相聚', visitLeave: '准备回家' });
@@ -107,6 +107,7 @@ function joinGetTogether(d) {
   const otherCount = [...participants].filter(pid => pid !== event.hostPid && pid !== event.guestPid).length;
   const quiet = event.quietPids?.includes(d.pid);
   if (event.rainMode === 'study' && !quiet) return false;
+  if (event.rainMode === 'covered' && !principal && otherCount >= 1) return false;
   if (!principal && !quiet && (event.kind === 'visit' || otherCount >= 3
     || (!isE(d) && d.needs.social > 58) || (isE(d) && d.needs.social > 88))) return false;
   if (event.rainMode === 'umbrella' && !principal && ['tidy', 'lazy'].includes(d.persona)) {
@@ -117,7 +118,10 @@ function joinGetTogether(d) {
   if (absNow() + 12 >= event.endsAt) return false;
   const occupied = Object.values(event.reserved);
   const tiles = event.rainMode === 'study' ? [event.quietTiles[event.quietPids.indexOf(d.pid)]] : quiet ? event.quietTiles : event.tiles;
-  const open = tiles.filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
+  const assigned = event.coveredSeats;
+  const seats = assigned && principal ? [assigned[d.pid]] : tiles;
+  if (assigned && !principal) occupied.push(...Object.values(assigned));
+  const open = seats.filter(tile => !occupied.some(spot => spot.x === tile.x && spot.y === tile.y));
   const spaced = open.filter(tile => !occupied.some(spot => spot.x === tile.x && Math.abs(spot.y - tile.y) < 3));
   let route = null;
   for (const tile of new Set([...spaced, ...open])) {
@@ -234,7 +238,10 @@ function communityTick() {
       if (absNow() >= event.leavingAt) finishGuestDeparture();
       else if (guest.act?.type !== 'visitLeave' && guest.state !== 'lift') sendGuestHome(guest);
     } else if (!communityDoll(event.hostPid)) endGetTogether();
-    else if (!tickPicnicWeather(event) && absNow() >= event.endsAt) endGetTogether();
+    else {
+      refreshCoveredPicnic(event);
+      if (!tickPicnicWeather(event) && absNow() >= event.endsAt) endGetTogether();
+    }
     return;
   }
   if (community.outing || resumePicnic() || !autoVisitAllowed() || tickNeighborVisit()) return;

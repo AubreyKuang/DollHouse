@@ -2,6 +2,7 @@
 const PICNIC_PLANS = {
   inside: '搬进客厅',
   study: '和访客去书房',
+  covered: '移到带棚野餐桌',
   postpone: '改天再野餐',
   umbrella: '撑伞继续',
 };
@@ -101,12 +102,21 @@ function choosePicnicPlan(plan, window) {
     event.quietPids = [host.pid, guest.pid];
     event.quietTiles = seats;
   }
+  if (plan === 'covered') {
+    const shelter = coveredPicnicSeats(host, guest);
+    if (!shelter) return false;
+    event.openPicnicTiles = event.tiles;
+    event.tiles = shelter.tiles;
+    event.coveredTable = shelter.table.key;
+    event.coveredSeats = { [host.pid]: shelter.host, [guest.pid]: shelter.guest };
+  }
   event.rainMode = plan;
-  event.guestWishMatched = picnicGuestPreference(guest) === plan;
+  event.guestWishMatched = picnicGuestPreference(guest) === (plan === 'covered' ? 'umbrella' : plan);
   delete event.rainDeadline;
   const result = {
     inside: '把野餐搬进了客厅，点心还是一样好吃。',
     study: '请访客一起上楼，在书房听雨。',
+    covered: '把野餐移到了带棚野餐桌下。',
     postpone: '收起野餐篮，约好等雨停了再聚。',
     umbrella: '给大家分了伞，决定在雨里继续野餐。',
   };
@@ -127,6 +137,36 @@ function choosePicnicPlan(plan, window) {
   HOOK.community();
   save();
   return true;
+}
+
+function coveredPicnicSeats(host, guest) {
+  for (const table of G.furniture.filter(f => f.id === 'coveredPicnicTable')) {
+    const tiles = approachTiles(table).filter(tile => free(tile.x, tile.y));
+    for (const seat of tiles) {
+      if (!findPath(host.tx, host.ty, [seat])) continue;
+      const other = tiles.find(tile => tile !== seat && findPath(guest.tx, guest.ty, [tile]));
+      if (other) return { table, tiles, host: seat, guest: other };
+    }
+  }
+}
+
+function refreshCoveredPicnic(event) {
+  if (event.rainMode !== 'covered') return;
+  const table = G.furniture.find(f => f.key === event.coveredTable);
+  const seats = table && approachTiles(table).filter(tile => free(tile.x, tile.y));
+  if (seats && event.tiles.every(tile => seats.some(seat => seat.x === tile.x && seat.y === tile.y))) return;
+  for (const d of G.dolls) if (['visitGather', 'visitStay'].includes(d.act?.type)) endAct(d);
+  event.joined = [];
+  event.reserved = {};
+  event.tiles = event.openPicnicTiles;
+  delete event.openPicnicTiles;
+  delete event.coveredSeats;
+  delete event.coveredTable;
+  delete event.rainMode;
+  delete event.guestWishMatched;
+  event.rainDeadline = absNow() + 72;
+  HOOK.community();
+  save();
 }
 
 function changePicnicWindow(window) {
@@ -234,7 +274,8 @@ function creditPicnicGuestWish(d, event, host, guest) {
 function arrivePicnic(d, event) {
   if (!event.quietPids?.includes(d.pid)) {
     d.act.theme = event.rainMode === 'umbrella' ? 'umbrella' : 'picnic';
-    say(d, event.rainMode === 'umbrella' ? '把伞靠过来一点，点心别淋湿了。' : '来吃点三明治吧！');
+    say(d, event.rainMode === 'umbrella' ? '把伞靠过来一点，点心别淋湿了。'
+      : event.rainMode === 'covered' ? '坐到棚下面来，点心还是干的。' : '来吃点三明治吧！');
     return;
   }
   d.act.theme = 'quiet';

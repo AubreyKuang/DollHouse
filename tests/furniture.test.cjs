@@ -886,6 +886,37 @@ test('a postponed picnic prefers its original host and can use the saved backup 
   `);
 });
 
+test('a covered picnic reserves two reachable seats and reopens the rain decision if the shelter moves', () => runGame(`
+  load();G.time=720;G.weather='rain';
+  const [host,other]=residents();
+  for(const d of residents()){d.job='none';Object.assign(d.needs,{energy:90,hunger:90,bladder:90,social:30});}
+  assert.ok(startGetTogether(host,'picnic'));communityTick();
+  assert.equal(choosePicnicPlan('covered'),false);
+  const table=addFurniture('coveredPicnicTable',12,21);
+  rebuild();
+  const event=G.community.active,guest=communityDoll(event.guestPid);
+  const path=findPath;
+  findPath=()=>null;
+  assert.equal(choosePicnicPlan('covered'),false);
+  findPath=path;
+  guest.persona='active';
+  assert.ok(choosePicnicPlan('covered'));
+  assert.equal(event.guestWishMatched,true);
+  assert.ok(joinGetTogether(other));
+  assert.ok(joinGetTogether(host));
+  assert.ok(joinGetTogether(guest));
+  const seats=Object.values(event.reserved);
+  assert.equal(new Set(seats.map(seat=>seat.x+','+seat.y)).size,3);
+  assert.ok(seats.every(seat=>seat.y===22));
+  save();load();
+  assert.equal(G.community.active.coveredTable,table.key);
+  G.furniture=G.furniture.filter(item=>item.key!==table.key);rebuild();
+  communityTick();
+  assert.ok(G.community.active.rainDeadline);
+  assert.equal(G.community.active.coveredSeats,undefined);
+  assert.ok(choosePicnicPlan('inside'));
+`));
+
 test('a short indoor tea can finish before work despite rain and uses the same guest', () => runGame(`
   load();G.time=720;G.weather='rain';
   const [host]=residents();host.job='none';

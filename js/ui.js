@@ -642,6 +642,12 @@ function updateCommunityStatus() {
   $('#picnicNotice').hidden = !event?.rainDeadline;
   if (event?.rainDeadline) {
     const visitor = communityDoll(event.guestPid);
+    const host = communityDoll(event.hostPid);
+    const covered = host && visitor && coveredPicnicSeats(host, visitor);
+    const button = $('#picnicCovered');
+    button.disabled = !covered;
+    const coverHint = $('#picnicCoveredHint');
+    coverHint.hidden = !!covered;
     const wish = visitor ? `${visitor.name}：${PICNIC_GUEST_WISHES[picnicGuestPreference(visitor)]} 两人都到场后，合意的安排会增加信任。` : '';
     const hint = $('#picnicGuestWish');
     if (hint.textContent !== wish) hint.textContent = wish;
@@ -694,16 +700,20 @@ $('#cancelPicnic').onclick = () => {
 };
 
 for (const [plan, label, window] of [
-  ['inside', PICNIC_PLANS.inside], ['study', PICNIC_PLANS.study], ['umbrella', PICNIC_PLANS.umbrella],
+  ['inside', PICNIC_PLANS.inside], ['study', PICNIC_PLANS.study], ['umbrella', PICNIC_PLANS.umbrella], ['covered', PICNIC_PLANS.covered],
   ...Object.entries(PICNIC_WINDOWS).map(([key, slot]) =>
     ['postpone', `天晴后${slot.label}（${hhmm(slot.start)}–${hhmm(slot.end)}）`, key]),
   ['postpone', '天晴后第一个可用时段', 'flexible'],
 ]) {
   const button = el('button', 'btn small', label);
   button.type = 'button';
+  if (plan === 'covered') {
+    button.id = 'picnicCovered';
+    button.setAttribute('aria-describedby', 'picnicCoveredHint');
+  }
   if (window) button.dataset.picnicWindow = window;
   button.onclick = () => {
-    if (!choosePicnicPlan(plan, window)) HOOK.toast(plan === 'study'
+    if (!choosePicnicPlan(plan, window)) HOOK.toast(plan === 'covered' ? $('#picnicCoveredHint').textContent : plan === 'study'
       ? '去书房需要主人和访客都有空，也要有两个能走到的座位。'
       : '现在无法按这个办法继续，可以换一个安排。', true);
   };
@@ -909,7 +919,7 @@ function loop(now) {
   uiT += dt;
   if (uiT > 0.25) {
     uiT = 0; updateClock(); refreshSceneHint(); tickInfo(); renderShopBar();
-    if (G.community.deferredPicnic || $('#cancelPicnic').hidden === false) updateCommunityStatus();
+    if (G.community.active?.rainDeadline || G.community.deferredPicnic || $('#cancelPicnic').hidden === false) updateCommunityStatus();
     else if ($('#neighborDialog').open) updateNeighborDialog();
   }
   if (!$('#wardrobe').hidden) { wdTimer += dt; if (wdTimer > 0.18) { wdTimer = 0; wdFrame = (wdFrame + 1) % 4; drawWdPreview(); } }

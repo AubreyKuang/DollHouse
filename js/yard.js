@@ -6,10 +6,13 @@ Object.assign(FURNITURE, {
   gardenBench: { name: '鼠尾草长椅', w: 2, h: 1, outdoor: true, use: 'gardenRest', mode: 'on', cap: 2, need: { energy: 10, fun: 6, social: 5 } },
   flowerBox: { name: '雏菊花箱', w: 2, h: 1, outdoor: true, use: 'waterFlowers', mode: 'front', need: { fun: 14 } },
   picnicTable: { name: '格纹野餐桌', w: 3, h: 1, outdoor: true, use: 'picnic', mode: 'front', cap: 3, need: { hunger: 14, fun: 12, social: 12 } },
+  coveredPicnicTable: { name: '带棚野餐桌', w: 3, h: 1, outdoor: true, use: 'picnic', mode: 'front', cap: 3, need: { hunger: 14, fun: 12, social: 12 } },
   puzzleDesk: { name: '奶油拼图桌', w: 2, h: 1, use: 'puzzle', mode: 'front', cap: 2, need: { fun: 18, social: 8 } },
 });
 Object.assign(SHOP, { gardenSwing: [620, 1], gardenBench: [320, 1], flowerBox: [190, 1], picnicTable: [440, 1], puzzleDesk: [390, 1] });
+SHOP.coveredPicnicTable = [680, 1];
 Object.assign(TALL, { gardenSwing: 18, gardenBench: 6, flowerBox: 7, picnicTable: 5, puzzleDesk: 5 });
+TALL.coveredPicnicTable = 19;
 Object.assign(ACT_NAMES, { swing: '荡秋千', gardenRest: '坐在长椅上休息', waterFlowers: '给雏菊浇水', picnic: '在院子里野餐', puzzle: '拼拼图' });
 Object.assign(ACT_LINES, {
   swing: ['再荡高一点！', '风吹过来啦～'], gardenRest: ['在院子里坐一会儿吧'],
@@ -70,6 +73,13 @@ Object.assign(DRAW, {
     for (let px = 12; px < 36; px += 4) R(c, x + px, y + 1, 2, 7, '#fff1dd');
     R(c, x + 12, y + 3, 24, 2, '#d991945a');
     if (f.active) { R(c, x + 17, y, 5, 3, '#f8f4dc'); R(c, x + 28, y - 2, 3, 4, '#b77984'); }
+  },
+  coveredPicnicTable(c, x, y, f) {
+    DRAW.picnicTable(c, x, y, f);
+    R(c, x + 3, y - 15, 2, 25, WOOD_D);
+    R(c, x + 43, y - 15, 2, 25, WOOD_D);
+    furnitureBox(c, x, y - 19, 48, 8, '#6c8d78', '#485f56');
+    for (let px = 3; px < 46; px += 8) R(c, x + px, y - 18, 4, 6, '#abc4a4');
   },
   puzzleDesk(c, x, y, f, t) {
     for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, WOOD_D);
