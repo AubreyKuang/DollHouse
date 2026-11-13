@@ -254,14 +254,16 @@ function bookPaperText(author, readers, note) {
   return `${readers.map(d => d.name).join('和')}读完了${author.name}推荐的书摘`;
 }
 
-function submitBookToPaper(chair, replacing, includeConversation = true) {
+function submitBookToPaper(chair, replacing, includeConversation = true, nextIssue = false) {
   const readers = bookPaperReaders(chair);
-  if (!readers.length || !G.furniture.includes(chair) || bookPaperDraft() !== replacing) return false;
+  const month = G.day + (nextIssue ? 1 : 0);
+  if (!readers.length || (nextIssue && readers.length !== BOOK_PUBLIC_READERS) ||
+      !G.furniture.includes(chair) || bookPaperDraft(month) !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   const author = communityDoll(note.from);
   const people = [author, ...readers];
   const moment = {
-    ids: people.map(d => d.pid), month: G.day,
+    ids: people.map(d => d.pid), month,
     people: people.map(d => ({ name: d.name, look: { ...d.look } })),
     steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => {
       const room = bookReadingRoom(note, d);
@@ -270,7 +272,7 @@ function submitBookToPaper(chair, replacing, includeConversation = true) {
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
     ...(includeConversation && note.followup && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}和${readers[1].name}在${Object.hasOwn(readingRoomNames, note.followupRoom) ? readingRoomNames[note.followupRoom] + '的' : ''}窗边聊起了这句答复。`] : []),
-    '你收起了便条，把书摘留给了月报。'],
+    nextIssue ? '你收起了便条，把书摘留给了下一期月报。' : '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;

@@ -629,6 +629,34 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.match(excerpts[0].steps[5],/在书房的窗边聊起/);
 `));
 
+test('a completed book can reserve next month without replacing this issue', () => game(`
+  const [author,first,second]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat];rebuild();
+  const note={from:author.pid,to:first.pid,until:G.day,readBy:[first.pid],keepForPaper:true,question:true};
+  const current={month:G.day,people:[],steps:[],result:[BOOK_PAPER_LABEL,'📖','本期原稿',77]};
+  G.paperMoments=[current];
+  G.keepsakes.bookRecommendations[seat.key]=note;
+  assert.equal(submitBookToPaper(seat,undefined,true,true),false);
+  note.readBy.push(second.pid);
+  const write=save;
+  save=()=>false;assert.equal(submitBookToPaper(seat,undefined,true,true),false);
+  assert.equal(bookRecommendation(seat),note);
+  assert.equal(bookPaperDraft(G.day+1),undefined);
+  save=write;assert.ok(submitBookToPaper(seat,undefined,false,true));
+  assert.equal(bookPaperDraft(),current);
+  assert.equal(bookRecommendation(seat),null);
+  load();
+  finishHouseMonth();
+  assert.equal(G.paper.at(-1).stories.find(story=>story.label===BOOK_PAPER_LABEL).text,'本期原稿');
+  G.day++;
+  assert.deepEqual(bookPaperDraft().ids,[author.pid,first.pid,second.pid]);
+  assert.equal(bookPaperDraft().steps.length,4);
+  finishHouseMonth();
+  assert.equal(G.paper.at(-1).stories.find(story=>story.label===BOOK_PAPER_LABEL).steps.length,4);
+  assert.equal(G.paperMoments.length,0);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

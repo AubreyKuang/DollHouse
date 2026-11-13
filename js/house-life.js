@@ -72,8 +72,8 @@ const PAPER_EVENTS = [
   [/一起荡秋千|一起拼拼图|一起在院子里野餐|一起吃饭|下了一局棋|弹起了钢琴/, '一起玩', '🎵', 54],
 ];
 const BOOK_PAPER_LABEL = '窗边书摘';
-function bookPaperDraft() {
-  return G.paperMoments.find(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
+function bookPaperDraft(month = G.day) {
+  return G.paperMoments.find(moment => moment.month === month && moment.result?.[0] === BOOK_PAPER_LABEL);
 }
 
 function paperLogStory(text) {
@@ -185,7 +185,7 @@ function finishHouseMonth(deferPaper = false) {
     const [label, icon, text, score] = moment.result;
     candidates.push({ label, icon, text, score, people: moment.people, steps: [...moment.steps] });
   }
-  G.paperMoments = [];
+  G.paperMoments = (G.paperMoments || []).filter(moment => moment.month === G.day + 1 && moment.result?.[0] === BOOK_PAPER_LABEL);
   G.dayRelations = houseRelations();
   const stories = selectPaperStories(candidates);
   const submitted = candidates.find(story => story.label === BOOK_PAPER_LABEL);
