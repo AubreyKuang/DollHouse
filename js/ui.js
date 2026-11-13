@@ -366,9 +366,11 @@ function refreshReadingSeats() {
   bookFollowupButton.disabled = !canTalkAboutBook(chair, followupReaders);
   if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
   bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
+  const followupRoom = Object.hasOwn(readingRoomNames, recommendation?.followupRoom)
+    ? readingRoomNames[recommendation.followupRoom] : '';
   const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」` +
-      (recommendation.followup ? '两位读者已经当面聊过。'
-        : `可先交稿，也可等两位读者在窗边有空时聊一聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。`)
+      (recommendation.followup ? `两位读者已经${followupRoom ? '在' + followupRoom : ''}当面聊过。`
+        : `两位读者都在便条附近有空时，可以当面聊，各恢复 ${BOOK_FOLLOWUP_SOCIAL} 点社交。搬动便条时可查看哪些椅子现在适合聊天。`)
     : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
   if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);
@@ -433,8 +435,11 @@ function refreshReadingSeats() {
     : text + discussion + (recommendation && chair.readingNotes ? ` 全屋传阅会取消留座和当面聊，两位住户可各得 ${BOOK_PUBLIC_FUN} 点乐趣。` : '');
   if (note.textContent !== hint) note.textContent = hint;
 
-  const destinations = seats.flatMap((seat, i) => canMoveBookRecommendation(chair, seat, recommendation)
-    ? [[seat.key, names[i]]] : []);
+  const destinations = seats.flatMap((seat, i) => {
+    if (!canMoveBookRecommendation(chair, seat, recommendation)) return [];
+    const ready = canTalkAboutBook(seat, followupReaders);
+    return [[seat.key, names[i] + (ready ? ' · 两位读者现在可聊' : '')]];
+  });
   $('#bookMoveControls').hidden = !destinations.length;
   const destinationOptions = JSON.stringify(destinations);
   if (destinationOptions !== bookDestinationOptions) {

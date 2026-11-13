@@ -585,12 +585,18 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.equal(bookPaperReaders(chair).length,2);
   const a=communityDoll(first.pid),b=communityDoll(second.pid);
   for(const d of [a,b])Object.assign(d,{state:'idle',job:'none',needs:{energy:80,hunger:80,bladder:80,social:40,fun:50}});
-  placeDollAt(a,chair.x,chair.y+1);placeDollAt(b,chair.x+1,chair.y+1);
-  b.state='away';assert.equal(talkAboutBook(chair),false);b.state='idle';
+  const meeting=G.furniture.find(f=>f.key===seat.key);
+  placeDollAt(a,meeting.x,meeting.y+1);placeDollAt(b,meeting.x+1,meeting.y+1);
+  assert.equal(talkAboutBook(chair),false);
+  assert.equal(canTalkAboutBook(meeting,bookFollowupReaders(chair)),true);
+  assert.ok(moveBookRecommendation(chair,meeting));
+  b.state='away';assert.equal(talkAboutBook(meeting),false);b.state='idle';
   const log=JSON.stringify(G.log);
-  save=()=>false;assert.equal(talkAboutBook(chair),false);
-  assert.deepEqual([a.needs.social,b.needs.social,bookRecommendation(chair).followup,JSON.stringify(G.log)],[40,40,undefined,log]);
-  save=write;assert.ok(talkAboutBook(chair));assert.equal(talkAboutBook(chair),false);
+  save=()=>false;assert.equal(talkAboutBook(meeting),false);
+  assert.deepEqual([a.needs.social,b.needs.social,bookRecommendation(meeting).followup,bookRecommendation(meeting).followupRoom,JSON.stringify(G.log)],[40,40,undefined,undefined,log]);
+  save=write;assert.ok(talkAboutBook(meeting));assert.equal(talkAboutBook(meeting),false);
+  assert.equal(bookRecommendation(meeting).followupRoom,'study');
+  assert.ok(moveBookRecommendation(meeting,chair));
   assert.deepEqual([a.needs.social,b.needs.social],[44,44]);
   assert.equal(submitBookToPaper(chair),false);
   const draft=bookPaperDraft();
@@ -620,7 +626,7 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.equal(excerpts[0].steps[2],second.name+'在'+readingRoomNames[cornerRoom(chair)]+'读完了这段书摘。');
   assert.match(excerpts[0].steps[3],/让你想起了什么/);
   assert.match(excerpts[0].steps[4],/下雨时/);
-  assert.match(excerpts[0].steps[5],/在窗边聊起/);
+  assert.match(excerpts[0].steps[5],/在书房的窗边聊起/);
 `));
 
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`

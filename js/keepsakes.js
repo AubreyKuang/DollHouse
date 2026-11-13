@@ -213,11 +213,14 @@ function talkAboutBook(chair) {
   if (!canTalkAboutBook(chair, readers)) return false;
   const [first, second] = readers, note = bookRecommendation(chair);
   const social = readers.map(d => d.needs.social), log = G.log.slice();
+  const room = cornerRoom(chair);
   note.followup = true;
+  note.followupRoom = room;
   for (const d of readers) d.needs.social = Math.min(100, d.needs.social + BOOK_FOLLOWUP_SOCIAL);
   addLog(`📖 ${first.name}和${second.name}在窗边聊起了便条上的答复。`);
   if (!save()) {
     delete note.followup;
+    delete note.followupRoom;
     readers.forEach((d, i) => { d.needs.social = social[i]; });
     G.log = log;
     HOOK.logged();
@@ -266,7 +269,7 @@ function submitBookToPaper(chair, replacing, includeConversation = true) {
     }), ...(includeConversation && note.question && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
     ...(includeConversation && note.followup && readers.length === BOOK_PUBLIC_READERS
-      ? [`${readers[0].name}和${readers[1].name}在窗边聊起了这句答复。`] : []),
+      ? [`${readers[0].name}和${readers[1].name}在${Object.hasOwn(readingRoomNames, note.followupRoom) ? readingRoomNames[note.followupRoom] + '的' : ''}窗边聊起了这句答复。`] : []),
     '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
