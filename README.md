@@ -116,9 +116,11 @@
 
 ## 📸 夜晚与布置
 
+主场景使用高分辨率 Canvas 绘制。屋顶斜面与窗光沿连续轮廓绘制，屏幕缩放时平滑采样，人物和家具仍保留手绘像素形状。
+
 <table>
 <tr>
-<td width="50%"><img src="docs/two-storey-night.png" alt="夜晚，两间卧室亮着暖灯，小人睡在床上"><br><sub>夜晚 · 台灯和月亮壁灯亮起，住户回各自的卧室睡觉。</sub></td>
+<td width="50%"><img src="docs/art-night.png" alt="夜晚，两间卧室亮着暖灯，小人睡在床上"><br><sub>夜晚 · 台灯和月亮壁灯亮起，住户回各自的卧室睡觉。</sub></td>
 <td width="50%"><img src="docs/two-storey-build.png" alt="布置模式中二楼有淋浴间、洗手台和马桶，地面显示摆放网格"><br><sub>布置 · 用马桶、洗手台和淋浴间搭出洗漱角。绿色网格表示可以放在这里。</sub></td>
 </tr>
 </table>
