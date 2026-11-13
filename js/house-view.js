@@ -7,9 +7,9 @@ const FLOOR_STEP = 3;
 const WALL_STEP = 18;
 const STOREYS = [
   { wall: 165, back: 225, front: 252, row: WALL_ROWS, wallRow: 0,
-    rooms: ['#efc5c3', '#f4e6cb'], floors: ['#d7b6af', '#bf9d73'] },
+    rooms: ['#e9bfba', '#f4e3c5'], floors: ['#cfa99e', '#c49e78'] },
   { wall: 74, back: 134, front: 158, row: FLOOR_SPLIT, wallRow: UPPER_WALL,
-    rooms: ['#666780', '#d9c5cc'], floors: ['#655c70', '#a7b9aa'] },
+    rooms: ['#79718a', '#dac4cc'], floors: ['#817186', '#a4b3a1'] },
 ];
 const YARD = { wall: 258, back: 258, front: 300, row: ROWS, step: 7 };
 const storeyOf = row => row >= ROWS ? YARD : STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
@@ -91,13 +91,23 @@ function drawHouseGarden(c, left, right) {
   const width = W + HOUSE_MARGIN;
   R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
   const season = seasonOf(G.day).id;
-  const grass = season === 'autumn' ? '#b9b47c' : G.weather === 'snow' ? '#cbdacc' : '#a5bf8d';
+  const snowy = G.weather === 'snow';
+  const grass = season === 'autumn' ? '#b9b181' : snowy ? '#cbdace' : '#a7bd8b';
+  const leaf = season === 'autumn' ? '#c4a172' : '#89a97d';
+  const canopy = shade(leaf, -.10), leafLight = shade(leaf, .08);
+  const horizon = G.night ? '#768b8b36' : '#e8e7c765';
+  R(c, 0, 188, width, 42, horizon);
   R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
-  for (const [x, y, size] of [[1, 202, 25], [right + 26, 207, 28]]) {
-    R(c, x + 9, y + 6, 4, size + 12, '#846d55');
-    R(c, x, y - 10, size - 5, 22, '#739678');
-    R(c, x + 3, y - 17, size - 9, 23, season === 'autumn' ? '#d5a367' : '#94b58a');
-    R(c, x + 7, y - 14, size - 16, 7, '#b0c699');
+  for (const [x, y, size] of [[0, 214, 24], [right + 4, 206, 27], [right + 29, 200, 28], [right + 43, 222, 18]]) {
+    R(c, x + 8, y + 2, 4, 21, '#8e725c');
+    R(c, x + 8, y + 6, 1, 17, '#b79577');
+    R(c, x, y - 8, size, 15, canopy);
+    R(c, x + 2, y - 14, size - 4, 16, leaf);
+    R(c, x + 5, y - 19, size - 10, 12, leaf);
+    R(c, x + 7, y - 20, size - 15, 7, leafLight);
+    R(c, x + 2, y - 9, 8, 4, leafLight);
+    R(c, x + size - 7, y - 5, 5, 7, canopy);
+    detail(c, x + 9, y - 17.5, 4.5, .5, shade(leaf, .14));
   }
   R(c, left - 5, YARD.back, W + 10, YARD.front - YARD.back, shade(grass, .075));
   R(c, 0, 301, width, 9, '#c6bca0');
@@ -105,7 +115,11 @@ function drawHouseGarden(c, left, right) {
   for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
   const gate = left + 10 * T;
   housePoly(c, '#d2c2a2', [gate + 2, 253], [gate + 14, 253], [gate + 25, 301], [gate - 9, 301]);
-  for (let y = 261; y < 300; y += 7) R(c, gate - 4, y, 24, 1, '#e7dcc3');
+  for (let y = 261; y < 300; y += 7) {
+    const spread = Math.floor((y - 253) / 5);
+    R(c, gate + 2 - spread, y, 12 + spread * 2, 1, '#e9dac0');
+    detail(c, gate + 3 - spread, y + 1, 9 + spread * 2, .5, '#bdaa8c');
+  }
   for (const x of [left - 7, right + 5]) {
     R(c, x, 254, 3, 44, '#b69b7b');
     R(c, x + 1, 254, 1, 44, '#e8d2af');
@@ -116,11 +130,16 @@ function drawHouseGarden(c, left, right) {
     R(c, x + 4, y + 2, 14, 6, '#f4f6ebbb');
     R(c, x + 8, y, 6, 3, '#f4f6ebbb');
   }
-  for (let i = 0; i < 65; i++) {
-    const x = rnd(i + 690) * width, y = 261 + rnd(i + 810) * 37;
+  const grassDark = shade(grass, -.14);
+  for (let i = 0; i < 44; i++) {
+    const x = Math.round(rnd(i + 690) * width), y = Math.round(261 + rnd(i + 810) * 36);
     if (Math.abs(x - gate - 8) < 18) continue;
-    R(c, x, y, 2, 1, i % 4 === 0 ? '#fff0cf' : shade(grass, -.14));
-    if (i % 4 === 0) R(c, x, y + 1, 1, 2, shade(grass, -.18));
+    R(c, x, y + 1, 2, 1, grassDark);
+    if (i % 5 !== 0 || snowy) continue;
+    detail(c, x + .5, y - 1, .5, 3, grassDark);
+    R(c, x - 1, y - 1, 3, 1, i % 2 ? '#fff4d9' : '#f2c0b6');
+    detail(c, x + .5, y - 2, .5, 3, '#fff0d3');
+    detail(c, x + .5, y - 1, .5, .5, '#ddae6a');
   }
   const picnic = G.community?.active;
   if (G.weather === 'rain' || (picnic?.showerAt && absNow() >= picnic.showerAt)) {
@@ -134,10 +153,16 @@ function drawHouseGarden(c, left, right) {
 function drawHouseRoof(c, left, right) {
   const peak = left + Math.round(W * .58), eave = 70;
   housePoly(c, '#60545b', [left - 7, eave], [peak, 7], [right + 9, 32], [right + 9, eave]);
-  housePoly(c, '#946d70', [left - 4, eave], [peak, 11], [right + 6, 36], [right + 6, eave]);
-  housePoly(c, '#e5c9a8', [left + 2, eave], [peak, 19], [right - 1, 41], [right - 1, eave]);
+  housePoly(c, '#9c747a', [left - 4, eave], [peak, 11], [right + 6, 36], [right + 6, eave]);
+  housePoly(c, '#ddbd9c', [left + 2, eave], [peak, 19], [right - 1, 41], [right - 1, eave]);
   housePoly(c, '#f4e0c3', [left + 13, eave], [peak, 23], [right - 8, 44], [right - 8, eave]);
   housePoly(c, '#cfad8c', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
+  for (let x = left + 10; x < right + 5; x += 7) {
+    const edge = x < peak ? mixNum(eave, 11, (x - left + 4) / (peak - left + 4)) :
+      mixNum(11, 36, (x - peak) / (right + 6 - peak));
+    R(c, x, edge + 1, 1, 3, '#775962');
+    detail(c, x + 1, edge + 2, 2.5, .5, '#c29393');
+  }
   R(c, left + 65, 49, 3, 21, '#a38877');
   R(c, left + 69, 62, W - 76, 8, '#d7b18c');
   for (let y = 63; y < eave; y += 2) R(c, left + 69, y, W - 76, 1, '#c5a07f');
@@ -146,6 +171,8 @@ function drawHouseRoof(c, left, right) {
     R(c, x, y, w, 2, '#d2ab81');
     R(c, x + w - 5, y + 2, 5, h - 2, '#987457');
     R(c, x + 3, y + 3, w - 10, 1, '#d9b489');
+    R(c, x + w - 9, y + 5, 3, 2, '#a27b62');
+    detail(c, x + w - 9, y + 5, 2.5, .5, '#ebc292');
   }
   box(c, peak + 26, 31, 13, 15, '#f5e9d5', '#9b8074');
   R(c, peak + 28, 33, 9, 10, G.sky);
@@ -183,6 +210,36 @@ function drawRoomDetails(c, x, right, top, back, storey, i) {
   }
 }
 
+function drawRoomFloor(c, x, end, back, front, base, pattern) {
+  const width = end - x;
+  const edge = shade(base, -.085), light = shade(base, .055);
+  R(c, x, back, width, front - back, base);
+  if (pattern === 'tile') {
+    for (let y = back; y < front; y += 5) {
+      R(c, x, y, width, 1, '#abc9bb');
+      for (let px = x + (y - back) % 2 * 5; px < end; px += 10) {
+        R(c, px, y, 1, 5, '#b7d1c4');
+        R(c, px + 1, y + 1, 7, 1, '#deebe1');
+      }
+    }
+  } else if (pattern === 'plank') {
+    for (let y = back; y < front; y += 5) {
+      detail(c, x, y, width, .5, edge);
+      detail(c, x, y + .5, width, .5, light);
+      for (let px = x + 7 + ((y - back) * 7) % 36; px < end; px += 36) {
+        detail(c, px, y + .5, .5, 4.5, edge);
+        detail(c, px + 3, y + 2.5, 6, .5, light);
+      }
+    }
+  } else {
+    for (let i = 0; i < width / 2; i++) {
+      const px = x + rnd(i + 7) * width, y = back + rnd(i + 39) * (front - back);
+      detail(c, px, y, i % 3 === 0 ? 1.5 : .5, .5, i % 4 ? light : edge);
+    }
+  }
+  R(c, x, back, width, 2, '#4b354329');
+}
+
 function drawStorey(c, storey, wall, floor) {
   const left = HOUSE_X, right = left + W, mid = left + BX * T;
   const { back, front, wall: top } = storey;
@@ -192,18 +249,23 @@ function drawStorey(c, storey, wall, floor) {
   for (const [i, x, end] of spans) {
     const bath = i === 2;
     const base = bath ? '#b5d8ce' : wall.id === 'cream' ? storey.rooms[i] : shade(wall.base, i ? .01 : -.05);
-    const alt = wall.id === 'cream' ? shade(base, .045) : wall.alt;
+    const alt = wall.id === 'cream' ? shade(base, .032) : wall.alt;
     const floorBase = bath ? '#d1e4dd' : floor.id === 'oak' ? storey.floors[i] : floor.base;
     const inset = 9;
 
     c.save();
     housePath(c, [[x, front], [x + inset, back], [end - inset, back], [end, front]]);
     c.clip();
-    c.translate(left, back);
-    c.scale(1, FLOOR_STEP / T);
-    c.translate(0, -storey.row * T);
-    drawFloor(c, { pat: bath ? 'check' : floor.pat, base: floorBase, alt: shade(floorBase, -.09) },
-      storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
+    if (bath || floor.id === 'oak') {
+      const pattern = bath ? 'tile' : (i === 0 && storey === STOREYS[1]) ? 'carpet' : 'plank';
+      drawRoomFloor(c, x, end, back, front, floorBase, pattern);
+    } else {
+      c.translate(left, back);
+      c.scale(1, FLOOR_STEP / T);
+      c.translate(0, -storey.row * T);
+      drawFloor(c, { ...floor, base: floorBase, alt: shade(floorBase, -.09) },
+        storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
+    }
     c.restore();
 
     R(c, x, top, end - x, back - top, base);
