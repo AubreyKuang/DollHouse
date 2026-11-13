@@ -157,7 +157,17 @@ function refreshImportedHome() {
   updateHomeNow(); showHomeSaveStatus();
   awaySince = 0; // Importing an old file never adds the time since it was exported.
 }
-$('#btnSaveHome').onclick = () => { save(); showHomeSaveStatus(); $('#saveFeedback').textContent = ''; $('#saveDialog').showModal(); };
+$('#btnSaveHome').onclick = () => {
+  save();
+  showHomeSaveStatus();
+  $('#saveFeedback').textContent = '';
+  const controls = $('#houseControls');
+  if (controls.open) {
+    controls.open = false;
+    controls.querySelector('summary').focus();
+  }
+  $('#saveDialog').showModal();
+};
 $('#saveExport').onclick = () => {
   downloadHomeFile(exportHomeSave(), `DollHouse-${TEST_MODE ? 'test-' : ''}${G.day}.json`);
   $('#saveFeedback').textContent = '备份已准备好，请在浏览器下载中保留这份文件。';
@@ -189,8 +199,8 @@ $('#saveUndo').onclick = () => {
   } catch (error) { $('#saveFeedback').textContent = error.message; }
 };
 HOOK.saved = success => {
-  $('#btnSaveHome').textContent = success ? '💾' : '⚠️';
-  $('#btnSaveHome').title = success ? '存档备份与恢复' : '保存失败，点击下载备份';
+  $('#btnSaveHome').textContent = success ? '💾 存档备份与恢复' : '⚠️ 保存失败，下载备份';
+  $('#btnSaveHome').classList.toggle('save-error', !success);
   if ($('#saveDialog').open) showHomeSaveStatus();
 };
 ensureHomeWishes(); updateHomeNow();

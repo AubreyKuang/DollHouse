@@ -160,19 +160,40 @@ function setMode(m) {
   SFX.play('click');
 }
 document.querySelectorAll('.mode').forEach(b => b.onclick = () => setMode(b.dataset.mode));
-document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
-  G.speed = +b.dataset.speed;
-  document.querySelectorAll('[data-speed]').forEach(o => o.classList.toggle('on', o === b));
+const houseControls = $('#houseControls');
+const speedButtons = document.querySelectorAll('[data-speed]');
+speedButtons.forEach(button => button.onclick = () => {
+  G.speed = Number(button.dataset.speed);
+  speedButtons.forEach(option => {
+    const active = option === button;
+    option.classList.toggle('on', active);
+    option.setAttribute('aria-pressed', String(active));
+  });
   SFX.play('click');
 });
-$('#btnSound').onclick = () => { const on = SFX.toggle(); $('#btnSound').textContent = on ? '🔊' : '🔇'; $('#btnSound').classList.toggle('on', on); };
+$('#btnSound').onclick = () => {
+  const on = SFX.toggle();
+  $('#btnSound').textContent = on ? '🔊 声音' : '🔇 声音';
+  $('#btnSound').setAttribute('aria-pressed', String(on));
+};
+document.addEventListener('pointerdown', event => {
+  if (houseControls.open && !houseControls.contains(event.target)) houseControls.open = false;
+});
+houseControls.addEventListener('keydown', event => {
+  if (event.key !== 'Escape' || !houseControls.open) return;
+  houseControls.open = false;
+  houseControls.querySelector('summary').focus();
+  event.stopPropagation();
+});
 $('#btnWardrobe').onclick = () => openWardrobe(G.sel || (G.dolls[0] && G.dolls[0].uid));
 
 function updateClock() {
   const m = Math.floor(G.time), h = Math.floor(m / 60), mm = m % 60;
   $('#clock').textContent = `${String(h).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
   const S = seasonOf(G.day), Hd = holidayOf(G.day);
-  $('#dayLabel').textContent = `${monthLabel(G.day)} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
+  const dayLabel = $('#dayLabel');
+  dayLabel.textContent = `${monthLabel(G.day)} · ${S.icon}${S.name}${Hd ? ' · ' + Hd.icon + Hd.name : ''}`;
+  dayLabel.title = dayLabel.textContent;
   const sky = h >= 21 || h < 6 ? '🌙' : h < 8 ? '🌅' : h >= 18 ? '🌇' : '☀️';
   $('#timeIcon').textContent = G.weather && G.weather !== 'sunny' ? WEATHER[G.weather].icon : sky;
   $('#timeIcon').title = WEATHER[G.weather || 'sunny'].name;

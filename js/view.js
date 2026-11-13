@@ -17,7 +17,7 @@ HOOK.resize = () => {
   ctx.scale(SCENE_SCALE, SCENE_SCALE);
   lctx.scale(SCENE_SCALE, SCENE_SCALE);
   ctx.imageSmoothingEnabled = false;
-  document.getElementById('stage').style.setProperty('--scene-ratio', cv.width / cv.height);
+  document.getElementById('houseLayout').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
 const overlay = document.getElementById('overlay');
 
@@ -399,6 +399,7 @@ function removeFurniture(f) {
 function playerBusy() {
   if (press) return true;
   if (G.dolls.some(d => d.state === 'lift')) return true;
+  if (document.getElementById('houseControls')?.open) return true;
   const wd = document.getElementById('wardrobe');
   if (wd && wd.hidden === false) return true;
   return typeof document.querySelector === 'function' && !!document.querySelector('dialog[open]');

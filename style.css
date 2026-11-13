@@ -127,11 +127,10 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .btn.ghost{background:transparent}
 .btn.danger,.btn.on{background:var(--accent);color:var(--accent-ink)}
 
-.layout{flex:1 0 auto;position:relative;display:flex;flex-direction:column;min-width:0;padding:12px}
+.layout{--scene-ratio:1.01935484;flex:1 0 auto;position:relative;display:flex;flex-direction:column;min-width:0;padding:12px}
 #stageWrap{display:flex;flex:1 0 auto;flex-direction:column;min-width:0}
 .scene-frame{display:grid;place-items:center;min-width:0}
 #stage{
-  --scene-ratio:1.01935484;
   position:relative;width:100%;min-width:0;aspect-ratio:var(--scene-ratio);
   border:1px solid var(--line);border-radius:8px;overflow:hidden;
   box-shadow:0 3px 0 var(--shadow);background:#9fd3f0;
@@ -315,7 +314,6 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   .topbar h1{font-size:20px}
   .modes{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));margin-left:0;order:3;width:100%}
   .modes button{min-width:0;min-height:40px;padding:5px 3px;font-size:12px;overflow-wrap:anywhere}
-  .modes .paper-button{white-space:normal}
   .speed button{min-width:34px;min-height:34px;padding:4px 6px}
   .layout{padding:8px}
   #buildBar{padding:8px}
@@ -335,7 +333,6 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   .modal-card{max-height:calc(100dvh - 24px)}
 }
 
-.paper-button{white-space:nowrap;background:var(--sel)!important;color:#3b2a2f}
 .paper-dialog{width:min(560px,calc(100% - 24px));max-height:85vh;padding:20px;border:2px solid var(--line);border-radius:12px;background:var(--panel);color:var(--ink)}
 .paper-dialog::backdrop{background:var(--backdrop)}
 .paper-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
@@ -412,14 +409,44 @@ body{
   --hud-ink:#fff1dd;
   --hud-line:#a7899b65;
 }
-.topbar{background:#2a202f;color:var(--hud-ink);border-bottom:1px solid var(--hud-line)}
-.topbar h1{color:#f8dbba;font-size:clamp(17px,2vw,23px)}
-.topbar .clock,.topbar .speed button,.topbar .away-toggle{
+.topbar{
+  display:grid;grid-template-columns:auto minmax(0,1fr) auto auto;
+  gap:clamp(5px,1vw,12px);background:#2a202f;color:var(--hud-ink);
+  border-bottom:1px solid var(--hud-line)
+}
+.topbar h1{color:#f8dbba;font-size:clamp(16px,2vw,23px);white-space:nowrap}
+.topbar .clock,.house-controls summary,.control-panel button,.topbar .away-toggle{
   background:var(--hud-bg);color:var(--hud-ink);border:1px solid var(--hud-line);box-shadow:none
 }
-.topbar .clock #dayLabel{color:#e2c7bc}
-.topbar .speed button.on{background:#f1cbab;color:#36263b}
-.topbar .speed{margin-left:auto;flex-wrap:wrap}
+.topbar .clock{justify-self:start;max-width:100%;min-width:0;white-space:nowrap}
+.topbar #dayLabel{color:#e2c7bc;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.house-controls{position:relative;z-index:4}
+.house-controls summary{
+  display:grid;place-items:center;width:40px;height:40px;border-radius:7px;
+  cursor:pointer;list-style:none;font-size:24px;line-height:1
+}
+.house-controls summary::-webkit-details-marker{display:none}
+.house-controls summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.house-controls[open] summary{background:#f1cbab;color:#36263b}
+.house-controls:has(.save-error) summary::after{
+  content:"";position:absolute;top:5px;right:5px;width:7px;height:7px;border-radius:50%;background:#e26d6d
+}
+.control-panel{
+  position:absolute;inset:calc(100% + 8px) 0 auto auto;width:236px;
+  display:grid;gap:8px;padding:10px;background:#2a202f;border:1px solid var(--hud-line);
+  border-radius:8px;box-shadow:0 8px 24px #1d1424a8;font-size:13px
+}
+.control-panel .speed button{flex:1;padding-inline:4px}
+.control-panel button,.control-panel .away-toggle{min-height:36px;text-align:start}
+.control-panel .speed button{text-align:center}
+.control-panel button.on{background:#f1cbab;color:#36263b}
+.control-panel .save-error{color:#ffb2ad}
+@media (max-width:520px){
+  .topbar h1{letter-spacing:0}
+  .topbar .clock{gap:4px;padding-inline:4px;font-size:12px}
+  .topbar #dayLabel{font-size:12px}
+  .house-controls summary{width:36px;height:36px}
+}
 #stage{border:1px solid #d1a98d82;border-radius:5px;box-shadow:0 12px 38px #1d1424a8}
 #hint{align-self:center;background:transparent;border:0;padding:2px 8px;color:#f1d9ce;font-size:12px;text-align:center}
 #side{top:12px;right:12px;max-width:calc(100% - 24px)}
@@ -429,21 +456,76 @@ body{
   flex:none;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:5px;
   margin:0 auto;width:min(100%,520px);padding:6px 8px max(7px,env(safe-area-inset-bottom));background:#2a202f
 }
-.house-dock button,.house-dock .paper-button{
-  min-height:42px;min-width:0;background:transparent!important;border:1px solid transparent;color:#f0d8d4;
-  font-size:13px;padding:5px 3px;white-space:normal;box-shadow:none
+.house-dock button{
+  display:flex;align-items:center;justify-content:center;gap:5px;
+  min-height:42px;min-width:0;background:transparent;border:1px solid transparent;color:#f0d8d4;
+  font-size:13px;padding:5px 2px;box-shadow:none
 }
-.house-dock button:hover{background:#72576a70!important}
-.house-dock button.on{background:#f1cbab!important;color:#36263b}
-.house-dock button span{margin-inline-end:3px}
+.house-dock button:hover{background:#72576a70}
+.house-dock button.on{background:#f1cbab;color:#36263b}
+.dock-label{white-space:nowrap;overflow-wrap:normal}
+.dock-icon{position:relative;line-height:1}
+.paper-badge{
+  position:absolute;top:-6px;left:calc(100% - 1px);width:max-content;min-width:15px;padding:1px 3px;
+  border-radius:8px;background:#f1cbab;color:#36263b;
+  font-size:9px;line-height:1.3;font-weight:700;text-align:center;white-space:nowrap
+}
 #buildBar{border-top:1px solid var(--hud-line);max-height:40dvh;overflow:auto}
 #toast{bottom:calc(64px + env(safe-area-inset-bottom))}
 @media(max-width:700px) and (orientation:portrait){
-  .topbar .speed{margin-left:0}
   #stageWrap{justify-content:center}
+  #buildBar{margin:0 -8px -8px}
   #side{position:relative;top:auto;right:auto;width:100%;max-width:100%;margin-top:7px}
   #side summary{margin-left:auto}
   #side .resident-panel{position:absolute;z-index:1;right:0;bottom:calc(100% + 6px);width:min(100%,340px);max-height:min(45dvh,360px)}
-  .house-dock button span{display:block;margin:0}
-  .house-dock button{min-height:44px;font-size:12px}
+}
+@media (max-width:520px), (max-width:700px) and (orientation:portrait){
+  .house-dock button{flex-direction:column;gap:4px;min-height:44px;font-size:12px}
+}
+
+/* On wide screens the catalog uses the space beside the house. */
+@media (min-width:640px) and (orientation:landscape){
+  .layout{min-height:min(220px,54dvh)}
+  .layout:has(#buildBar:not([hidden])){
+    --catalog-width:clamp(232px,28vw,332px);
+    display:grid;grid-template-columns:minmax(0,1fr) var(--catalog-width);
+    grid-template-rows:auto minmax(0,1fr);gap:8px 12px;
+    width:100%;max-width:max(860px,calc((100dvh - 115px) * var(--scene-ratio) + var(--catalog-width) + 100px));
+    margin-inline:auto;
+  }
+  .layout:has(#buildBar:not([hidden])) #stageWrap{grid-column:1;grid-row:1/-1}
+  .layout:has(#buildBar:not([hidden])) #side{
+    grid-column:2;grid-row:1;position:relative;inset:auto;width:100%;max-width:none
+  }
+  .layout:has(#buildBar:not([hidden])) .resident-panel{
+    position:absolute;right:0;width:100%;max-height:min(64dvh,530px)
+  }
+  #buildBar{
+    grid-column:2;grid-row:2;display:flex;flex-direction:column;gap:10px;
+    min-height:0;max-height:none;overflow:auto;padding:10px;
+    border:1px solid var(--hud-line);border-radius:8px;
+    scrollbar-gutter:stable
+  }
+  #buildBar .shop-bar,#buildBar .tabs{flex:none}
+  #buildBar .spacer{display:none}
+  #buildBar .tab,#buildBar .btn{padding:4px 7px;font-size:12px;box-shadow:none;min-height:32px}
+  #buildBar .btn:active,#buildBar .tab:active{box-shadow:none}
+  #palette{
+    display:grid;grid-template-columns:repeat(auto-fit,minmax(82px,1fr));
+    align-content:start;align-items:stretch;overflow:visible;padding:0;gap:6px
+  }
+  #palette>.hint{grid-column:1/-1;margin:0}
+  #palette .item{width:100%;min-width:0;padding:5px 3px;overflow-wrap:anywhere}
+  #palette .item canvas{width:42px;height:42px}
+  #buildHint{order:-1;margin:0}
+}
+
+@media (min-width:640px) and (orientation:landscape) and (max-height:520px){
+  .topbar .clock{gap:4px;padding-inline:6px}
+  #buildBar{gap:7px;padding:7px}
+  #buildBar .tabs{gap:4px}
+  #buildBar .tab,#buildBar .btn{padding-inline:5px}
+  #buildBar .shop-bar{order:1}
+  #buildHint{order:2}
+  .layout:has(#buildBar:not([hidden])) #hint{display:none}
 }

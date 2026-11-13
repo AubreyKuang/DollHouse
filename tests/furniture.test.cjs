@@ -736,12 +736,13 @@ test('the monthly paper waits while the player is mid-drag', () => {
     load();
     const dialog = { open: false, showModal() { this.open = true; } };
     const paperAuto = { checked: true };
-    const button = { textContent: '' };
+    const badge = { textContent: '' };
+    const button = {};
     const els = {};
     const fakeEl = () => ({ style: { setProperty() {} }, textContent: '', disabled: false,
       replaceChildren() {}, append() {}, classList: { add() {}, toggle() {} } });
     document.getElementById = id => id === 'paperDialog' ? dialog
-      : id === 'paperAuto' ? paperAuto : id === 'dailyPaper' ? button : (els[id] ||= fakeEl());
+      : id === 'paperAuto' ? paperAuto : id === 'dailyPaper' ? button : id === 'paperBadge' ? badge : (els[id] ||= fakeEl());
     document.createElement = () => ({ style: {}, className: '', textContent: '', children: [],
       append(...kids) { this.children.push(...kids); }, replaceChildren(...kids) { this.children = [...kids]; },
       setAttribute() {}, classList: { add() {}, toggle() {} } });
@@ -751,12 +752,13 @@ test('the monthly paper waits while the player is mid-drag', () => {
     finishHouseMonth();
     assert.equal(G.paperPending, true);
     assert.equal(dialog.open, false);
-    assert.match(button.textContent, /新一期/);
+    assert.equal(badge.textContent, '新');
     press = null;
     assert.equal(playerBusy(), false);
     showHousePaper();
     assert.equal(dialog.open, true);
     assert.equal(G.paperPending, false);
+    assert.equal(badge.textContent, '2');
   `, { withView: true });
 });
 
