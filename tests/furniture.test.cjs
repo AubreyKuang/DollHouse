@@ -27,21 +27,31 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
   vm.runInContext(scenario, context);
 }
 
-test('all entry points open residents and include the same two art atlases', () => {
-  const atlases = ['cottage', 'doll'];
-  const offline = read('pixel-dollhouse.html');
+test('all entry points open residents and the offline copy embeds the furniture atlas', () => {
   for (const file of ['index.html', 'dev.html', 'pixel-dollhouse.html']) {
     assert.match(read(file), /<details id="side" open>/);
+    assert.doesNotMatch(read(file), /id="dollAtlas"/);
   }
-  for (const art of atlases) {
-    const source = new RegExp('src="assets/' + art + '-atlas[.]webp');
-    assert.match(read('index.html'), source);
-    assert.match(read('dev.html'), source);
-    const id = new RegExp('id="' + art + 'Atlas" src="data:image/webp;base64,([^"]+)"');
-    const embedded = offline.match(id);
-    assert.ok(embedded, art);
-    assert.deepEqual(Buffer.from(embedded[1], 'base64'), fs.readFileSync(path.join(root, 'assets', art + '-atlas.webp')));
-  }
+  const atlas = read('pixel-dollhouse.html').match(/id="cottageAtlas" src="data:image\/webp;base64,([^"]+)"/);
+  assert.ok(atlas);
+  assert.deepEqual(Buffer.from(atlas[1], 'base64'), fs.readFileSync(path.join(root, 'assets', 'cottage-atlas.webp')));
+});
+
+test('kitchen appliances and yard furniture follow their placement row', () => {
+  runGame(`
+    load();
+    const fridge = G.furniture.find(f => f.id === 'fridge');
+    const stove = G.furniture.find(f => f.id === 'stove');
+    const swing = G.furniture.find(f => f.id === 'gardenSwing');
+    const bench = G.furniture.find(f => f.id === 'gardenBench');
+    for (const [left, right] of [[fridge, stove], [swing, bench]]) {
+      const rect = houseFurnitureRect(left);
+      assert.equal(rect.bottom, houseFurnitureRect(right).bottom);
+      assert.equal(houseFurnitureRect({ ...left, y: left.y + 1 }).bottom - rect.bottom, rect.storey.step || FLOOR_STEP);
+      const point = { x: rect.x + rect.w / 2, y: rect.bottom - (rect.storey.step || FLOOR_STEP) / 2 };
+      assert.equal(houseTile(point, left.id).y, left.y);
+    }
+  `, { withView: true });
 });
 
 test('every purchasable furnishing has one category, a price, and a sprite', () => {
