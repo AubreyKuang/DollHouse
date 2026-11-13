@@ -625,6 +625,10 @@ body{
         <label for="picnicBackup">原主人没空时由谁接待</label>
         <select id="picnicBackup"></select>
       </div>
+      <div id="picnicFormatRow" class="home-focus" hidden>
+        <label for="picnicFormat">聚会形式</label>
+        <select id="picnicFormat"></select>
+      </div>
       <button id="cancelPicnic" class="btn small ghost" type="button" hidden>取消改期的野餐</button>
     </div>
     <button id="btnAddDoll" aria-haspopup="dialog" class="btn ghost">＋ 邀请新住户</button>
@@ -5663,7 +5667,7 @@ function gatheringTiles(kind, origin, inside = false) {
   return tiles.sort((a, b) => a.distance - b.distance).slice(0, 22).filter(tile => findPath(origin.x, origin.y, [tile])).slice(0, 8);
 }
 
-function startGetTogether(host, kind, { friend, exchange, rescheduled = false } = {}) {
+function startGetTogether(host, kind, { friend, exchange, rescheduled = false, shortTea = false } = {}) {
   const style = GET_TOGETHERS[kind], community = G.community;
   if (!style || !availableHosts().includes(host) || community.active || community.outing || absNow() < community.nextEventAt) return false;
   const door = doorTile();
@@ -5678,8 +5682,9 @@ function startGetTogether(host, kind, { friend, exchange, rescheduled = false } 
   const friendship = rel(host, guest);
   if (!friend.visits) friendship.f = friend.pid === NEIGHBOR_PID ? 28 : 52;
   friend.visits++;
-  community.active = { kind, hostPid: host.pid, guestPid: guest.pid, endsAt: absNow() + style.minutes,
-    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {}, exchange };
+  community.active = { kind, hostPid: host.pid, guestPid: guest.pid,
+    endsAt: absNow() + (shortTea ? PICNIC_SHORT_MINUTES : style.minutes),
+    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {}, exchange, ...(shortTea ? { shortTea } : {}) };
   if (kind === 'picnic') preparePicnic(community.active, rescheduled);
   community.nextEventAt = community.active.endsAt + 45;
   guest.think = .5;
@@ -5687,7 +5692,7 @@ function startGetTogether(host, kind, { friend, exchange, rescheduled = false } 
   if (entrance) entrance.openT = .8;
   say(guest, '我来串门啦！');
   countHouseActivity('visitors', `${guest.name} · ${style.name}`);
-  if (!exchange) HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + style.name}了`);
+  if (!exchange) HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + (shortTea ? '室内短茶会' : style.name)}了`);
   HOOK.select();
   save();
   return true;
@@ -6069,6 +6074,8 @@ const PICNIC_WINDOWS = {
   afternoon: { label: '下午开场', start: 15 * 60, end: 19 * 60 },
 };
 const PICNIC_WINDOW_LABELS = { morning: '上午', afternoon: '下午', flexible: '第一个可用时段' };
+const PICNIC_SHORT_MINUTES = 75;
+const picnicDuration = pending => pending.shortTea ? PICNIC_SHORT_MINUTES : GET_TOGETHERS.picnic.minutes;
 const PICNIC_PREFERENCE_TRUST = 4;
 const PICNIC_GUEST_WISHES = {
   inside: '想进客厅，和大家一起吃点心。',
@@ -6214,11 +6221,24 @@ function changePicnicBackup(pid) {
   return true;
 }
 
+function changePicnicFormat(shortTea) {
+  const pending = G.community.deferredPicnic;
+  if (!pending || !!pending.shortTea === shortTea) return false;
+  const previous = pending.shortTea;
+  pending.shortTea = shortTea;
+  if (!save()) {
+    pending.shortTea = previous;
+    return false;
+  }
+  HOOK.community();
+  return true;
+}
+
 function picnicHostReady(pending, host) {
   if (!host || !availableHosts().includes(host) || host.act?.type === 'leave') return false;
-  const checkShift = pending.backupPid || Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window);
+  const checkShift = pending.shortTea || pending.backupPid || Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window);
   const departure = checkShift ? leaveAbs(host) : null;
-  return departure == null || departure >= absNow() + GET_TOGETHERS.picnic.minutes;
+  return departure == null || departure >= absNow() + picnicDuration(pending);
 }
 
 function picnicBackup(pending) {
@@ -6228,12 +6248,12 @@ function picnicBackup(pending) {
 function picnicWaitReason(pending, host) {
   const now = absNow();
   if (G.community.active || G.community.outing || now < Math.max(pending.at, G.community.nextEventAt)) return '等上场聚会散场和准备时间结束';
-  if (G.weather === 'rain' || G.weather === 'snow') return '等雨雪停';
-  const duration = GET_TOGETHERS.picnic.minutes;
+  if (!pending.shortTea && (G.weather === 'rain' || G.weather === 'snow')) return '等雨雪停';
+  const duration = picnicDuration(pending);
   const windows = pending.window === 'flexible' ? Object.values(PICNIC_WINDOWS)
     : Object.hasOwn(PICNIC_WINDOWS, pending.window) ? [PICNIC_WINDOWS[pending.window]] : [];
   if (windows.length ? !windows.some(slot => G.time >= slot.start && G.time + duration <= slot.end)
-    : G.time < 10 * 60 || G.time >= 19 * 60) return '等可开场的时间';
+    : G.time < 10 * 60 || (pending.shortTea ? G.time + duration > 19 * 60 : G.time >= 19 * 60)) return '等可开场的时间';
   const backup = picnicBackup(pending);
   if (!picnicHostReady(pending, host) && !picnicHostReady(pending, backup)) {
     return backup ? `等${host.name}或${backup.name}有空` : `等${host.name}有空`;
@@ -6250,11 +6270,15 @@ function resumePicnic() {
   if (picnicWaitReason(pending, host)) return false;
   const selectedHost = picnicHostReady(pending, host) ? host : picnicBackup(pending);
   G.community.deferredPicnic = null;
-  if (!startGetTogether(selectedHost, 'picnic', { friend, rescheduled: true })) {
+  if (!startGetTogether(selectedHost, pending.shortTea ? 'tea' : 'picnic', {
+    friend, rescheduled: true, shortTea: !!pending.shortTea,
+  })) {
     G.community.deferredPicnic = pending;
     return false;
   }
-  addLog(selectedHost === host
+  addLog(pending.shortTea
+    ? `🫖 ${selectedHost.name}和${friend.name}把改期的野餐换成了室内短茶会。`
+    : selectedHost === host
     ? `🧺 雨停了，${host.name}和${friend.name}的野餐重新开场。`
     : `🧺 野餐重新开场，${selectedHost.name}替${host.name}接待${friend.name}。`);
   HOOK.community();
@@ -9328,6 +9352,7 @@ function updateCommunityStatus() {
   const pending = G.community.deferredPicnic;
   $('#cancelPicnic').hidden = !pending;
   $('#picnicReschedule').hidden = !pending;
+  $('#picnicFormatRow').hidden = !pending;
   const backups = pending ? residents().filter(d => d.pid !== pending.hostPid) : [];
   $('#picnicBackupRow').hidden = !backups.length;
   if (backups.length) {
@@ -9340,6 +9365,8 @@ function updateCommunityStatus() {
     if (picnicBackupSelect.value !== value) picnicBackupSelect.value = value;
   }
   if (pending) {
+    const format = pending.shortTea ? 'tea' : 'picnic';
+    if (picnicFormatSelect.value !== format) picnicFormatSelect.value = format;
     const value = Object.hasOwn(PICNIC_WINDOW_LABELS, pending.window) ? pending.window : '';
     if ($('#picnicWindow').value !== value) $('#picnicWindow').value = value;
   }
@@ -9359,17 +9386,24 @@ function updateCommunityStatus() {
     const host = pending && communityDoll(pending.hostPid);
     const wait = host && picnicWaitReason(pending, host);
     const message = outing ? `🏡 ${communityDoll(outing.pid)?.name || '住户'}${outing.phase === 'leaving' ? '准备去隔壁' : '正在麦麦家做客'}`
-      : pending ? `🧺 野餐已改期 · ${window} · ${wait || '等院子和通路就绪'}` : '';
+      : pending ? `🧺 野餐已改期 · ${window} · ${pending.shortTea ? '室内短茶会 · ' : ''}${wait || (pending.shortTea ? '等客厅和通路就绪' : '等院子和通路就绪')}` : '';
     if (status.textContent !== message) status.textContent = message;
     return;
   }
   const style = GET_TOGETHERS[event.kind], host = communityDoll(event.hostPid), guest = communityDoll(event.guestPid);
   const plan = event.rainMode && PICNIC_PLANS[event.rainMode];
-  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${event.exchange ? '邻居来访' : style.name} · ${host?.name || '住户'}和${guest?.name || '朋友'} · ${event.joined.length} 人参与${plan ? ' · ' + plan : ''}`;
+  const name = event.exchange ? '邻居来访' : event.shortTea ? '室内短茶会' : style.name;
+  const label = event.leavingAt ? `👋 ${guest?.name || '朋友'} 正在回家` : `${style.icon} ${name} · ${host?.name || '住户'}和${guest?.name || '朋友'} · ${event.joined.length} 人参与${plan ? ' · ' + plan : ''}`;
   if (status.textContent !== label) status.textContent = label;
 }
 HOOK.community = updateCommunityStatus;
 const picnicWindowSelect = $('#picnicWindow');
+const picnicFormatSelect = $('#picnicFormat');
+picnicFormatSelect.append(new Option(`院子野餐 · ${GET_TOGETHERS.picnic.minutes} 分钟 · 等天晴`, 'picnic'),
+  new Option(`室内短茶会 · ${PICNIC_SHORT_MINUTES} 分钟 · 雨天可办`, 'tea'));
+picnicFormatSelect.onchange = () => {
+  if (!changePicnicFormat(picnicFormatSelect.value === 'tea')) updateCommunityStatus();
+};
 const picnicBackupSelect = $('#picnicBackup');
 picnicBackupSelect.onchange = () => {
   if (!changePicnicBackup(picnicBackupSelect.value)) updateCommunityStatus();

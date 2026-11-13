@@ -886,6 +886,31 @@ test('a postponed picnic prefers its original host and can use the saved backup 
   `);
 });
 
+test('a short indoor tea can finish before work despite rain and uses the same guest', () => runGame(`
+  load();G.time=720;G.weather='rain';
+  const [host]=residents();host.job='none';
+  assert.ok(startGetTogether(host,'picnic'));communityTick();
+  const guest=G.community.active.guestPid;
+  assert.ok(choosePicnicPlan('postpone','morning'));
+  assert.ok(changePicnicFormat(true));
+  load();finishGuestDeparture();G.day++;G.time=750;G.weather='rain';
+  assert.equal(G.community.deferredPicnic.shortTea,true);
+  const depart=leaveAbs;
+  leaveAbs=()=>absNow()+74;
+  assert.equal(resumePicnic(),false);
+  leaveAbs=()=>absNow()+75;
+  assert.ok(resumePicnic());
+  leaveAbs=depart;
+  const event=G.community.active;
+  assert.equal(event.kind,'tea');
+  assert.equal(event.guestPid,guest);
+  assert.equal(event.endsAt,absNow()+75);
+  assert.ok(event.tiles.every(tile=>tile.y<FLOOR_SPLIT));
+  load();
+  assert.equal(G.community.active.shortTea,true);
+  assert.equal(G.community.deferredPicnic,null);
+`));
+
 test('dropping a resident on the piano assigns piano time instead of snapping back', () => {
   runGame(`
     load();

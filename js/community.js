@@ -67,7 +67,7 @@ function gatheringTiles(kind, origin, inside = false) {
   return tiles.sort((a, b) => a.distance - b.distance).slice(0, 22).filter(tile => findPath(origin.x, origin.y, [tile])).slice(0, 8);
 }
 
-function startGetTogether(host, kind, { friend, exchange, rescheduled = false } = {}) {
+function startGetTogether(host, kind, { friend, exchange, rescheduled = false, shortTea = false } = {}) {
   const style = GET_TOGETHERS[kind], community = G.community;
   if (!style || !availableHosts().includes(host) || community.active || community.outing || absNow() < community.nextEventAt) return false;
   const door = doorTile();
@@ -82,8 +82,9 @@ function startGetTogether(host, kind, { friend, exchange, rescheduled = false } 
   const friendship = rel(host, guest);
   if (!friend.visits) friendship.f = friend.pid === NEIGHBOR_PID ? 28 : 52;
   friend.visits++;
-  community.active = { kind, hostPid: host.pid, guestPid: guest.pid, endsAt: absNow() + style.minutes,
-    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {}, exchange };
+  community.active = { kind, hostPid: host.pid, guestPid: guest.pid,
+    endsAt: absNow() + (shortTea ? PICNIC_SHORT_MINUTES : style.minutes),
+    friendshipAtStart: friendship.f, tiles, joined: [], reserved: {}, exchange, ...(shortTea ? { shortTea } : {}) };
   if (kind === 'picnic') preparePicnic(community.active, rescheduled);
   community.nextEventAt = community.active.endsAt + 45;
   guest.think = .5;
@@ -91,7 +92,7 @@ function startGetTogether(host, kind, { friend, exchange, rescheduled = false } 
   if (entrance) entrance.openT = .8;
   say(guest, '我来串门啦！');
   countHouseActivity('visitors', `${guest.name} · ${style.name}`);
-  if (!exchange) HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + style.name}了`);
+  if (!exchange) HOOK.toast(`${style.icon} ${host.name} 邀请 ${guest.name} 来${kind === 'visit' ? '玩' : '参加' + (shortTea ? '室内短茶会' : style.name)}了`);
   HOOK.select();
   save();
   return true;
