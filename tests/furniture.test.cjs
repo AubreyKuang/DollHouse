@@ -569,6 +569,33 @@ test('the evening roll is bounded and applications wait when the house is full',
   `);
 });
 
+test('automatic visits roll once per window and leave a quiet month across saves', () => {
+  runGame(`
+    load();
+    for (const d of residents()) d.job = 'none';
+    G.time = 14 * 60;
+    Math.random = () => .5;
+    assert.equal(tickNeighborVisit(), false);
+    Math.random = () => 0;
+    assert.equal(tickNeighborVisit(), false);
+    G.time = 18 * 60;
+    communityTick();
+    assert.ok(G.community.active);
+    assert.equal(G.community.lastAutoVisit, G.day);
+    endGetTogether();
+    finishGuestDeparture();
+    save();
+    load();
+    G.day++;
+    G.time = 14 * 60;
+    assert.equal(tickNeighborVisit(), false);
+    G.time = 18 * 60;
+    communityTick();
+    assert.equal(G.community.active, null);
+    assert.ok(startGetTogether(residents()[0], 'visit'));
+  `);
+});
+
 test('the same neighbor exchanges bread and tools, then hosts a persistent visit and earns a meal bond', () => {
   runGame(`
     load();
@@ -577,9 +604,11 @@ test('the same neighbor exchanges bread and tools, then hosts a persistent visit
     const pid = host.pid;
     G.dolls = [host];
     host.job = 'none';
-    for (const [day, exchange] of [[1, 'bread'], [2, 'borrow'], [3, 'returnTool']]) {
+    for (const [day, exchange] of [[1, 'bread'], [3, 'borrow'], [5, 'returnTool']]) {
       G.day = day; G.time = 14 * 60;
+      Math.random = () => .1;
       assert.ok(tickNeighborVisit());
+      Math.random = () => .5;
       const event = G.community.active;
       assert.equal(event.exchange, exchange);
       assert.equal(event.guestPid, NEIGHBOR_PID);

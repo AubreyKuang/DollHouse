@@ -4662,6 +4662,7 @@ function restoreCommunity(saved) {
     applications: saved?.applications || [],
     active: saved?.active || null,
     lastRoll: saved?.lastRoll || 0,
+    lastAutoVisit: saved?.lastAutoVisit ?? -1,
     nextEventAt: saved?.nextEventAt || 0,
     neighbor: saved?.neighbor || { ties: {}, lastMonth: 0, visits: 0 },
     outing: saved?.outing ? { ...saved.outing, resume: saved.outing.phase === 'leaving' } : null,
@@ -4851,6 +4852,9 @@ function endGetTogether() {
   save();
 }
 
+// Leave one full quiet month between spontaneous visits of either kind.
+const autoVisitAllowed = () => G.day - G.community.lastAutoVisit >= 2;
+
 function communityTick() {
   const community = G.community;
   tickNeighborOuting();
@@ -4865,12 +4869,12 @@ function communityTick() {
     else if (!tickPicnicWeather(event) && absNow() >= event.endsAt) endGetTogether();
     return;
   }
-  if (community.outing || resumePicnic() || tickNeighborVisit()) return;
+  if (community.outing || resumePicnic() || !autoVisitAllowed() || tickNeighborVisit()) return;
   if (G.time < 17.5 * 60 || G.time >= 21 * 60 || community.lastRoll === G.day || absNow() < community.nextEventAt) return;
   const hosts = availableHosts();
   if (!hosts.length) return;
   community.lastRoll = G.day;
-  if (Math.random() >= .67) return;
+  if (Math.random() >= .20) return;
   const host = weighted(hosts.map(d => [d, isE(d) ? 2.5 : 1]));
   const party = isE(host) ? .48 : .22;
   const kind = Math.random() < party ? weighted([
@@ -4879,7 +4883,10 @@ function communityTick() {
     ['games', ['nerd', 'genki'].includes(host.persona) ? 3 : 1],
     ['picnic', G.weather === 'snow' ? 0 : 2],
   ]) : 'visit';
-  startGetTogether(host, kind);
+  if (startGetTogether(host, kind)) {
+    community.lastAutoVisit = G.day;
+    save();
+  }
 }
 
 function moveInApplicant(pid) {
@@ -4947,12 +4954,14 @@ function contactNeighbor(d, other, meal = false) {
 function tickNeighborVisit() {
   const n = G.community.neighbor;
   if (communityDoll(NEIGHBOR_PID) || G.community.outing || G.time < 14 * 60 || G.time >= 17 * 60 ||
-      n.lastMonth === G.day || absNow() < G.community.nextEventAt) return false;
+      !autoVisitAllowed() || n.lastRoll === G.day || n.lastMonth === G.day || absNow() < G.community.nextEventAt) return false;
   const host = availableHosts().filter(d => d.act?.type !== 'leave' && d.needs.energy >= 34 && d.needs.hunger >= 25).sort((a, b) => {
     const interest = d => (G.rel[relKey(d, NEIGHBOR_PROFILE)]?.f ?? 25) + (['social', 'foodie', 'maker'].includes(d.persona) ? 8 : 0);
     return interest(b) - interest(a);
   })[0];
   if (!host) return false;
+  n.lastRoll = G.day;
+  if (Math.random() >= (n.borrowed ? .45 : .20)) return false;
   let friend = neighborProfile();
   if (friend === NEIGHBOR_PROFILE) {
     friend = { ...NEIGHBOR_PROFILE, look: { ...NEIGHBOR_PROFILE.look } };
@@ -4961,6 +4970,7 @@ function tickNeighborVisit() {
   const exchange = n.borrowed ? 'returnTool' : n.visits % 3 === 1 ? 'borrow' : 'bread';
   if (!startGetTogether(host, 'visit', { friend, exchange })) return false;
   n.lastMonth = G.day;
+  G.community.lastAutoVisit = G.day;
   n.visits++;
   save();
   return true;
