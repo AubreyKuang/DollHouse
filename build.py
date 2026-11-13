@@ -1,5 +1,5 @@
 # 把 index.html + style.css + js/*.js 合并成一个独立的单文件 HTML
-import re, pathlib
+import base64, re, pathlib
 root = pathlib.Path(__file__).parent
 html = (root / 'index.html').read_text(encoding='utf-8')
 test_html = html.replace('<body>', '<body data-mode="test">').replace(
@@ -8,6 +8,9 @@ test_html = html.replace('<body>', '<body data-mode="test">').replace(
 (root / 'dev.html').write_text(test_html, encoding='utf-8')
 css = (root / 'style.css').read_text(encoding='utf-8')
 html = html.replace('<link rel="stylesheet" href="style.css">', '<style>\n' + css + '</style>')
+atlas_path = 'assets/cottage-atlas.webp'
+atlas_data = base64.b64encode((root / atlas_path).read_bytes()).decode('ascii')
+html = html.replace(f'src="{atlas_path}"', f'src="data:image/webp;base64,{atlas_data}"')
 def inline(m):
     return '<script>\n' + (root / m.group(1)).read_text(encoding='utf-8') + '</script>'
 html = re.sub(r'<script src="([^"]+)"></script>', inline, html)
