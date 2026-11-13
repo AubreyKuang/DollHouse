@@ -213,6 +213,24 @@ function bookFollowupDraft(note) {
   return G.paperMoments.find(draft => draft.month >= G.day && draft.paperKey === note.paperKey) || null;
 }
 
+function canDeferBookFollowup(note, draft) {
+  return !!draft && draft.month === G.day && !draft.deferred && !note.followup;
+}
+
+function deferBookFollowup(chair, replacing) {
+  const note = bookRecommendation(chair), draft = bookFollowupDraft(note);
+  const month = G.day + 1;
+  if (!G.furniture.includes(chair) || !canDeferBookFollowup(note, draft) || bookPaperDraft(month) !== replacing) return false;
+  const previousMoments = G.paperMoments, notes = G.keepsakes.bookRecommendations;
+  G.paperMoments = previousMoments.filter(moment => moment !== replacing)
+    .map(moment => moment === draft ? { ...draft, month, deferred: true } : moment);
+  notes[chair.key] = { ...note, until: Math.max(note.until, month) };
+  if (save()) return true;
+  G.paperMoments = previousMoments;
+  notes[chair.key] = note;
+  return false;
+}
+
 function bookFollowupLine(first, second, room) {
   const place = Object.hasOwn(readingRoomNames, room) ? readingRoomNames[room] + '的' : '';
   return `${first.name}和${second.name}在${place}窗边聊起了这句答复。`;

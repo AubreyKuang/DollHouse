@@ -180,6 +180,7 @@ const bookPaperButton = $('#bookPaper');
 const bookNextIssue = $('#bookNextIssue');
 const bookPaperReadingOnlyButton = $('#bookPaperReadingOnly');
 const bookPaperFollowupButton = $('#bookPaperFollowup');
+const bookPaperDeferButton = $('#bookPaperDefer');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
@@ -275,6 +276,19 @@ function submitSelectedBook(includeConversation, keepForFollowup = false) {
 bookPaperButton.onclick = () => submitSelectedBook(true);
 bookPaperReadingOnlyButton.onclick = () => submitSelectedBook(false);
 bookPaperFollowupButton.onclick = () => submitSelectedBook(true, true);
+bookPaperDeferButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  const nextDraft = bookPaperDraft(G.day + 1);
+  if (nextDraft && !confirm(`下期原稿：${nextDraft.result[2]}\n\n改投会腾出本期版位，并替换下期原稿。要改投吗？`)) return;
+  if (!deferBookFollowup(chair, nextDraft)) {
+    if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，书摘仍在本期。';
+    return;
+  }
+  bookMoveStatus.textContent = '书摘已改投下期，便条保留到下月底。本期版位已腾出。';
+  refreshReadingSeats();
+  readingSeat.focus();
+};
 bookNextIssue.onchange = refreshReadingSeats;
 bookKeepForPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -372,6 +386,10 @@ function refreshReadingSeats() {
   const nextIssue = bookNextIssue.checked;
   const currentDraft = bookPaperDraft();
   const nextDraft = bookPaperDraft(G.day + 1);
+  const canDefer = canDeferBookFollowup(recommendation, followupDraft);
+  bookPaperDeferButton.hidden = !canDefer;
+  const deferAction = nextDraft ? '改投并替换下期书摘' : '改投下期，继续等补稿';
+  if (bookPaperDeferButton.textContent !== deferAction) bookPaperDeferButton.textContent = deferAction;
   const draft = nextIssue ? nextDraft : currentDraft;
   const issue = nextIssue ? '下期' : '本期';
   const hasConversation = publicReaders?.length === BOOK_PUBLIC_READERS && recommendation.question === true;
@@ -463,7 +481,7 @@ function refreshReadingSeats() {
     return `${d.name}${room ? '在' + room : ''}读完`;
   }).join('，');
   const publicChoice = followupDraft
-    ? `已交给${monthLabel(followupDraft.month)}月报。${recommendation.followup ? '聊天经过已补进书摘。' : '若在出刊前聊完，会自动补进书摘。'}${deadline}`
+    ? `已交给${monthLabel(followupDraft.month)}月报。${recommendation.followup ? '聊天经过已补进书摘。' : '若在出刊前聊完，会自动补进书摘。'}${deadline}${canDefer ? '可改投一次，腾出本期版位，并把便条留到下月底。' : ''}`
     : completed
     ? `两位读者的记录已留在便条上。本期${currentDraft ? '已有书摘' : '版位空着'}，下期${nextDraft ? '已有书摘' : '版位空着'}。空座时可${draft ? `替换${issue}原稿` : `交给${issue}月报`}。${hasConversation ? '只刊阅读经过会省略问答和当面聊天。' : ''}${deadline}`
     : publicReaders?.length
