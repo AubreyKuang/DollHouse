@@ -169,8 +169,16 @@ HOOK.select = () => {
 };
 
 const studyQuietButton = $('#studyQuiet');
+const studyQuietTimer = $('#studyQuietTimer');
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;
+  G.studyQuietUntil = null;
+  refreshSceneHint();
+  save();
+};
+studyQuietTimer.onclick = () => {
+  if (G.studyQuiet) return;
+  G.studyQuietUntil = studyQuietTimed() ? null : Math.floor(absNow()) + STUDY_QUIET_MINUTES;
   refreshSceneHint();
   save();
 };
@@ -186,11 +194,20 @@ function refreshSceneHint() {
   const quietHint = $('#studyQuietHint');
   studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
+  studyQuietTimer.hidden = studyQuietButton.hidden;
+  studyQuietTimer.disabled = G.studyQuiet;
   const quietState = String(G.studyQuiet);
   if (studyQuietButton.getAttribute('aria-pressed') !== quietState) {
     studyQuietButton.setAttribute('aria-pressed', quietState);
-    quietHint.textContent = G.studyQuiet ? '路过的人不打扰，也不结伴读。' : '书房开放，熟人可以路过搭话或结伴阅读。';
   }
+  const timed = studyQuietTimed();
+  if (studyQuietTimer.getAttribute('aria-pressed') !== String(timed)) {
+    studyQuietTimer.setAttribute('aria-pressed', String(timed));
+  }
+  const quietText = G.studyQuiet ? '路过的人不打扰，也不结伴读。'
+    : timed ? `安静阅读至 ${G.studyQuietUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(G.studyQuietUntil)}，到时恢复开放。`
+      : '书房开放，熟人可以路过搭话或结伴阅读。';
+  if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
   if (!strip || !action) return;
   strip.hidden = G.mode !== 'live';
   for (const button of strip.children) {

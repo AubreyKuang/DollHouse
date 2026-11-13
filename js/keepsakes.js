@@ -13,7 +13,7 @@ function restoreKeepsakes(saved) {
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
-const quietStudy = f => G.studyQuiet && cornerRoom(f) === 'study';
+const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
 

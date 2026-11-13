@@ -8,6 +8,10 @@ const BATH_X = 4;
 const BATH_DOOR_Y = 17;
 G.bedDoor = true;
 G.studyQuiet = false;
+G.studyQuietUntil = null;
+const STUDY_QUIET_MINUTES = 60;
+const studyQuietTimed = () => G.studyQuietUntil > absNow();
+const studyQuietActive = () => G.studyQuiet || studyQuietTimed();
 
 const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
@@ -102,7 +106,7 @@ function partitionDrawables(c) {
     const bx = HOUSE_X + BATH_X * T, by = houseY(BATH_DOOR_Y * T, STOREYS[1]);
     drawables.push({ y: by + FLOOR_STEP, draw: () => R(c, bx - 5, by + 2, 10, 2, '#ddcfaf') });
   }
-  if (G.studyQuiet) {
+  if (studyQuietActive()) {
     const x = HOUSE_X + BX * T, y = houseY(UPPER_DOOR_Y * T, STOREYS[1]);
     drawables.push({ y: y + FLOOR_STEP, draw: () => {
       R(c, x - 5, y - 11, 10, 7, '#665851');

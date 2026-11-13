@@ -150,8 +150,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .resident-quick-person small{font-size:10px}
 .scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .scene-action .hint{flex:1 1 13em;margin:3px 2px}
-#quickFurniture,#cancelFurniture,#studyQuiet{min-height:44px}
-#studyQuiet[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+#quickFurniture,#cancelFurniture,#studyQuiet,#studyQuietTimer{min-height:44px}
+:is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);

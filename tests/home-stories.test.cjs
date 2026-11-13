@@ -190,6 +190,30 @@ test('study quiet protects reading without blocking access and preserves the set
   assert.equal(G.studyQuiet,false);
 `));
 
+test('a timed study sign resumes across a save and expires at the hour even across months', () => game(`
+  G.time=23*60+40;
+  const chair=addFurniture('chair',10,16);
+  const until=absNow()+STUDY_QUIET_MINUTES;
+  G.studyQuietUntil=until;
+  assert.equal(quietStudy(chair),true);
+  assert.equal(save(),true);
+  load();
+  assert.equal(G.studyQuiet,false);
+  assert.equal(G.studyQuietUntil,until);
+  G.day++;
+  G.time=39.99;
+  assert.equal(quietStudy(chair),true);
+  G.time=40;
+  assert.equal(quietStudy(chair),false);
+  assert.equal(houseSaveData().studyQuietUntil,null);
+  const invalid={...houseSaveData(),studyQuietUntil:absNow()+61};
+  applySave(invalid);
+  assert.equal(G.studyQuietUntil,null);
+  applySave({...invalid,studyQuiet:true});
+  assert.equal(quietStudy(chair),true);
+  assert.equal(G.studyQuietUntil,null);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

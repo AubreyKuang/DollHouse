@@ -42,7 +42,8 @@ function houseSaveData() {
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
     npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
-    studyQuiet: G.studyQuiet, trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
+    studyQuiet: G.studyQuiet, studyQuietUntil: studyQuietTimed() ? G.studyQuietUntil : null,
+    trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
 }
 function save(touch = false) {
@@ -162,6 +163,9 @@ function applySave(s) {
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.studyQuiet = s.studyQuiet === true;
+  const quietUntil = s.studyQuietUntil, now = absNow();
+  G.studyQuietUntil = !G.studyQuiet && Number.isInteger(quietUntil) && quietUntil > now &&
+    quietUntil <= now + STUDY_QUIET_MINUTES ? quietUntil : null;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y, f);

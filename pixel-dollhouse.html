@@ -157,8 +157,8 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .resident-quick-person small{font-size:10px}
 .scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .scene-action .hint{flex:1 1 13em;margin:3px 2px}
-#quickFurniture,#cancelFurniture,#studyQuiet{min-height:44px}
-#studyQuiet[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+#quickFurniture,#cancelFurniture,#studyQuiet,#studyQuietTimer{min-height:44px}
+:is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
@@ -592,7 +592,9 @@ body{
       <button type="button" id="quickFurniture" class="btn small" hidden></button>
       <button type="button" id="studyQuiet" class="btn small" aria-pressed="false"
         aria-describedby="studyQuietHint">书房安静阅读</button>
-      <span id="studyQuietHint" class="hint">书房开放，熟人可以路过搭话或结伴阅读。</span>
+      <button type="button" id="studyQuietTimer" class="btn small" aria-pressed="false"
+        aria-describedby="studyQuietHint">安静 1 小时</button>
+      <span id="studyQuietHint" class="hint" role="status">书房开放，熟人可以路过搭话或结伴阅读。</span>
     </div>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
       <div id="homeNowCast" class="home-mini-cast"></div>
@@ -2819,7 +2821,8 @@ function houseSaveData() {
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
     npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
-    studyQuiet: G.studyQuiet, trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
+    studyQuiet: G.studyQuiet, studyQuietUntil: studyQuietTimed() ? G.studyQuietUntil : null,
+    trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
 }
 function save(touch = false) {
@@ -2939,6 +2942,9 @@ function applySave(s) {
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.studyQuiet = s.studyQuiet === true;
+  const quietUntil = s.studyQuietUntil, now = absNow();
+  G.studyQuietUntil = !G.studyQuiet && Number.isInteger(quietUntil) && quietUntil > now &&
+    quietUntil <= now + STUDY_QUIET_MINUTES ? quietUntil : null;
   G.weather = s.weather || 'sunny'; G.wKey = s.wKey || 0; SFX.setRain(G.weather === 'rain');
   setWorldSize(LEVELS[G.level].cols);
   for (const f of s.furniture) if (FURNITURE[f.id]) addFurniture(f.id, f.x, f.y, f);
@@ -4986,6 +4992,10 @@ const BATH_X = 4;
 const BATH_DOOR_Y = 17;
 G.bedDoor = true;
 G.studyQuiet = false;
+G.studyQuietUntil = null;
+const STUDY_QUIET_MINUTES = 60;
+const studyQuietTimed = () => G.studyQuietUntil > absNow();
+const studyQuietActive = () => G.studyQuiet || studyQuietTimed();
 
 const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
@@ -5080,7 +5090,7 @@ function partitionDrawables(c) {
     const bx = HOUSE_X + BATH_X * T, by = houseY(BATH_DOOR_Y * T, STOREYS[1]);
     drawables.push({ y: by + FLOOR_STEP, draw: () => R(c, bx - 5, by + 2, 10, 2, '#ddcfaf') });
   }
-  if (G.studyQuiet) {
+  if (studyQuietActive()) {
     const x = HOUSE_X + BX * T, y = houseY(UPPER_DOOR_Y * T, STOREYS[1]);
     drawables.push({ y: y + FLOOR_STEP, draw: () => {
       R(c, x - 5, y - 11, 10, 7, '#665851');
@@ -6820,7 +6830,7 @@ function restoreKeepsakes(saved) {
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
-const quietStudy = f => G.studyQuiet && cornerRoom(f) === 'study';
+const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
 
@@ -8961,8 +8971,16 @@ HOOK.select = () => {
 };
 
 const studyQuietButton = $('#studyQuiet');
+const studyQuietTimer = $('#studyQuietTimer');
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;
+  G.studyQuietUntil = null;
+  refreshSceneHint();
+  save();
+};
+studyQuietTimer.onclick = () => {
+  if (G.studyQuiet) return;
+  G.studyQuietUntil = studyQuietTimed() ? null : Math.floor(absNow()) + STUDY_QUIET_MINUTES;
   refreshSceneHint();
   save();
 };
@@ -8978,11 +8996,20 @@ function refreshSceneHint() {
   const quietHint = $('#studyQuietHint');
   studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
+  studyQuietTimer.hidden = studyQuietButton.hidden;
+  studyQuietTimer.disabled = G.studyQuiet;
   const quietState = String(G.studyQuiet);
   if (studyQuietButton.getAttribute('aria-pressed') !== quietState) {
     studyQuietButton.setAttribute('aria-pressed', quietState);
-    quietHint.textContent = G.studyQuiet ? '路过的人不打扰，也不结伴读。' : '书房开放，熟人可以路过搭话或结伴阅读。';
   }
+  const timed = studyQuietTimed();
+  if (studyQuietTimer.getAttribute('aria-pressed') !== String(timed)) {
+    studyQuietTimer.setAttribute('aria-pressed', String(timed));
+  }
+  const quietText = G.studyQuiet ? '路过的人不打扰，也不结伴读。'
+    : timed ? `安静阅读至 ${G.studyQuietUntil >= G.day * 1440 ? '下个月 ' : ''}${hhmm(G.studyQuietUntil)}，到时恢复开放。`
+      : '书房开放，熟人可以路过搭话或结伴阅读。';
+  if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
   if (!strip || !action) return;
   strip.hidden = G.mode !== 'live';
   for (const button of strip.children) {
