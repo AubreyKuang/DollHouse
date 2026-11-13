@@ -27,6 +27,23 @@ function runGame(scenario, { mode, data = new Map(), withView = false } = {}) {
   vm.runInContext(scenario, context);
 }
 
+test('all entry points open residents and include the same two art atlases', () => {
+  const atlases = ['cottage', 'doll'];
+  const offline = read('pixel-dollhouse.html');
+  for (const file of ['index.html', 'dev.html', 'pixel-dollhouse.html']) {
+    assert.match(read(file), /<details id="side" open>/);
+  }
+  for (const art of atlases) {
+    const source = new RegExp('src="assets/' + art + '-atlas[.]webp');
+    assert.match(read('index.html'), source);
+    assert.match(read('dev.html'), source);
+    const id = new RegExp('id="' + art + 'Atlas" src="data:image/webp;base64,([^"]+)"');
+    const embedded = offline.match(id);
+    assert.ok(embedded, art);
+    assert.deepEqual(Buffer.from(embedded[1], 'base64'), fs.readFileSync(path.join(root, 'assets', art + '-atlas.webp')));
+  }
+});
+
 test('every purchasable furnishing has one category, a price, and a sprite', () => {
   runGame(`
     const items = Object.values(FURNITURE_GROUPS).flat();

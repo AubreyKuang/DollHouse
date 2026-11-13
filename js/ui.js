@@ -202,6 +202,16 @@ $('#btnReset').onclick = () => {
 };
 
 const iconCache = {};
+dollAtlas?.addEventListener('load', () => {
+  HOOK.select();
+  if (!$('#wardrobe').hidden) drawWdPreview();
+  if ($('#paperDialog').open) renderHousePaper(housePaperIndex);
+  if ($('#applicationsDialog').open) renderApplications();
+  if ($('#neighborDialog').open) {
+    delete $('#neighborPorch').dataset.scene;
+    updateNeighborDialog();
+  }
+});
 cottageAtlas?.addEventListener('load', () => {
   for (const id of Object.keys(COTTAGE_SPRITES)) delete iconCache[id];
   if (G.mode === 'build') renderPalette();
