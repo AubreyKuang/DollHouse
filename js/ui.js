@@ -179,6 +179,7 @@ const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
 const bookNextIssue = $('#bookNextIssue');
 const bookPaperReadingOnlyButton = $('#bookPaperReadingOnly');
+const bookPaperFollowupButton = $('#bookPaperFollowup');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
@@ -247,7 +248,7 @@ bookPublicButton.onclick = () => {
   if (!chair || G.mode !== 'live' || !togglePublicBook(chair)) return;
   refreshReadingSeats();
 };
-function submitSelectedBook(includeConversation) {
+function submitSelectedBook(includeConversation, keepForFollowup = false) {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
   const readers = bookPaperReaders(chair);
@@ -261,16 +262,19 @@ function submitSelectedBook(includeConversation) {
   if (draft) {
     const author = communityDoll(note.from);
     const scope = hasConversation ? includeConversation ? '一并刊出对话。' : '只刊阅读经过。' : '';
-    if (!confirm(`${issue}原稿：${draft.result[2]}\n新稿：${bookPaperText(author, readers, note)}。${scope}\n\n换稿后只刊登新稿，新便条也会收起。要换稿吗？`)) return;
+    const noteAction = keepForFollowup ? '新便条留在窗边等补稿' : '新便条也会收起';
+    if (!confirm(`${issue}原稿：${draft.result[2]}\n新稿：${bookPaperText(author, readers, note)}。${scope}\n\n换稿后只刊登新稿，${noteAction}。要换稿吗？`)) return;
   }
-  if (!submitBookToPaper(chair, draft, includeConversation, nextIssue)) return;
+  if (!submitBookToPaper(chair, draft, includeConversation, nextIssue, keepForFollowup)) return;
   bookNextIssue.checked = false;
-  bookMoveStatus.textContent = draft ? `${issue}月报已换稿，新便条已收起。` : `书摘已交给${issue}月报，窗边的便条已收起。`;
+  bookMoveStatus.textContent = keepForFollowup ? `书摘已交给${issue}月报，出刊前聊完会自动补稿。`
+    : draft ? `${issue}月报已换稿，新便条已收起。` : `书摘已交给${issue}月报，窗边的便条已收起。`;
   refreshReadingSeats();
   readingSeat.focus();
 }
 bookPaperButton.onclick = () => submitSelectedBook(true);
 bookPaperReadingOnlyButton.onclick = () => submitSelectedBook(false);
+bookPaperFollowupButton.onclick = () => submitSelectedBook(true, true);
 bookNextIssue.onchange = refreshReadingSeats;
 bookKeepForPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
@@ -359,10 +363,11 @@ function refreshReadingSeats() {
   bookDiscussButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes || !!publicReaders;
   bookPublicButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
-  bookPaperButton.hidden = !publicReaders?.length;
+  const followupDraft = bookFollowupDraft(recommendation);
+  bookPaperButton.hidden = !publicReaders?.length || !!followupDraft;
   const completed = publicReaders?.length === BOOK_PUBLIC_READERS;
-  $('#bookIssueChoice').hidden = !completed;
-  if (!completed || bookIssueMonth !== G.day) bookNextIssue.checked = false;
+  $('#bookIssueChoice').hidden = !completed || !!followupDraft;
+  if (!completed || followupDraft || bookIssueMonth !== G.day) bookNextIssue.checked = false;
   bookIssueMonth = G.day;
   const nextIssue = bookNextIssue.checked;
   const currentDraft = bookPaperDraft();
@@ -374,7 +379,10 @@ function refreshReadingSeats() {
     : draft ? '刊出对话并换稿' : '连同对话交稿'
     : draft ? `替换${issue}书摘` : nextIssue ? '收起便条，交给下期月报' : '收起便条，交给月报';
   if (bookPaperButton.textContent !== paperAction) bookPaperButton.textContent = paperAction;
-  bookPaperReadingOnlyButton.hidden = !hasConversation;
+  bookPaperReadingOnlyButton.hidden = !hasConversation || !!followupDraft;
+  bookPaperFollowupButton.hidden = !hasConversation || recommendation.followup === true || !!followupDraft;
+  const followupAction = `${draft ? '换稿' : '投'}到${issue}，聊完自动补稿`;
+  if (bookPaperFollowupButton.textContent !== followupAction) bookPaperFollowupButton.textContent = followupAction;
   const readingOnlyAction = nextIssue ? draft ? '只刊阅读经过并替换下期书摘' : '只刊阅读经过，投到下期'
     : draft ? '只刊阅读经过并换稿' : '只刊阅读经过';
   if (bookPaperReadingOnlyButton.textContent !== readingOnlyAction) bookPaperReadingOnlyButton.textContent = readingOnlyAction;
@@ -428,6 +436,7 @@ function refreshReadingSeats() {
   bookPickReaderButton.disabled = !firstReader || bookNextReader.value === (pickedReader?.pid || '');
   bookPaperButton.disabled = !bookPaperReaders(chair).length;
   bookPaperReadingOnlyButton.disabled = bookPaperButton.disabled;
+  bookPaperFollowupButton.disabled = bookPaperButton.disabled;
   bookReplyButton.hidden = publicReaders?.length !== 1;
   bookReplyButton.disabled = !firstReader;
   const sharing = String(!!publicReaders);
@@ -453,7 +462,9 @@ function refreshReadingSeats() {
     const room = bookReadingRoom(recommendation, d);
     return `${d.name}${room ? '在' + room : ''}读完`;
   }).join('，');
-  const publicChoice = completed
+  const publicChoice = followupDraft
+    ? `已交给${monthLabel(followupDraft.month)}月报。${recommendation.followup ? '聊天经过已补进书摘。' : '若在出刊前聊完，会自动补进书摘。'}${deadline}`
+    : completed
     ? `两位读者的记录已留在便条上。本期${currentDraft ? '已有书摘' : '版位空着'}，下期${nextDraft ? '已有书摘' : '版位空着'}。空座时可${draft ? `替换${issue}原稿` : `交给${issue}月报`}。${hasConversation ? '只刊阅读经过会省略问答和当面聊天。' : ''}${deadline}`
     : publicReaders?.length
     ? `${pickHint}${keeping === 'true' ? '第二位读完后会留下便条供交稿。移到另一间房可记录两处阅读地点。' : '可等两位读完再交稿。'}等待期间月报版位仍可被占用。${deadline}空座时也可立即交稿，或给推荐人留回信。对方读完得 ${BOOK_PRIVATE_FUN} 点乐趣，双方友情增加。`

@@ -659,6 +659,40 @@ test('readers wait for a free moment and walk to a saved window appointment', ()
   assert.ok(readers.every(d=>d.needs.social>43));
 `));
 
+test('a reserved excerpt gets its follow-up once before publication, including after moving and reloading', () => game(`
+  const [author,first,second]=residents();
+  const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  const target=addFurniture('chair',11,4,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',9,UPPER_WALL),seat,addFurniture('window',10,0),target];rebuild();
+  const notes=G.keepsakes.bookRecommendations;
+  notes[seat.key]={from:author.pid,to:first.pid,until:G.day+1,readBy:[first.pid,second.pid],keepForPaper:true,question:true};
+  const write=save;
+  save=()=>false;assert.equal(submitBookToPaper(seat,undefined,true,true,true),false);
+  assert.equal(notes[seat.key].paperKey,undefined);
+  assert.equal(bookPaperDraft(G.day+1),undefined);
+  save=write;assert.ok(submitBookToPaper(seat,undefined,true,true,true));
+  assert.equal(submitBookToPaper(seat,undefined),false);
+  assert.ok(moveBookRecommendation(seat,target));
+  load();
+  const chair=G.furniture.find(f=>f.key===target.key);
+  const [a,b]=[first.pid,second.pid].map(communityDoll);
+  for(const [i,d] of [a,b].entries()){
+    Object.assign(d,{job:'none',state:'idle',needs:{energy:80,hunger:80,bladder:80,social:40,fun:50}});
+    placeDollAt(d,chair.x+i,chair.y+1);
+  }
+  const draft=bookPaperDraft(G.day+1);
+  assert.equal(draft.steps.length,6);
+  save=()=>false;assert.equal(talkAboutBook(chair),false);
+  assert.equal(draft.steps.length,6);
+  save=write;assert.ok(talkAboutBook(chair));assert.equal(talkAboutBook(chair),false);
+  assert.equal(draft.steps.length,7);
+  assert.match(draft.steps[5],/窗边聊起/);
+  assert.deepEqual([a.needs.social,b.needs.social],[44,44]);
+  finishHouseMonth();G.day++;finishHouseMonth();
+  assert.equal(G.paper.at(-1).stories.find(story=>story.label===BOOK_PAPER_LABEL).steps.length,7);
+  assert.equal(bookRecommendation(chair),null);
+`));
+
 test('a completed book can reserve next month without replacing this issue', () => game(`
   const [author,first,second]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});

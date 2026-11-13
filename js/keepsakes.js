@@ -208,6 +208,16 @@ function canTalkAboutBook(chair, readers) {
     readers.every(hasTimeToDiscussReading) && !tensionBetween(first, second);
 }
 
+function bookFollowupDraft(note) {
+  if (!note?.paperKey) return null;
+  return G.paperMoments.find(draft => draft.month >= G.day && draft.paperKey === note.paperKey) || null;
+}
+
+function bookFollowupLine(first, second, room) {
+  const place = Object.hasOwn(readingRoomNames, room) ? readingRoomNames[room] + '的' : '';
+  return `${first.name}和${second.name}在${place}窗边聊起了这句答复。`;
+}
+
 function bookMeetingUntil(note) {
   return note?.meetUntil > absNow() ? note.meetUntil : null;
 }
@@ -233,11 +243,15 @@ function talkAboutBook(chair) {
   const [first, second] = readers, note = bookRecommendation(chair);
   const social = readers.map(d => d.needs.social), log = G.log.slice();
   const room = cornerRoom(chair);
+  const draft = bookFollowupDraft(note);
+  const previousSteps = draft?.steps;
+  if (draft) draft.steps = [...previousSteps.slice(0, -1), bookFollowupLine(first, second, room), previousSteps.at(-1)];
   note.followup = true;
   note.followupRoom = room;
   for (const d of readers) d.needs.social = Math.min(100, d.needs.social + BOOK_FOLLOWUP_SOCIAL);
   addLog(`📖 ${first.name}和${second.name}在窗边聊起了便条上的答复。`);
   if (!save()) {
+    if (draft) draft.steps = previousSteps;
     delete note.followup;
     delete note.followupRoom;
     readers.forEach((d, i) => { d.needs.social = social[i]; });
@@ -315,16 +329,21 @@ function bookPaperText(author, readers, note) {
   return `${readers.map(d => d.name).join('和')}读完了${author.name}推荐的书摘`;
 }
 
-function submitBookToPaper(chair, replacing, includeConversation = true, nextIssue = false) {
+function submitBookToPaper(chair, replacing, includeConversation = true, nextIssue = false, keepForFollowup = false) {
   const readers = bookPaperReaders(chair);
   const month = G.day + (nextIssue ? 1 : 0);
   if (!readers.length || (nextIssue && readers.length !== BOOK_PUBLIC_READERS) ||
       !G.furniture.includes(chair) || bookPaperDraft(month) !== replacing) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  if (bookFollowupDraft(note) || (keepForFollowup &&
+      (!includeConversation || !note.question || note.followup || readers.length !== BOOK_PUBLIC_READERS))) return false;
   const author = communityDoll(note.from);
   const people = [author, ...readers];
+  const previousKey = G.keepsakes.nextFurniture;
+  const paperKey = keepForFollowup ? 'book-paper-' + G.keepsakes.nextFurniture++ : null;
   const moment = {
     ids: people.map(d => d.pid), month,
+    ...(paperKey ? { paperKey } : {}),
     people: people.map(d => ({ name: d.name, look: { ...d.look } })),
     steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => {
       const room = bookReadingRoom(note, d);
@@ -332,14 +351,17 @@ function submitBookToPaper(chair, replacing, includeConversation = true, nextIss
     }), ...(includeConversation && note.question && readers.length === BOOK_PUBLIC_READERS
       ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
     ...(includeConversation && note.followup && readers.length === BOOK_PUBLIC_READERS
-      ? [`${readers[0].name}和${readers[1].name}在${Object.hasOwn(readingRoomNames, note.followupRoom) ? readingRoomNames[note.followupRoom] + '的' : ''}窗边聊起了这句答复。`] : []),
-    nextIssue ? '你收起了便条，把书摘留给了下一期月报。' : '你收起了便条，把书摘留给了月报。'],
+      ? [bookFollowupLine(readers[0], readers[1], note.followupRoom)] : []),
+    paperKey ? '你先交了稿，把便条留在窗边。'
+      : nextIssue ? '你收起了便条，把书摘留给了下一期月报。' : '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;
   G.paperMoments = replacing ? previous.map(draft => draft === replacing ? moment : draft) : [...previous, moment];
-  delete notes[chair.key];
+  if (paperKey) notes[chair.key] = { ...note, paperKey };
+  else delete notes[chair.key];
   if (save()) return true;
+  G.keepsakes.nextFurniture = previousKey;
   notes[chair.key] = note;
   G.paperMoments = previous;
   return false;

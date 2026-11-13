@@ -185,6 +185,13 @@ function finishHouseMonth(deferPaper = false) {
     const [label, icon, text, score] = moment.result;
     candidates.push({ label, icon, text, score, people: moment.people, steps: [...moment.steps] });
   }
+  const publishedBook = (G.paperMoments || []).find(moment => moment.month === G.day && moment.result?.[0] === BOOK_PAPER_LABEL);
+  if (publishedBook?.paperKey) {
+    const notes = G.keepsakes.bookRecommendations;
+    for (const [key, note] of Object.entries(notes)) {
+      if (note.paperKey === publishedBook.paperKey) delete notes[key];
+    }
+  }
   G.paperMoments = (G.paperMoments || []).filter(moment => moment.month === G.day + 1 && moment.result?.[0] === BOOK_PAPER_LABEL);
   G.dayRelations = houseRelations();
   const stories = selectPaperStories(candidates);
