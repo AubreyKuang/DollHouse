@@ -132,6 +132,9 @@ const BOOK_PUBLIC_READERS = 2;
 const BOOK_PUBLIC_FUN = 4;
 const BOOK_PICKED_FUN = 6;
 const BOOK_PRIVATE_FUN = 8;
+const BOOK_QUESTION_SOCIAL = 6, BOOK_QUESTION_FUN_COST = 2;
+const BOOK_QUESTION = '这一段让你想起了什么？';
+const BOOK_ANSWER = '想起了下雨时，我们也常在窗边坐一会儿。';
 function publicBookReaders(note) {
   return Array.isArray(note?.readBy) ? note.readBy : null;
 }
@@ -168,6 +171,15 @@ function keepSharedBookForPaper(chair) {
   if (!G.furniture.includes(chair) || !firstPublicBookReader(chair)) return false;
   const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
   notes[chair.key] = { ...note, keepForPaper: !note.keepForPaper };
+  if (save()) return true;
+  notes[chair.key] = note;
+  return false;
+}
+
+function toggleBookQuestion(chair) {
+  if (!G.furniture.includes(chair) || !firstPublicBookReader(chair)) return false;
+  const notes = G.keepsakes.bookRecommendations, note = notes[chair.key];
+  notes[chair.key] = { ...note, question: !note.question };
   if (save()) return true;
   notes[chair.key] = note;
   return false;
@@ -216,7 +228,9 @@ function submitBookToPaper(chair, replacing) {
     steps: [`${author.name}把读过的书留在窗边。`, ...readers.map(d => {
       const room = bookReadingRoom(note, d);
       return `${d.name}${room ? '在' + room : ''}读完了这段书摘。`;
-    }), '你收起了便条，把书摘留给了月报。'],
+    }), ...(note.question && readers.length === BOOK_PUBLIC_READERS
+      ? [`${readers[0].name}问：「${BOOK_QUESTION}」`, `${readers[1].name}答：「${BOOK_ANSWER}」`] : []),
+    '你收起了便条，把书摘留给了月报。'],
     result: [BOOK_PAPER_LABEL, '📖', `${bookPaperText(author, readers, note)}，这段阅读被收进了月报。`, 77],
   };
   const previous = G.paperMoments;
@@ -299,12 +313,16 @@ function finishBookRecommendation(reader, chair) {
   if (readers) {
     const picked = pickedBookReader(note);
     if (!canReadSharedBook(note, readers, reader) || readers.length >= BOOK_PUBLIC_READERS || (picked && picked !== reader)) return false;
+    const answered = note.question === true && readers.length === 1;
     readers.push(reader.pid);
     note.readRooms = { ...note.readRooms, [reader.pid]: cornerRoom(chair) };
     if (readers.length === BOOK_PUBLIC_READERS && !note.keepForPaper) delete G.keepsakes.bookRecommendations[chair.key];
-    reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN));
-    say(reader, '这一段也值得推荐。');
-    addLog(`📖 ${reader.name}读完了窗边传阅的书摘。`);
+    reader.needs.fun = Math.min(100, reader.needs.fun + (picked ? BOOK_PICKED_FUN : BOOK_PUBLIC_FUN) -
+      (answered ? BOOK_QUESTION_FUN_COST : 0));
+    if (answered) reader.needs.social = Math.min(100, reader.needs.social + BOOK_QUESTION_SOCIAL);
+    say(reader, answered ? BOOK_ANSWER : '这一段也值得推荐。');
+    addLog(answered ? `📖 ${reader.name}读完了窗边的书摘，给上位读者留了答复：「${BOOK_ANSWER}」`
+      : `📖 ${reader.name}读完了窗边传阅的书摘。`);
     return true;
   }
   if (note.to !== reader.pid) return false;

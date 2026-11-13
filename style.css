@@ -158,7 +158,7 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#bookMoveControls,#bookReaderControls):not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
 #bookMoveStatus:empty{position:absolute}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
-:is(#soloReading,#readingNotes,#bookSeat,#bookDiscuss,#bookPublic)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+:is(#soloReading,#readingNotes,#bookSeat,#bookDiscuss,#bookPublic,#bookQuestion)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
 #hint{font-size:14px;font-weight:650;color:var(--ink);background:var(--panel);
   border:2px solid var(--line);border-radius:6px;padding:7px 10px}

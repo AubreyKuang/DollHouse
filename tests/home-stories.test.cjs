@@ -566,9 +566,15 @@ test('a kept book records both readers and can replace a draft after reload', ()
   assert.ok(keepSharedBookForPaper(seat));
   assert.equal(bookPaperDraft(),undefined);
   assert.ok(pickNextBookReader(seat,second.pid));
+  save=()=>false;assert.equal(toggleBookQuestion(seat),false);
+  assert.equal(bookRecommendation(seat).question,undefined);
+  save=write;
+  assert.ok(toggleBookQuestion(seat));
   assert.ok(moveBookRecommendation(seat,destination));
   assert.ok(finishBookRecommendation(second,destination));
-  assert.equal(second.needs.fun,56);
+  assert.deepEqual([second.needs.fun,second.needs.social],[54,56]);
+  assert.equal(finishBookRecommendation(second,destination),false);
+  assert.equal(toggleBookQuestion(destination),false);
   assert.equal(finishBookRecommendation(other,destination),false);
   assert.equal(keepSharedBookForPaper(destination),false);
   assert.equal(replyToBookRecommendation(destination),false);
@@ -585,10 +591,12 @@ test('a kept book records both readers and can replace a draft after reload', ()
   const excerpts=G.paper.at(-1).stories.filter(story=>story.label===BOOK_PAPER_LABEL);
   assert.equal(excerpts.length,1);
   assert.deepEqual(excerpts[0].people.map(d=>d.name),[author.name,first.name,second.name]);
-  assert.equal(excerpts[0].steps.length,4);
+  assert.equal(excerpts[0].steps.length,6);
   assert.match(excerpts[0].text,/从书房传到/);
   assert.equal(excerpts[0].steps[1],first.name+'在书房读完了这段书摘。');
   assert.equal(excerpts[0].steps[2],second.name+'在'+readingRoomNames[cornerRoom(chair)]+'读完了这段书摘。');
+  assert.match(excerpts[0].steps[3],/让你想起了什么/);
+  assert.match(excerpts[0].steps[4],/下雨时/);
 `));
 
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`

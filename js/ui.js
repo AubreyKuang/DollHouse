@@ -178,6 +178,8 @@ const bookDiscussButton = $('#bookDiscuss');
 const bookPublicButton = $('#bookPublic');
 const bookPaperButton = $('#bookPaper');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
+const bookQuestionButton = $('#bookQuestion');
+const bookQuestionHint = $('#bookQuestionHint');
 const bookReplyButton = $('#bookReply');
 const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
@@ -258,6 +260,13 @@ bookKeepForPaperButton.onclick = () => {
   if (!chair || G.mode !== 'live' || !keepSharedBookForPaper(chair)) return;
   refreshReadingSeats();
 };
+bookQuestionButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live') return;
+  if (toggleBookQuestion(chair)) bookMoveStatus.textContent = bookRecommendation(chair).question ? '问题已写在便条上。' : '已撤下问题。';
+  else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条照旧。';
+  refreshReadingSeats();
+};
 bookReplyButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live') return;
@@ -327,20 +336,29 @@ function refreshReadingSeats() {
   const completed = publicReaders?.length === BOOK_PUBLIC_READERS;
   bookKeepForPaperButton.hidden = publicReaders?.length !== 1;
   bookKeepForPaperButton.disabled = !firstReader;
+  bookQuestionButton.hidden = publicReaders?.length !== 1;
+  bookQuestionButton.disabled = !firstReader;
+  const questioning = recommendation?.question === true;
+  if (bookQuestionButton.getAttribute('aria-pressed') !== String(questioning)) bookQuestionButton.setAttribute('aria-pressed', String(questioning));
+  bookQuestionHint.hidden = !questioning && publicReaders?.length !== 1;
+  const questionText = completed && questioning ? `问：「${BOOK_QUESTION}」答：「${BOOK_ANSWER}」`
+    : `「${BOOK_QUESTION}」下一位读完会回话，少得 ${BOOK_QUESTION_FUN_COST} 点乐趣，多恢复 ${BOOK_QUESTION_SOCIAL} 点社交。`;
+  if (bookQuestionHint.textContent !== questionText) bookQuestionHint.textContent = questionText;
   const keeping = String(recommendation?.keepForPaper === true);
   if (bookKeepForPaperButton.getAttribute('aria-pressed') !== keeping) bookKeepForPaperButton.setAttribute('aria-pressed', keeping);
   const pickedReader = pickedBookReader(recommendation);
   const candidates = publicReaders?.length === 1
     ? residents().filter(d => canReadSharedBook(recommendation, publicReaders, d)) : [];
   bookReaderControls.hidden = !candidates.length;
-  const readerOptions = JSON.stringify([chair.key, pickedReader?.pid, candidates.map(d => [d.pid, d.name, d.state === 'away'])]);
+  const readerOptions = JSON.stringify([chair.key, pickedReader?.pid, candidates.map(d => [d.pid, d.name, d.state === 'away']), questioning]);
   if (readerOptions !== bookReaderOptions) {
     const previous = bookReaderOptions && JSON.parse(bookReaderOptions);
     const pending = previous?.[0] === chair.key && previous[1] === (pickedReader?.pid || null) ? bookNextReader.value : null;
-    const open = el('option', '', `自由传阅 · 乐趣 +${BOOK_PUBLIC_FUN}`);
+    const reward = fun => questioning ? `乐趣 +${fun - BOOK_QUESTION_FUN_COST} · 社交 +${BOOK_QUESTION_SOCIAL}` : `乐趣 +${fun}`;
+    const open = el('option', '', `自由传阅 · ${reward(BOOK_PUBLIC_FUN)}`);
     open.value = '';
     bookNextReader.replaceChildren(open, ...candidates.map(d => {
-      const option = el('option', '', `${d.name}${d.state === 'away' ? '（外出）' : ''} · 乐趣 +${BOOK_PICKED_FUN}`);
+      const option = el('option', '', `${d.name}${d.state === 'away' ? '（外出）' : ''} · ${reward(BOOK_PICKED_FUN)}`);
       option.value = d.pid;
       return option;
     }));
