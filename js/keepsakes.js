@@ -140,6 +140,28 @@ function toggleBookSeat(chair) {
   return true;
 }
 
+function canMoveBookRecommendation(source, target, note) {
+  if (!note || source === target || !source.readingNotes || !isWindowChair(source) ||
+      !target?.readingNotes || !isWindowChair(target) || bookRecommendation(target)) return false;
+  const reader = communityDoll(note.to);
+  return !source.users.includes(reader) && !furnitureInUse(target, reader);
+}
+
+function moveBookRecommendation(source, target) {
+  if (!G.furniture.includes(source) || !G.furniture.includes(target)) return false;
+  const note = bookRecommendation(source);
+  if (!canMoveBookRecommendation(source, target, note)) return false;
+  const recommendations = G.keepsakes.bookRecommendations;
+  const previous = recommendations[target.key];
+  recommendations[target.key] = note;
+  delete recommendations[source.key];
+  if (save()) return true;
+  recommendations[source.key] = note;
+  if (previous === undefined) delete recommendations[target.key];
+  else recommendations[target.key] = previous;
+  return false;
+}
+
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;

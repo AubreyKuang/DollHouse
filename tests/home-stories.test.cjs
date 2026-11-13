@@ -330,6 +330,52 @@ test('holding a recommendation seat blocks other residents, persists and expires
   assert.equal(reservedBookReader(chair),null);
 `));
 
+test('moving a recommendation carries the original hold to a free window seat and survives reload', () => game(`
+  const [author,reader,other]=residents();
+  const [source,target]=[[10,16],[11,4]].map(([x,y])=>addFurniture('chair',x,y,{soloReading:true,readingNotes:true}));
+  G.furniture=[addFurniture('window',9,UPPER_WALL),addFurniture('window',10,0),source,target];rebuild();
+  const note={from:author.pid,to:reader.pid,until:G.day+1};
+  const notes=G.keepsakes.bookRecommendations;
+  notes[source.key]=note;
+  assert.ok(toggleBookSeat(source));
+  const deadline=note.seatUntil;
+  G.time+=20;
+  assert.equal(moveBookRecommendation(source,source),false);
+  target.readingNotes=false;
+  assert.equal(moveBookRecommendation(source,target),false);
+  target.readingNotes=true;
+  notes[target.key]={from:other.pid,to:author.pid,until:G.day+1};
+  assert.equal(moveBookRecommendation(source,target),false);
+  delete notes[target.key];
+  target.users.push(other);
+  assert.equal(moveBookRecommendation(source,target),false);
+  target.users.length=0;
+  source.users.push(reader);
+  assert.equal(moveBookRecommendation(source,target),false);
+  source.users.length=0;
+  const realSave=save;
+  save=()=>false;
+  const staleNote={...note,until:G.day-1};
+  notes[target.key]=staleNote;
+  assert.equal(moveBookRecommendation(source,target),false);
+  assert.equal(notes[target.key],staleNote);
+  assert.equal(bookRecommendation(source),note);
+  assert.equal(reservedBookReader(source),reader);
+  save=realSave;
+  assert.equal(moveBookRecommendation(source,target),true);
+  assert.equal(bookRecommendation(source),null);
+  assert.equal(reservedBookReader(target),reader);
+  assert.equal(note.seatUntil,deadline);
+  load();
+  const moved=G.furniture.find(f=>f.key===target.key),old=G.furniture.find(f=>f.key===source.key);
+  assert.equal(bookRecommendation(moved).seatUntil,deadline);
+  assert.equal(reservedBookReader(old),null);
+  assert.equal(reservedBookReader(moved).pid,reader.pid);
+  assert.equal(finishBookRecommendation(communityDoll(reader.pid),moved),true);
+  assert.equal(bookRecommendation(moved),null);
+  assert.equal(reservedBookReader(moved),null);
+`));
+
 test('four people really walk to separate seats and finish a paid dinner once', () => game(`
   const people = residents(), ids = people.map(d => d.pid), before = G.fund;
   people[0].money = 0; people[0].needs.hunger = 5;

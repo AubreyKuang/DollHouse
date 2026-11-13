@@ -161,7 +161,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 :is(#studyQuiet,#studyQuietTimer)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 .scene-action #studyQuietHint{flex:1 1 auto;font-size:12px;margin:0 2px}
 #readingSeatControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
-#readingSeatControls select,#soloReading,#readingNotes,#bookSeat{min-height:48px}
+#readingSeatControls select,#soloReading,#readingNotes,#bookSeat,#bookMove{min-height:48px}
+#bookMoveControls:not([hidden]){display:flex;align-items:center;flex-wrap:wrap;gap:6px;width:100%}
+#bookMoveStatus:empty{position:absolute}
 #readingSeatControls select{font:inherit;font-size:1rem;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;max-width:100%}
 :is(#soloReading,#readingNotes,#bookSeat)[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
 /* 主画面下的操作提示要一眼看到：不只是底部一行小字 */
@@ -609,6 +611,12 @@ body{
         <button type="button" class="btn small" id="bookSeat" aria-pressed="false"
           aria-describedby="readingSeatHint" hidden>留座 1 小时</button>
         <span class="hint" id="readingSeatHint" role="status"></span>
+        <div id="bookMoveControls" hidden>
+          <label for="bookDestination">便条移到</label>
+          <select id="bookDestination"></select>
+          <button type="button" class="btn small" id="bookMove" disabled>移荐书便条</button>
+        </div>
+        <span class="hint" id="bookMoveStatus" role="status"></span>
       </div>
     </div>
     <section id="homeNow" class="home-now" hidden aria-label="正在进行的小屋活动">
@@ -6985,6 +6993,28 @@ function toggleBookSeat(chair) {
   return true;
 }
 
+function canMoveBookRecommendation(source, target, note) {
+  if (!note || source === target || !source.readingNotes || !isWindowChair(source) ||
+      !target?.readingNotes || !isWindowChair(target) || bookRecommendation(target)) return false;
+  const reader = communityDoll(note.to);
+  return !source.users.includes(reader) && !furnitureInUse(target, reader);
+}
+
+function moveBookRecommendation(source, target) {
+  if (!G.furniture.includes(source) || !G.furniture.includes(target)) return false;
+  const note = bookRecommendation(source);
+  if (!canMoveBookRecommendation(source, target, note)) return false;
+  const recommendations = G.keepsakes.bookRecommendations;
+  const previous = recommendations[target.key];
+  recommendations[target.key] = note;
+  delete recommendations[source.key];
+  if (save()) return true;
+  recommendations[source.key] = note;
+  if (previous === undefined) delete recommendations[target.key];
+  else recommendations[target.key] = previous;
+  return false;
+}
+
 function finishBookRecommendation(reader, chair) {
   const note = bookRecommendation(chair);
   if (reader.guest || !chair.readingNotes || !isWindowChair(chair) || note?.to !== reader.pid) return false;
@@ -9088,10 +9118,33 @@ const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
+const bookDestination = $('#bookDestination');
+const bookMoveButton = $('#bookMove');
+const bookMoveStatus = $('#bookMoveStatus');
 let readingSeatOptions = '';
+let bookDestinationOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
-readingSeat.onchange = refreshReadingSeats;
+readingSeat.onchange = () => {
+  bookMoveStatus.textContent = '';
+  bookDestination.value = '';
+  refreshReadingSeats();
+};
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+bookDestination.onchange = () => { bookMoveButton.disabled = !bookDestination.value; };
+bookMoveButton.onclick = () => {
+  const source = selectedReadingSeat();
+  const target = G.furniture.find(f => f.key === bookDestination.value);
+  if (!source || G.mode !== 'live') return;
+  if (moveBookRecommendation(source, target)) {
+    readingSeat.value = target.key;
+    bookDestination.value = '';
+    bookMoveStatus.textContent = '荐书便条已移到这把椅子。';
+    readingSeat.focus();
+  } else {
+    bookMoveStatus.textContent = G.saveOk ? '这把椅子现在不能接收便条。' : '存档未写入，便条留在原位。';
+  }
+  refreshReadingSeats();
+};
 bookSeatButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
@@ -9154,6 +9207,24 @@ function refreshReadingSeats() {
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';
   if (note.textContent !== text) note.textContent = text;
+
+  const destinations = seats.flatMap((seat, i) => canMoveBookRecommendation(chair, seat, recommendation)
+    ? [[seat.key, names[i]]] : []);
+  $('#bookMoveControls').hidden = !destinations.length;
+  const destinationOptions = JSON.stringify(destinations);
+  if (destinationOptions !== bookDestinationOptions) {
+    const previous = bookDestination.value;
+    bookDestination.replaceChildren(el('option', '', '选择另一把椅子'));
+    bookDestination.options[0].value = '';
+    for (const [key, name] of destinations) {
+      const option = el('option', '', name);
+      option.value = key;
+      bookDestination.append(option);
+    }
+    if (destinations.some(([key]) => key === previous)) bookDestination.value = previous;
+    bookDestinationOptions = destinationOptions;
+  }
+  bookMoveButton.disabled = !bookDestination.value;
 }
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;

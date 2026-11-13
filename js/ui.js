@@ -174,10 +174,33 @@ const readingSeat = $('#readingSeat');
 const soloReadingButton = $('#soloReading');
 const readingNotesButton = $('#readingNotes');
 const bookSeatButton = $('#bookSeat');
+const bookDestination = $('#bookDestination');
+const bookMoveButton = $('#bookMove');
+const bookMoveStatus = $('#bookMoveStatus');
 let readingSeatOptions = '';
+let bookDestinationOptions = '';
 const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
-readingSeat.onchange = refreshReadingSeats;
+readingSeat.onchange = () => {
+  bookMoveStatus.textContent = '';
+  bookDestination.value = '';
+  refreshReadingSeats();
+};
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
+bookDestination.onchange = () => { bookMoveButton.disabled = !bookDestination.value; };
+bookMoveButton.onclick = () => {
+  const source = selectedReadingSeat();
+  const target = G.furniture.find(f => f.key === bookDestination.value);
+  if (!source || G.mode !== 'live') return;
+  if (moveBookRecommendation(source, target)) {
+    readingSeat.value = target.key;
+    bookDestination.value = '';
+    bookMoveStatus.textContent = '荐书便条已移到这把椅子。';
+    readingSeat.focus();
+  } else {
+    bookMoveStatus.textContent = G.saveOk ? '这把椅子现在不能接收便条。' : '存档未写入，便条留在原位。';
+  }
+  refreshReadingSeats();
+};
 bookSeatButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !toggleBookSeat(chair)) return;
@@ -240,6 +263,24 @@ function refreshReadingSeats() {
     : quietStudy(chair) ? '书房重新开放后，熟人可在此搭话或共读。'
       : '熟人可在此搭话或共读。';
   if (note.textContent !== text) note.textContent = text;
+
+  const destinations = seats.flatMap((seat, i) => canMoveBookRecommendation(chair, seat, recommendation)
+    ? [[seat.key, names[i]]] : []);
+  $('#bookMoveControls').hidden = !destinations.length;
+  const destinationOptions = JSON.stringify(destinations);
+  if (destinationOptions !== bookDestinationOptions) {
+    const previous = bookDestination.value;
+    bookDestination.replaceChildren(el('option', '', '选择另一把椅子'));
+    bookDestination.options[0].value = '';
+    for (const [key, name] of destinations) {
+      const option = el('option', '', name);
+      option.value = key;
+      bookDestination.append(option);
+    }
+    if (destinations.some(([key]) => key === previous)) bookDestination.value = previous;
+    bookDestinationOptions = destinationOptions;
+  }
+  bookMoveButton.disabled = !bookDestination.value;
 }
 studyQuietButton.onclick = () => {
   G.studyQuiet = !G.studyQuiet;
