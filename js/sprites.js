@@ -65,62 +65,66 @@ const WOOD = '#ae7856', WOOD_L = '#d7a77a', WOOD_D = '#785247';
 
 function drawBed(c, x, y, f, double, linen = double ? '#cf849a' : '#9e92b6') {
   const w = double ? 48 : 32;
-  const frame = '#765057', edge = '#583e48', hi = shade(linen, .16), seam = shade(linen, -.10);
-  contactShadow(c, x + 2, y + 30, w - 4);
-  bevel(c, x + 2, y + 7, w - 4, 23, '#a57264', edge);
-  R(c, x + 6, y + 8, w - 12, 2, '#d3a18a');
-  R(c, x + 6, y + 11, w - 12, 4, '#93615e');
-  for (const post of [x + 3, x + w - 6]) {
-    R(c, post, y + 8, 3, 24, frame);
-    R(c, post, y + 8, 2, 2, '#ddb199');
-    R(c, post + 1, y + 10, 1, 5, '#b98072');
+  const edge = '#623f46', walnut = '#a06d58', honey = '#d9a386';
+  const hi = shade(linen, .13), dark = shade(linen, -.15);
+  contactShadow(c, x + 1, y + 30, w - 2);
+  bevel(c, x + 2, y + 3, w - 4, 26, walnut, edge);
+  bevel(c, x + 6, y + 5, w - 12, 11, '#b48369', edge);
+  R(c, x + 8, y + 6, w - 16, 1, honey);
+  for (const post of [x + 2, x + w - 6]) {
+    bevel(c, post, y + 2, 4, 30, walnut, edge);
+    R(c, post + 1, y + 3, 2, 2, honey);
   }
-  bevel(c, x + 3, y + 14, w - 6, 14, '#fff1e2', frame);
-  const centers = double ? [13, 35] : [16];
-  for (const [slot, center] of centers.entries()) {
-    bevel(c, x + center - 7, y + 14, 14, 6, '#fff0e5', '#cdb2ae');
-    R(c, x + center - 5, y + 15, 9, 1, '#fffbef');
-    detail(c, x + center - 4, y + 18.5, 8, .5, '#dec5be');
+  bevel(c, x + 3, y + 12, w - 6, 17, '#fff1dc', '#ab7c78');
+  for (const [slot, center] of (double ? [13, 35] : [16]).entries()) {
+    bevel(c, x + center - 8, y + 13, 16, 7, '#fbe5d5', '#b78c87');
+    R(c, x + center - 6, y + 14, 11, 2, '#fff4e6');
+    detail(c, x + center - 6, y + 18, 11, .5, '#d7afa0');
     f?.occ?.(slot, x + center, y + 19);
   }
-  bevel(c, x + 3, y + 20, w - 6, 9, linen, seam);
+  bevel(c, x + 2, y + 20, w - 4, 10, linen, dark);
   R(c, x + 4, y + 21, w - 8, 1, hi);
-  for (let px = x + 7; px < x + w - 5; px += 7) {
-    detail(c, px, y + 25, 1, 1, seam);
-    detail(c, px + 1, y + 24, 1, 1, seam);
-    detail(c, px + 2, y + 23, 1, 1, seam);
-    detail(c, px + 3, y + 24, 1, 1, hi);
-    detail(c, px + 2, y + 25, 1, 1, hi);
-    detail(c, px + 1, y + 26, 1, 1, hi);
+  for (let row = 0; row < 6; row++) {
+    for (let px = 4; px < w - 4; px++) {
+      const phase = (px + row) % 8, opposite = (px - row + 8) % 8;
+      if (phase === 0 || opposite === 0) R(c, x + px, y + 22 + row, 1, 1, dark);
+      else if (phase === 1 || opposite === 7) detail(c, x + px, y + 22 + row, .5, .5, hi);
+    }
   }
-  R(c, x + 4, y + 28, w - 8, 1, shade(linen, -.16));
-  R(c, x + 4, y + 29, w - 8, 1, '#b78274');
+  R(c, x + 4, y + 29, w - 8, 1, dark);
+  R(c, x + 4, y + 30, w - 8, 1, honey);
 }
 
 const DRAW = {
   bed(c, x, y, f) { drawBed(c, x, y, f, false); },
   bigbed(c, x, y, f) { drawBed(c, x, y, f, true); },
   sofa(c, x, y) {
-    const edge = '#3e605c', body = '#76a99d', shade = '#518577', light = '#aacabd';
-    contactShadow(c, x + 2, y + 14, 28);
-    for (const foot of [x + 4, x + 26]) R(c, foot, y + 12, 2, 3, WOOD_D);
-    bevel(c, x + 2, y - 8, 28, 17, body, edge);
-    R(c, x + 5, y - 7, 22, 1, light);
-    R(c, x + 6, y - 1, 20, 1, shade);
-    R(c, x + 15, y - 5, 1, 4, '#649b8d');
-    bevel(c, x + 3, y + 1, 26, 12, shade, edge);
-    for (const seat of [x + 5, x + 16]) {
-      bevel(c, seat, y + 2, 11, 7, '#9bc1b2', shade);
-      detail(c, seat + 1, y + 3, 8, .5, '#c4d8ca');
-      R(c, seat + 1, y + 7, 9, 1, body);
+    const edge = '#46615d', body = '#6b9e91', shadow = '#507e72', light = '#bad2bc';
+    contactShadow(c, x, y + 14, 32);
+    for (const foot of [x + 4, x + 26]) {
+      R(c, foot, y + 11, 3, 4, WOOD_D);
+      detail(c, foot, y + 13, 2, .5, WOOD_L);
+    }
+    R(c, x + 7, y - 10, 18, 15, edge);
+    bevel(c, x + 4, y - 9, 24, 15, body, edge);
+    bevel(c, x + 6, y - 8, 20, 11, '#8db4a4', shadow);
+    R(c, x + 8, y - 7, 16, 1, light);
+    detail(c, x + 15.5, y - 6, .5, 6, shadow);
+    bevel(c, x + 3, y + 2, 26, 11, shadow, edge);
+    for (const seat of [x + 6, x + 16]) {
+      bevel(c, seat, y + 1, 10, 7, '#a8c5b3', shadow);
+      detail(c, seat + 2, y + 2, 6, .5, '#d4dfc6');
+      R(c, seat + 1, y + 6, 8, 1, body);
     }
     for (const arm of [x, x + 25]) {
-      bevel(c, arm, y - 2, 7, 14, body, edge);
-      bevel(c, arm + 1, y - 1, 5, 6, light, shade);
-      detail(c, arm + 2.5, y + .5, 2, 1, body);
-      R(c, arm + 2, y + 8, 3, 2, shade);
+      bevel(c, arm + 1, y, 5, 11, body, edge);
+      bevel(c, arm, y - 3, 7, 8, body, edge);
+      bevel(c, arm + 1, y - 2, 5, 6, light, shadow);
+      detail(c, arm + 2, y - .5, 3, 2.5, shadow);
+      detail(c, arm + 2.5, y, 2, .5, '#d4dfc6');
+      detail(c, arm + 3.5, y + .5, .5, 1, body);
     }
-    R(c, x + 7, y + 10, 18, 1, body);
+    R(c, x + 6, y + 9, 20, 1, body);
   },
   chair(c, x, y) {
     box(c, x + 3, y - 9, 10, 12, WOOD); R(c, x + 5, y - 7, 6, 1, WOOD_L); R(c, x + 5, y - 4, 6, 1, WOOD_L);
@@ -346,7 +350,7 @@ const DRAW = {
 };
 
 // 家具在 y 方向的视觉顶部（用于选中高亮、图标裁切）
-const TALL = { sofa: 8, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
+const TALL = { sofa: 10, chair: 9, table: 6, fridge: 18, stove: 12, shelf: 22, tv: 17, arcade: 18, piano: 14, bath: 9, plant: 18, lamp: 21, catbed: 0 };
 
 // 把一件家具画成调色板里的小图标
 function furnitureIcon(id, size = 56, props = {}) {

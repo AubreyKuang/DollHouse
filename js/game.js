@@ -32,7 +32,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -135,7 +135,12 @@ function applySave(s) {
   }
   fitHouseFurniture();
   ensureDoor(); BLOCK = blockedMap();
-  for (const d of s.dolls) if (!d.guest || d.pid === G.community.active?.guestPid) addDoll(d);
+  for (const d of s.dolls) {
+    if (d.guest && d.pid !== G.community.active?.guestPid) continue;
+    const original = !s.cottageLooksV && ORIGINAL_STARTER_LOOKS[d.pid];
+    const unchanged = original && Object.keys(original).every(key => d.look?.[key] === original[key]);
+    addDoll(unchanged ? { ...d, look: { ...COTTAGE_STARTER_LOOKS[d.pid] } } : d);
+  }
   // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
   if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
     d.job = 'barista'; addLog(`🎓 ${d.name} 毕业了，现在是一名${JOBS.barista.name}`);
