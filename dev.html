@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素小屋 · 测试模式</title>
-<link rel="stylesheet" href="style.css?v=c4e47572f205">
+<link rel="stylesheet" href="style.css?v=6cb034c7faed">
 </head>
 <body data-mode="test">
 <header class="topbar">
@@ -160,11 +160,13 @@
   </nav>
   <div id="homeTodayPanel">
     <p class="home-intro">不是每个月都要发生大事。有人在等一顿饭，有人想把故事讲给你听。</p>
+    <div id="homeOccasions" class="home-occasions"></div>
     <div id="homeWishes" class="home-wishes"></div>
     <section class="home-invite" aria-label="邀请家人一起活动">
       <h3>给彼此留一小段时间</h3>
       <div id="homeKinds" class="home-kinds"></div>
       <p id="homeKindHint" class="hint"></p>
+      <label id="homeFocusLabel" class="home-focus" hidden><span id="homeFocusCaption"></span><select id="homeFocus" aria-label="活动主角"></select></label>
       <fieldset class="home-people"><legend>这次和谁一起？</legend><div id="homePeople"></div></fieldset>
       <p id="homePlanStatus" class="hint" role="status"></p>
       <button class="btn" id="homeStart">把大家叫过来</button>
@@ -256,32 +258,33 @@
 <script src="js/audio.js?v=bfed272d2ce4"></script>
 <script src="js/npc-memory.js?v=aa25de9db61f"></script>
 <script src="js/save-manager.js?v=d5ebb3e28e51"></script>
-<script src="js/house-life.js?v=f6d1cd195e80"></script>
+<script src="js/house-life.js?v=8a20f1ba02ad"></script>
 <script src="js/bonds.js?v=20a4e9383317"></script>
-<script src="js/game.js?v=18d1956d3914"></script>
+<script src="js/game.js?v=2f59f4570bdd"></script>
 <script src="js/social.js?v=b46f816af400"></script>
 <script src="js/relationship-fallout.js?v=a691f6e383e1"></script>
-<script src="js/work.js?v=c524d30c7815"></script>
+<script src="js/work.js?v=4c8cf0fc2a9c"></script>
 <script src="js/furniture2.js?v=d2feea9fe8e2"></script>
 <script src="js/furniture3.js?v=0a551b962592"></script>
 <script src="js/furniture4.js?v=0c8d55d541ea"></script>
 <script src="js/economy.js?v=c94f50424837"></script>
 <script src="js/rooms.js?v=b55ffa2093ae"></script>
 <script src="js/season.js?v=52ed22e6aa86"></script>
-<script src="js/astro.js?v=293dacadbd27"></script>
-<script src="js/routines.js?v=8832c350c286"></script>
+<script src="js/astro.js?v=6e3667f75b17"></script>
+<script src="js/routines.js?v=f7db21174e10"></script>
 <script src="js/community.js?v=7906752fa326"></script>
 <script src="js/neighbors.js?v=e3c87f10bbf7"></script>
 <script src="js/picnic.js?v=b56c8dbcd4b2"></script>
 <script src="js/house-view.js?v=b145a776857e"></script>
 <script src="js/yard.js?v=ce54dc627828"></script>
-<script src="js/keepsakes.js?v=a78bf2bcad4b"></script>
-<script src="js/home-stories.js?v=a1ca04c514b2"></script>
-<script src="js/home-care.js?v=9d7aaf4363ca"></script>
-<script src="js/save-portability.js?v=4098e1153894"></script>
-<script src="js/view.js?v=1acebe29121a"></script>
+<script src="js/keepsakes.js?v=2011aa6aa705"></script>
+<script src="js/home-stories.js?v=2f4b95bfe1b1"></script>
+<script src="js/home-care.js?v=857e67a7a109"></script>
+<script src="js/life-moments.js?v=6759e38560c8"></script>
+<script src="js/save-portability.js?v=3c2be2424d5f"></script>
+<script src="js/view.js?v=8768aae9b0b7"></script>
 <script src="js/paper-card.js?v=fd8e706a66cf"></script>
-<script src="js/ui.js?v=0d7b7d48fb6a"></script>
-<script src="js/home-ui.js?v=37c5a97ccccc"></script>
+<script src="js/ui.js?v=0e02b2ac8ac7"></script>
+<script src="js/home-ui.js?v=b02c18b96788"></script>
 </body>
 </html>

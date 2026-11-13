@@ -100,7 +100,7 @@ function readyForKeepsake(d) {
 function startKeepsakeProject(a, b, finish) {
   if (G.keepsakes.project || !a || !b || a === b || a.guest || b.guest ||
       !Object.hasOwn(KEEPSAKE_FINISHES, finish) || ![a, b].every(readyForKeepsake)) return false;
-  const bench = G.furniture.find(f => f.id === 'craftBench' && f.users.every(d => d === a || d === b) &&
+  const bench = G.furniture.find(f => f.id === 'craftBench' && !homeFurnitureReserved(f) && f.users.every(d => d === a || d === b) &&
     pairRoutes(a, b, approachTiles(f)));
   if (!bench) return false;
   G.keepsakes.project = { people: [a.pid, b.pid], finish, bench: bench.key, expires: absNow() + 240, work: 0 };

@@ -16,7 +16,7 @@ function restoreHomeCare(saved) {
 }
 function caringFor(cook, guest) {
   if (tensionBetween(cook, guest) || rel(cook, guest).f < 0) return false;
-  return ['foodie', 'tidy', 'social'].includes(cook.persona) ||
+  return JOBS[cook.job]?.caring || ['foodie', 'tidy', 'social'].includes(cook.persona) ||
     ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook)) || arePartners(cook, guest) || rel(cook, guest).f >= 55;
 }
 function lateWorker(d) {

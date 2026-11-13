@@ -63,6 +63,7 @@ function renderInfo() {
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
+    <div class="persona talent-summary" id="infoTalents"></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
       <div class="rel" data-rel-row="${o.uid}"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
       <div class="rel-bars"><span title="友好度">🤝</span><div class="bar"><i data-rf="${o.uid}" style="background:#7cc576"></i></div>
@@ -98,6 +99,7 @@ function tickInfo() {
     }
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
+    const talents = $('#infoTalents'); if (talents) { talents.textContent = talentSummary(d); talents.hidden = d.guest; }
     const m = $('#infoMoney'); if (m) { m.textContent = TEST_MODE ? '∞' : yuan(d.money); m.classList.toggle('neg', !TEST_MODE && d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
@@ -200,6 +202,8 @@ $('#btnReset').onclick = () => {
   s.paperMoments = G.paperMoments;
   s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
   s.home = { ...G.home, active: null };
+  s.life = G.life;
+  keepDolls.forEach(d=>{d.nextJob=G.dolls.find(o=>o.pid===d.pid)?.nextJob;});
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -406,10 +410,10 @@ function renderWardrobe() {
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
     const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/月${k === 'student' ? ' · 不谈恋爱' : ''}`;
-    const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
+    const b = el('button', 'chip' + ((d.nextJob || d.job) === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
     b.onclick = () => {
-      d.job = k; SFX.play('pop');
-      if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
+      changeResidentJob(d,k); SFX.play('pop');
+      HOOK.toast(d.nextJob ? `这次先完成原来的工作，回来后转为${J.name}。` : k==='student' ? '已设为学生，不参与恋爱剧情；下月使用新作息。' : `已设为${J.name}，下月开始使用新作息。`,true);
       renderWardrobe(); wdSaved();
     };
     jobs.append(b);

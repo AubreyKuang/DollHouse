@@ -46,7 +46,7 @@ function routineDistance(d, x, y) {
 
 function routineAvailable(d, id) {
   const routine = ROUTINES[id];
-  const likes = (MBTI_INTERESTS[mb(d)] || []).includes(id);
+  const likes = (MBTI_INTERESTS[mb(d)] || []).includes(id) || JOBS[d.job]?.interests?.includes(id);
   return !!routine && (routine.personas.includes(d.persona) || likes)
     && d.needs.energy >= 24 && d.needs.hunger >= 20 && (d.needs.bladder >= 16 || !G.furniture.some(f => f.id === 'toilet'))
     && (d.routineTimes[id] ?? -Infinity) + 220 <= absNow()
@@ -70,13 +70,13 @@ function routineOptions(d, want) {
   const out = [];
   for (const [type, routine] of Object.entries(ROUTINES)) {
     if (!routineAvailable(d, type)) continue;
-    const s = 45 + want(routine.gain) + traitBonus(d, type) + Math.random() * 16 * noiseMul(d);
+    const s = 45 + want(routine.gain) + traitBonus(d, type) + (JOBS[d.job]?.interests?.includes(type) ? 10 : 0) + Math.random() * 16 * noiseMul(d);
     if (routine.partner) {
       const partner = G.dolls.filter(p => routinePartnerAvailable(d, p, type))
         .sort((a, b) => rel(d, b).f - rel(d, a).f)[0];
       if (partner) out.push({ type, partner, s });
     } else if (routine.furniture) {
-      const venues = G.furniture.filter(f => routine.furniture.includes(f.id) && !f.users.length);
+      const venues = G.furniture.filter(f => routine.furniture.includes(f.id) && !f.users.length && !homeFurnitureReserved(f));
       if (venues.length) out.push({ type, venues, s: s - 1.5 * Math.min(...venues.map(f => routineDistance(d, f.x, routineFurnitureRow(f)))) });
     } else {
       out.push({ type, s });
@@ -92,7 +92,7 @@ function startRoutine(d, { type, partner, venues = [] }) {
   if (routine.furniture) {
     for (const f of venues.slice().sort((a, b) =>
       routineDistance(d, a.x, routineFurnitureRow(a)) - routineDistance(d, b.x, routineFurnitureRow(b)))) {
-      if (!G.furniture.includes(f) || f.users.length) continue;
+      if (!G.furniture.includes(f) || f.users.length || homeFurnitureReserved(f)) continue;
       const row = routineFurnitureRow(f);
       const targets = layerOf(f.id) === 'wall'
         ? Array.from({ length: FURNITURE[f.id].w }, (_, i) => [{ x: f.x + i, y: row }, { x: f.x + i, y: row + 1 }]).flat()

@@ -52,6 +52,12 @@
 .home-invite{margin-top:22px;border-top:1px dashed var(--muted);padding-top:8px}
 .home-invite h3{font-size:16px;font-weight:600;margin:14px 0}
 .home-kinds{display:flex;flex-wrap:wrap;gap:9px}
+.home-focus{display:flex;align-items:center;gap:10px;font-size:13px;margin:14px 0;flex-wrap:wrap}
+.home-focus select{max-width:100%;min-height:36px;background:var(--panel);color:var(--ink);border:1px solid var(--muted);border-radius:7px;padding:5px 10px;font:inherit}
+.home-occasions{display:grid;gap:10px;margin-bottom:14px}
+.home-occasion{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel-2);padding:12px;border-radius:10px;font-size:13px;line-height:1.7}
+.home-occasion>span{flex:1;min-width:130px}
+.talent-summary{line-height:1.8;margin-top:10px;padding:8px;background:var(--panel-2);border-radius:8px}
 .home-people{border:0;padding:0;margin:20px 0 8px;min-width:0}
 .home-people legend{font-size:12px;color:var(--muted);margin-bottom:10px}
 #homePeople{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
@@ -568,11 +574,13 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
   </nav>
   <div id="homeTodayPanel">
     <p class="home-intro">不是每个月都要发生大事。有人在等一顿饭，有人想把故事讲给你听。</p>
+    <div id="homeOccasions" class="home-occasions"></div>
     <div id="homeWishes" class="home-wishes"></div>
     <section class="home-invite" aria-label="邀请家人一起活动">
       <h3>给彼此留一小段时间</h3>
       <div id="homeKinds" class="home-kinds"></div>
       <p id="homeKindHint" class="hint"></p>
+      <label id="homeFocusLabel" class="home-focus" hidden><span id="homeFocusCaption"></span><select id="homeFocus" aria-label="活动主角"></select></label>
       <fieldset class="home-people"><legend>这次和谁一起？</legend><div id="homePeople"></div></fieldset>
       <p id="homePlanStatus" class="hint" role="status"></p>
       <button class="btn" id="homeStart">把大家叫过来</button>
@@ -2101,7 +2109,7 @@ function helpWithMeal(d, table) {
 
 function shareCookedMeal(cook) {
   if (cook.guest) return;
-  const caring = cook.persona === 'foodie' || ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook));
+  const caring = JOBS[cook.job]?.caring || cook.persona === 'foodie' || ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook));
   const hungry = residents().filter(person => person !== cook &&
     person.money < PRICES.snack && person.needs.hunger < 35 &&
     person.state !== 'away' && person.state !== 'lift' && !lying(person) &&
@@ -2127,6 +2135,9 @@ function shareMeal(host, guest, food, gain) {
 }
 
 const PAPER_EVENTS = [
+  [/陪.+过了生日/, '有人记得的生日', '🎂', 86],
+  [/慢慢练出了|在.+的陪伴下，学会了/, '小小里程碑', '✨', 80],
+  [/陪.+一起学做饭|陪.+一起学音乐|陪.+一起学手作/, '室友教我的', '🧵', 78],
   [/晚归后吃完了.+留的饭|当面谢谢.+留下的饭/, '回家有盏灯', '🕯', 79],
   [/在家一起吃顿饭|在家围坐讲故事|在家开了一场小小音乐会/, '小屋时光', '🏡', 81],
   [/分手|变心/, '关系转折', '💔', 105],
@@ -2497,12 +2508,12 @@ function houseSaveData() {
   return {
     cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
-    keepsakes: G.keepsakes, home: G.home, care: G.care,
+    keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
       .map(({ id, x, y, key, piece }) => ({ id, x, y, key, piece })),
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
-      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime })),
+      away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
     npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
@@ -2601,6 +2612,7 @@ function applySave(s) {
   G.keepsakes = restoreKeepsakes(s.keepsakes);
   G.home = restoreHomeStories(s.home);
   G.care = restoreHomeCare(s.care);
+  G.life = restoreLifeMoments(s.life);
   G.build = { placing: null, trash: false, hover: null };
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
@@ -2762,6 +2774,7 @@ function addDoll(src) {
     mbti: src.mbti || (DEFAULT_SAVE.dolls.find(o => o.pid === src.pid) || {}).mbti || randomMbti(),
     job: src.job || 'none', money: src.money ?? Math.round((START_MONEY[src.job || 'none'] || 600) + Math.random() * 500), awayUntil: src.awayUntil || 0, lastWorkDay: src.lastWorkDay || 0, leaveJitter: src.leaveJitter || 0, overtime: !!src.overtime,
     vain: typeof src.vain === 'boolean' ? src.vain : undefined,
+    nextJob: Object.hasOwn(JOBS,src.nextJob) ? src.nextJob : undefined,
   };
   isVain(d);
   if (TEST_MODE) d.money = Math.max(d.money, 1000000);
@@ -2801,6 +2814,7 @@ function endAct(d) {
 
 function decide(d) {
   if (tryHomeCare(d)) return;
+  if (tryLifeLesson(d)) return;
   if (joinGetTogether(d)) return;
   const P = PERSONAS[d.persona], N = d.needs, opts = [];
   const want = (gain) => Object.entries(gain).reduce((s, [k, v]) => s + Math.max(0, v) * Math.pow(1 - N[k] / 100, 1.5) * 3, 0);
@@ -2814,6 +2828,7 @@ function decide(d) {
     // 双人床只和恋人一起睡
     if (f.id === 'bigbed' && f.users.length && !f.users.every(u => u === lover)) continue;
     let s = want(F.need) + (P.like[F.use] || 0) + traitBonus(d, F.use) + Math.random() * 25 * noiseMul(d);   // 性格 + 星座/MBTI + 随机
+    if (JOBS[d.job]?.interests?.includes(F.use)) s += 10;
     if (cornerRegular(f, d)) s += 17;
     if (F.outdoor) {
       if (G.weather === 'rain' || G.night) continue;
@@ -3044,6 +3059,7 @@ function updateDoll(d, dt) {
   if (d.state === 'act') {
     const a = d.act;
     if (CARE_ACTIONS.includes(a.type)) { tickCareAction(d, dt); return; }
+    if (a.furn && a.t > 0) a.practiceTime = (a.practiceTime || 0) + Math.min(dt, a.t);
     if (a.gain) for (const k in a.gain) N[k] = Math.max(0, Math.min(100, N[k] + a.gain[k] / (a.type === 'sleep' ? 10 : 8) * dt));
     if (a.type === 'sleep') N.energy = Math.min(100, N.energy + 2.2 * dt);
     if (a.type === 'visitStay' || (a.type === 'homeTime' && a.homeKind === 'music')) {
@@ -3074,6 +3090,7 @@ function updateDoll(d, dt) {
     a.t -= dt;
     const wake = a.type === 'sleep' && !G.night && N.energy > 92;
     if (a.type === 'toilet' && a.t <= 0) N.bladder = 100;
+    if (a.t <= 0) finishTalentPractice(d, a);
     if (a.type === 'cook' && a.t <= 0) { shareCookedMeal(d); planSavedMeal(d); }
     if (a.t <= 0 || wake) endAct(d);
     return;
@@ -3166,6 +3183,7 @@ function update(realDt) {
     if (!carrying) tickKeepsakes(dt);
     if (!carrying) tickHomeStories(dt);
     if (!carrying) tickHomeCare();
+    if (!carrying) tickLifeMoments();
     for (const d of G.dolls) { if (carrying && d.state !== 'lift') continue; updateDoll(d, dt); }
   }
   updateDoors(realDt);
@@ -3784,6 +3802,30 @@ const JOBS = {
     go: ['去咖啡店啦', '今天也要好好拉花', '出门咯～'], back: ['今天拉花很成功！', '一身咖啡香地回来了', '我回来啦～'], tired: '客人好多……' },
   night: { name: '夜班店员', icon: '🌙', start: 1320, end: 360, off: [6], verb: '值夜班', wage: 280,
     go: ['值夜班去了', '晚上见……不对，早上见', '出门啦'], back: ['困死了……', '天亮了，我回来了', '要去补觉了'], tired: '今晚好多客人' },
+  librarian: { name: '图书管理员', icon: '📚', start: 540, end: 1020, off: [10], verb: '整理图书', wage: 230,
+    interests: ['read','catalogue','study'], reply: '那本书听起来不错，下次讲给我听。',
+    go: ['去给新书贴标签啦。','今天有小读者来听故事。','把借书卡带上。'], back: ['有位读者终于找到了小时候那本书。','今天的故事会，大家听得好认真。','又借到一本想读的书！'], tired: '整理了一整架书，肩膀有点酸。' },
+  florist: { name: '花艺师', icon: '💐', start: 420, end: 900, off: [11], verb: '照料花店', wage: 240,
+    interests: ['water','careHerbs','craft'], reply: '明天挑个花瓶，把你喜欢的颜色摆起来。',
+    go: ['趁清早去接新鲜的花。','今天想配一束奶油色花束。','带上小剪刀，去花店咯。'], back: ['今天有人买花，只为让自己高兴。','客人把最后一朵小雏菊也选走了。','手上还有一点花叶的香气。'], tired: '搬了好多花桶，想坐下歇一歇。' },
+  nurse: { name: '护理师', icon: '🩺', start: 420, end: 1140, off: [4], verb: '值护理班', wage: 360,
+    interests: ['checkIn','tidy','careHerbs'], caring: true, reply: '今天换我们照顾你，先喝口水。',
+    go: ['去交接班啦，晚上见。','希望今天大家都好好的。','水杯带好了，出门。'], back: ['有人恢复得很好，还和我道了谢。','今天跑来跑去，现在终于能坐下了。','忙完交接，看到家里的灯就安心了。'], tired: '今天的班有点长，想安静坐一会儿。' },
+  chef: { name: '餐厅厨师', icon: '👩‍🍳', start: 660, end: 1260, off: [5], verb: '去餐厅掌勺', wage: 330,
+    interests: ['cook','recipeBook','recipeSwap'], talent: 'cooking', reply: '辛苦了，回家这顿让你坐着吃。',
+    go: ['去备菜，今晚有预约。','围裙收好了，出门啦。','今天想试一点新的调味。'], back: ['今天的汤被客人夸了。','最后一桌也吃得干干净净。','终于放下锅铲了，家里好安静。'], tired: '晚餐高峰忙到现在，胳膊都酸了。' },
+  musicTeacher: { name: '音乐老师', icon: '🎼', start: 780, end: 1200, off: [8], verb: '教音乐', wage: 300,
+    interests: ['piano','strum','music'], talent: 'music', reply: '你也教教我那一小段吧，等你休息好。',
+    go: ['谱子带好了，去上课。','今天陪学生练一首小曲。','慢慢来，总会弹好的。'], back: ['学生今天终于跟上了节拍！','有个音总弹错，我们一起笑了。','听了一下午琴，想听听你们说话。'], tired: '示范了一下午，手指想休息了。' },
+  carpenter: { name: '木工', icon: '🪚', start: 480, end: 1020, off: [10], verb: '做木工', wage: 310,
+    interests: ['craft','repair','knit'], talent: 'craft', reply: '慢慢讲，你做的小物总有自己的样子。',
+    go: ['量尺和铅笔带齐了。','今天要磨一个圆圆的桌角。','去工坊啦，回来给你们讲。'], back: ['今天做的小凳子，终于不晃了。','木头磨光以后，摸起来真舒服。','围裙上都是木屑，先让我拍一拍。'], tired: '打磨了一整天，手有点累。' },
+  programmer: { name: '程序员', icon: '💻', start: 600, end: 1140, off: [9], verb: '去写程序', wage: 380,
+    interests: ['pc','planChess','repair'], reply: '先把电脑放下吧，来聊点家里的事。',
+    go: ['希望今天没有奇怪的报错。','电脑充好电了，出门！','今天要把那个小功能做完。'], back: ['困住我的问题，终于找到原因了。','同事帮我看了一眼，突然就想通了。','今天屏幕看够了，想看看你们。'], tired: '改了好久的问题，脑袋有点转不动了。' },
+  courier: { name: '快递员', icon: '📦', start: 480, end: 1080, off: [1], verb: '送包裹', wage: 280,
+    interests: ['stretch','snack','couchNap'], reply: '跑了一路，快坐下来歇歇脚。',
+    go: ['今天的包裹装好啦。','鞋带系紧，去送件。','希望每一份都准时送到。'], back: ['有人等到包裹，开心得跳了起来。','今天路边的小猫又跟了我一段。','最后一件送到，我也回家啦。'], tired: '跑了好多楼梯，腿有点酸。' },
   artist: { name: '自由画家', icon: '🎨', start: null, verb: '在家画画' },
   none: { name: '宅在家', icon: '🏠', start: null, verb: '宅家' },
 };
@@ -3857,6 +3899,7 @@ function comeHome(d) {
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
   if (!noticeSavedMeal(d)) greetAfterWork(d, line, soaked);
+  if (d.nextJob) changeResidentJob(d,d.nextJob);
   if (G.sel === d.uid) HOOK.select();
 }
 
@@ -3871,7 +3914,7 @@ function greetAfterWork(d, line, soaked) {
     const reply = soaked ? '门边有干毛巾，我给你拿一条。'
       : tired ? pick(isF(roommate) ? ['辛苦了，坐会儿吧，我陪你。', '回来就好，先喘口气。']
         : ['先坐会儿，水壶还有热水。', '鞋脱了歇会儿，慢慢说。'])
-      : ({ baker: '闻着好香，我去拿两个盘子。', barista: '下次也给我看看你的拉花。', student: '先歇一会儿，作业等会儿再写。' }[d.job] || '坐下说吧，我听着呢。');
+      : (JOBS[d.job]?.reply || { baker: '闻着好香，我去拿两个盘子。', barista: '下次也给我看看你的拉花。', student: '先歇一会儿，作业等会儿再写。' }[d.job] || '坐下说吧，我听着呢。');
     if (startAct(roommate, { type: 'chat', partner: d, kind: close ? 'hug' : 'chat', exchange: {
       lines: ['回来啦，辛苦了。', line, reply], log: `🏠 ${roommate.name} 迎了迎刚回家的 ${d.name}，两人聊起了${soaked ? '路上的大雨' : '今天的事'}`
     } })) return;
@@ -3908,7 +3951,20 @@ function jobLine(d) {
   const J = JOBS[d.job] || JOBS.none;
   if (J.start == null) return `${J.icon} ${J.name}`;
   const off = J.off.map(month => `${month} 月`).join('、');
-  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}`;
+  return `${J.icon} ${J.name} · ${hhmm(J.start)}–${hhmm(J.end)} · ${off}休息 · ${J.wageName ? '零花钱' : '月薪'} ${yuan(J.wage)}${d.nextJob ? ` · 回家后转为${JOBS[d.nextJob].name}` : ''}`;
+}
+function changeResidentJob(d, job) {
+  if (!Object.hasOwn(JOBS,job)) return false;
+  if (job === d.job) { delete d.nextJob; return true; }
+  if ((d.state === 'away' && G.community?.outing?.pid !== d.pid) || d.act?.type === 'leave') {
+    d.nextJob = job;
+    return true;
+  }
+  d.job = job; delete d.nextJob;
+  // A career change starts next month and cannot claim a second salary in this one.
+  d.lastWorkDay = G.day;
+  if (job === 'student') clearRomance(d);
+  return true;
 }
 function returnTime(d) {
   const cycle = Math.floor(d.awayUntil / 1440) + 1;
@@ -3927,7 +3983,8 @@ function awayText(d) {
 const PRICES = { snack: 12, cook: 25 };
 const PRICE_NAME = { snack: '零食钱', cook: '买菜钱' };
 const RENT = 50;
-const START_MONEY = { office: 4000, baker: 2500, barista: 2000, night: 2500, student: 300, artist: 1500, none: 600 };
+const START_MONEY = { office: 4000, baker: 2500, barista: 2000, night: 2500, student: 300, artist: 1500, none: 600,
+  librarian: 2200, florist: 2100, nurse: 3400, chef: 3000, musicTeacher: 2600, carpenter: 2800, programmer: 4000, courier: 2300 };
 const yuan = n => (n < 0 ? '-¥' : '¥') + Math.abs(Math.round(n)).toLocaleString('en-US');
 
 function helperFor(d, amount) {
@@ -5003,13 +5060,7 @@ function birthdayCheck() {
   for (const d of residents()) {
     if (birthdayOf(d) !== month) continue;
     HOOK.toast(`🎂 本月是 ${d.name} 的生日！`);
-    d.needs.fun = Math.min(100, d.needs.fun + 30); d.happy = 5;
-    for (const o of residents()) {
-      if (o === d) continue;
-      const r = rel(o, d);
-      if (o.state !== 'away') setTimeout(() => say(o, pick([`${d.name}生日快乐！`, '🎂 许个愿吧', '又长大一岁啦'])), 800 + Math.random() * 1500);
-      if ((r.f >= 40 || r.lovers) && o.money >= 60) { o.money -= 60; bump(o, d, 5, r.lovers ? 5 : 0); addLog(`🎁 ${o.name} 送了 ${d.name} 一份生日礼物`); }
-    }
+    // A reminder is not a celebration: cake, conversation and memories require meeting in person.
   }
 }
 
@@ -5070,7 +5121,7 @@ function routineDistance(d, x, y) {
 
 function routineAvailable(d, id) {
   const routine = ROUTINES[id];
-  const likes = (MBTI_INTERESTS[mb(d)] || []).includes(id);
+  const likes = (MBTI_INTERESTS[mb(d)] || []).includes(id) || JOBS[d.job]?.interests?.includes(id);
   return !!routine && (routine.personas.includes(d.persona) || likes)
     && d.needs.energy >= 24 && d.needs.hunger >= 20 && (d.needs.bladder >= 16 || !G.furniture.some(f => f.id === 'toilet'))
     && (d.routineTimes[id] ?? -Infinity) + 220 <= absNow()
@@ -5094,13 +5145,13 @@ function routineOptions(d, want) {
   const out = [];
   for (const [type, routine] of Object.entries(ROUTINES)) {
     if (!routineAvailable(d, type)) continue;
-    const s = 45 + want(routine.gain) + traitBonus(d, type) + Math.random() * 16 * noiseMul(d);
+    const s = 45 + want(routine.gain) + traitBonus(d, type) + (JOBS[d.job]?.interests?.includes(type) ? 10 : 0) + Math.random() * 16 * noiseMul(d);
     if (routine.partner) {
       const partner = G.dolls.filter(p => routinePartnerAvailable(d, p, type))
         .sort((a, b) => rel(d, b).f - rel(d, a).f)[0];
       if (partner) out.push({ type, partner, s });
     } else if (routine.furniture) {
-      const venues = G.furniture.filter(f => routine.furniture.includes(f.id) && !f.users.length);
+      const venues = G.furniture.filter(f => routine.furniture.includes(f.id) && !f.users.length && !homeFurnitureReserved(f));
       if (venues.length) out.push({ type, venues, s: s - 1.5 * Math.min(...venues.map(f => routineDistance(d, f.x, routineFurnitureRow(f)))) });
     } else {
       out.push({ type, s });
@@ -5116,7 +5167,7 @@ function startRoutine(d, { type, partner, venues = [] }) {
   if (routine.furniture) {
     for (const f of venues.slice().sort((a, b) =>
       routineDistance(d, a.x, routineFurnitureRow(a)) - routineDistance(d, b.x, routineFurnitureRow(b)))) {
-      if (!G.furniture.includes(f) || f.users.length) continue;
+      if (!G.furniture.includes(f) || f.users.length || homeFurnitureReserved(f)) continue;
       const row = routineFurnitureRow(f);
       const targets = layerOf(f.id) === 'wall'
         ? Array.from({ length: FURNITURE[f.id].w }, (_, i) => [{ x: f.x + i, y: row }, { x: f.x + i, y: row + 1 }]).flat()
@@ -6283,7 +6334,7 @@ function readyForKeepsake(d) {
 function startKeepsakeProject(a, b, finish) {
   if (G.keepsakes.project || !a || !b || a === b || a.guest || b.guest ||
       !Object.hasOwn(KEEPSAKE_FINISHES, finish) || ![a, b].every(readyForKeepsake)) return false;
-  const bench = G.furniture.find(f => f.id === 'craftBench' && f.users.every(d => d === a || d === b) &&
+  const bench = G.furniture.find(f => f.id === 'craftBench' && !homeFurnitureReserved(f) && f.users.every(d => d === a || d === b) &&
     pairRoutes(a, b, approachTiles(f)));
   if (!bench) return false;
   G.keepsakes.project = { people: [a.pid, b.pid], finish, bench: bench.key, expires: absNow() + 240, work: 0 };
@@ -6551,6 +6602,7 @@ const homeFurnitureReserved = f => G.home?.active?.anchor === f.key;
 function homeAvailability(d, kind) {
   if (!d || d.guest || d.state === 'away') return '还没回家';
   if (inHomeTime(d)) return '正在一起活动';
+  if (CARE_ACTIONS.includes(d.act?.type) || d.act?.type === 'chat') return '正和别人忙着，晚点再约';
   if (!readyForKeepsake(d) || ['visitGather', 'visitStay', 'tryst'].includes(d.act?.type)) return '正忙着，晚点再约';
   const leave = leaveAbs(d);
   if (leave !== null && leave <= absNow() + 130 && leave + 180 > absNow()) return '快到出门时间了';
@@ -6558,32 +6610,42 @@ function homeAvailability(d, kind) {
   return '';
 }
 function homeRoutes(group, anchor) {
-  const F = FURNITURE[anchor.id], occupied = new Set();
+  const F = FURNITURE[anchor.id], occupied = new Set(), columns = new Set();
   const spots = [];
-  for (let y = anchor.y - 1; y <= anchor.y + F.h + 1; y++) {
+  for (let y = anchor.y - 1; y <= anchor.y + F.h + 4; y++) {
     for (let x = anchor.x - 2; x <= anchor.x + F.w; x++) {
       if (!free(x, y) || isDoorTile(x, y) || x === stairsColumn() ||
           roomOf({ tx: x, ty: y }) !== cornerRoom(anchor) ||
-          G.dolls.some(d => !group.includes(d) && d.state !== 'away' && d.tx === x && d.ty === y)) continue;
-      spots.push({ x, y });
+          G.dolls.some(d => !group.includes(d) && d.state !== 'away' &&
+            ((d.tx === x && d.ty === y) || (d.path.at(-1)?.x === x && d.path.at(-1)?.y === y)))) continue;
+      const px=HOUSE_X+x*T+8, py=houseY(y*T+14,storeyOf(y));
+      const hidden=G.furniture.some(f=>{
+        if(layerOf(f.id)!=='solid'||storeyOf(f.y)!==storeyOf(y))return false;
+        const box=houseFurnitureRect(f);
+        return box.bottom>py && box.top<py-5 && px+4>box.x && px-4<box.x+box.w;
+      });
+      spots.push({ x, y, hidden });
     }
   }
   const routes = [];
   for (const d of group) {
     const options = spots.filter(t => !occupied.has(`${t.x},${t.y}`))
       .map(t => ({ tile: t, path: findPath(d.tx, d.ty, [t]) }))
-      // Prefer a visible front row, instead of hiding heads behind a sofa or appliance.
-      .filter(r => r.path).sort((a, b) =>
-        Math.abs(a.tile.y - anchor.y - F.h - 1) * 12 + a.path.length * .1 -
-        Math.abs(b.tile.y - anchor.y - F.h - 1) * 12 - b.path.length * .1);
+      // The cutaway compresses depth: adjacent grid rows can hide a whole person.
+      .filter(r => r.path).sort((a, b) => {
+        const score=r=>Number(r.tile.hidden)*10000+Number(columns.has(r.tile.x))*1000+
+          Math.abs(r.tile.y-anchor.y-F.h-1)*12+r.path.length*.1;
+        return score(a)-score(b);
+      });
     if (!options.length) return null;
     const chosen = options[0];
     occupied.add(`${chosen.tile.x},${chosen.tile.y}`);
+    columns.add(chosen.tile.x);
     routes.push(chosen.path);
   }
   return routes;
 }
-function prepareHomeTime(kind, pids) {
+function prepareHomeTime(kind, pids, focusPid) {
   const theme = HOME_TIMES[kind];
   if (!theme) return { reason: '这个活动还没有准备好。' };
   const group = [...new Set(pids)].map(communityDoll);
@@ -6595,13 +6657,16 @@ function prepareHomeTime(kind, pids) {
   for (let i = 0; i < group.length; i++) for (const other of group.slice(i + 1)) {
     if (tensionBetween(group[i], other)) return { reason: `${group[i].name}和${other.name}还需要一点空间，这次先分别约吧。` };
   }
-  if (!TEST_MODE && G.fund < theme.cost) return { reason: `这顿饭需要家庭基金 ¥${theme.cost}，也可以先约免费的故事会。` };
+  const detail = lifeTimePlan(kind, group, focusPid);
+  if (detail.reason) return detail;
+  if (!TEST_MODE && G.fund < theme.cost) return { reason: `${theme.name}需要家庭基金 ¥${theme.cost}，也可以先约免费的故事会。` };
   const anchors = G.furniture.filter(f => theme.furniture.includes(f.id));
   if (!anchors.length) return { reason: `先摆好${theme.furniture.map(id => FURNITURE[id]?.name).filter(Boolean).join('或')}。` };
   for (const anchor of anchors) {
+    if (G.keepsakes.project?.bench === anchor.key || G.care.meals.some(m => m.table === anchor.key && ['packing', 'ready'].includes(m.phase))) continue;
     if (anchor.users.some(d => !group.includes(d))) continue;
     const routes = homeRoutes(group, anchor);
-    if (routes) return { group, anchor, routes };
+    if (routes) return { group, anchor, routes, detail };
   }
   return { reason: '家具旁要给每个人留一个能走到的位置；也可以等正在使用的人结束。' };
 }
@@ -6614,13 +6679,14 @@ function sendHomeGroup(active, group, routes) {
     say(d, ['我来啦。', '给我留个位置～', '好，等我一下。'][i % 3]);
   });
 }
-function startHomeTime(kind, pids) {
+function startHomeTime(kind, pids, focusPid) {
   if (G.home.active) return '家里的活动已经开始啦，等这次结束再约。';
-  const plan = prepareHomeTime(kind, pids);
+  const plan = prepareHomeTime(kind, pids, focusPid);
   if (plan.reason) return plan.reason;
   const active = G.home.active = { id: G.home.next++, kind, people: plan.group.map(d => d.pid),
     anchor: plan.anchor.key, started: absNow(), deadline: absNow() + 180,
-    phase: 'gather', elapsed: 0, line: 0, paid: false };
+    phase: 'gather', elapsed: 0, line: 0, paid: false, detail: plan.detail,
+    anchorAt: { x: plan.anchor.x, y: plan.anchor.y } };
   sendHomeGroup(active, plan.group, plan.routes);
   HOOK.home?.(); save();
   return null;
@@ -6635,14 +6701,19 @@ function arriveHomeTime(d) {
 function cancelHomeTime(message = '这次先忙各自的，有空再聚。') {
   const active = G.home.active;
   if (!active) return;
+  if(active.kind==='birthday'&&active.detail?.honoree&&!G.life.birthdayInvites.some(b=>b.pid===active.detail.honoree&&b.month===G.day)) {
+    G.life.birthdayInvites.push({pid:active.detail.honoree,month:G.day});
+    G.life.birthdayInvites=G.life.birthdayInvites.slice(-16);
+  }
   for (const d of G.dolls) if (inHomeTime(d) && d.act.homeId === active.id) { endAct(d); d.path = []; }
   G.home.active = null;
   HOOK.toast(message, true); HOOK.home?.(); save();
 }
 function finishHomeTime(active, group) {
   const theme = HOME_TIMES[active.kind];
-  const text = `${group.map(d => d.name).join('、')}在家${active.kind === 'music' ? '开了一场小小音乐会' : theme.name}。${active.kind === 'supper' ? '饭慢慢吃，话慢慢讲。' : active.kind === 'stories' ? '每人接了一句，编出了只属于小屋的结尾。' : '有人跑调，有人打拍子，谁也没有提前离场。'}`;
-  addHomeMemory(active.kind, theme.title, text, group, `gather:${active.id}`);
+  const special = finishLifeTime(active, group);
+  const text = special?.text || `${group.map(d => d.name).join('、')}在家${active.kind === 'music' ? '开了一场小小音乐会' : theme.name}。${active.kind === 'supper' ? '饭慢慢吃，话慢慢讲。' : active.kind === 'stories' ? '每人接了一句，编出了只属于小屋的结尾。' : '有人跑调，有人打拍子，谁也没有提前离场。'}`;
+  addHomeMemory(active.kind, special?.title || theme.title, text, group, `gather:${active.id}`);
   const perceptions = [];
   for (const d of group) {
     for (const [key, gain] of Object.entries(theme.need)) d.needs[key] = Math.min(100, d.needs[key] + gain);
@@ -6669,20 +6740,29 @@ function tickHomeStories(dt) {
   const anchor = G.furniture.find(f => f.key === a.anchor);
   if (!anchor) { cancelHomeTime('家具挪走了，这次先暂停；重新摆好以后再约。'); return; }
   let group = a.people.map(communityDoll).filter(Boolean);
+  if (!lifeTimeValid(a, group)) { cancelHomeTime('主角暂时来不了，这次先歇一会儿。'); return; }
+  if (!a.resume && a.anchorAt && (a.anchorAt.x !== anchor.x || a.anchorAt.y !== anchor.y)) {
+    const routes = homeRoutes(group, anchor);
+    if (!routes) { cancelHomeTime('新位置暂时走不到，有空再聚。'); return; }
+    a.anchorAt = { x: anchor.x, y: anchor.y }; a.phase = 'gather'; a.elapsed = 0; a.line = 0;
+    a.deadline = absNow() + 180; sendHomeGroup(a, group, routes);
+  }
   if (a.resume) {
     // Rebuild paths from saved positions; never award time that happened off-screen without simulation.
     const available = group.filter(d => !homeAvailability(d, a.kind));
     const routes = available.length >= 2 && homeRoutes(available, anchor);
-    if (!routes || absNow() > a.deadline) { cancelHomeTime(); return; }
+    if (!routes || absNow() > a.deadline || !lifeTimeValid(a, available)) { cancelHomeTime(); return; }
     a.people = available.map(d => d.pid); a.resume = false; group = available;
+    a.anchorAt = { x: anchor.x, y: anchor.y };
     sendHomeGroup(a, group, routes);
   }
   const assigned = group.filter(d => inHomeTime(d) && d.act.homeId === a.id);
   const together = assigned.filter(d => d.state === 'act');
+  if (!lifeTimeValid(a, assigned)) { cancelHomeTime('有人先去忙了，等有空再继续。'); return; }
   if (assigned.length < 2 || group.some((d, i) => group.slice(i + 1).some(o => tensionBetween(d, o)))) { cancelHomeTime(); return; }
   if (a.phase === 'gather') {
     if (together.length !== assigned.length && absNow() < a.deadline) return;
-    if (together.length < 2) { cancelHomeTime('这次没能凑齐，大家有空时再约。'); return; }
+    if (together.length < 2 || !lifeTimeValid(a, together)) { cancelHomeTime('这次没能凑齐，大家有空时再约。'); return; }
     for (const d of assigned.filter(d => d.state !== 'act')) { endAct(d); d.path = []; }
     a.people = together.map(d => d.pid);
     if (!a.paid && !TEST_MODE) {
@@ -6704,13 +6784,14 @@ function tickHomeStories(dt) {
     const listener = together[(a.line + 1) % together.length];
     face(d, listener.x, listener.y); face(listener, d.x, d.y);
     const round = Math.floor(a.line / together.length) % 2;
-    say(d, (HOME_LINES[a.kind][d.persona] || HOME_LINES[a.kind].genki)[round], 3.2);
-    if (a.kind === 'music') SFX.play('piano');
+    say(d, lifeTimeLine(a,d,round) || (HOME_LINES[a.kind][d.persona] || HOME_LINES[a.kind].genki)[round], 3.2);
+    if (a.kind === 'music' || a.kind === 'learnMusic') SFX.play('piano');
     a.line++;
   }
   if (a.elapsed >= Math.max(14, together.length * 6.6)) finishHomeTime(a, together);
 }
 function drawHomeTable(c, f, x, y) {
+  drawLifeTime(c, f, x, y);
   const a = G.home?.active;
   if (!a || a.anchor !== f.key || a.phase !== 'sharing') return;
   if (a.kind === 'music') {
@@ -6747,7 +6828,7 @@ function restoreHomeCare(saved) {
 }
 function caringFor(cook, guest) {
   if (tensionBetween(cook, guest) || rel(cook, guest).f < 0) return false;
-  return ['foodie', 'tidy', 'social'].includes(cook.persona) ||
+  return JOBS[cook.job]?.caring || ['foodie', 'tidy', 'social'].includes(cook.persona) ||
     ['ISFJ', 'ESFJ', 'ENFJ', 'INFP'].includes(mb(cook)) || arePartners(cook, guest) || rel(cook, guest).f >= 55;
 }
 function lateWorker(d) {
@@ -6910,6 +6991,232 @@ function drawSavedMeal(c, f, x, y) {
 }
 </script>
 <script>
+// Small milestones grow out of completed activities, not opening a menu.
+const TALENTS = {
+  cooking: { name: '做饭', icon: '🍳', uses: ['cook'], furniture: ['stove'],
+    discoveries: ['软软的煎蛋', '一锅暖胃炖菜', '一桌拿手家常菜'] },
+  music: { name: '音乐', icon: '🎹', uses: ['piano', 'strum'], furniture: ['piano', 'ukulele'],
+    discoveries: ['连贯的小旋律', '自己的小变奏', '给室友伴奏'] },
+  craft: { name: '手作', icon: '🧵', uses: ['craft', 'knit', 'repair'], furniture: ['craftBench', 'knitting', 'toolbox'],
+    discoveries: ['整齐的小针脚', '布袋上的绣花', '教别人做手作'] },
+};
+const TALENT_STEPS = [0, 18, 54, 108];
+const TALENT_NAMES = ['刚开始尝试', '渐渐上手', '有了拿手活', '可以带着别人做'];
+const LESSON_SKILLS = { learnCooking: 'cooking', learnMusic: 'music', learnCraft: 'craft' };
+Object.assign(HOME_TIMES, {
+  birthday: { name: '一起过生日', icon: '🎂', title: '原来你们都记得', furniture: ['table'], cost: 20,
+    hint: '生日月围桌许愿。内向的寿星喜欢轻声祝福，外向的寿星会拉大家一起拍手；开场使用家庭基金 ¥20。', need: { fun: 24, social: 22 } },
+  learnCooking: { name: '教我一道菜', icon: '🍳', title: '这道菜，是你教我的', furniture: ['stove'], cost: 15,
+    hint: '选一位想学的人和更熟练的室友，在灶台旁边做边学；材料使用家庭基金 ¥15。', need: { hunger: 20, fun: 12, social: 16 } },
+  learnMusic: { name: '陪我练一小段', icon: '🎹', title: '终于跟上你的拍子', furniture: ['piano', 'ukulele'], cost: 0,
+    hint: '选一位想学的人和更熟练的室友。弹错也没关系，对方会放慢一点。', need: { fun: 18, social: 18 } },
+  learnCraft: { name: '一起学手作', icon: '🧵', title: '有人陪着，慢慢就会了', furniture: ['craftBench', 'knitting', 'toolbox'], cost: 0,
+    hint: '选一位想学的人和更熟练的室友。一起练针脚、打结和收边。', need: { fun: 18, social: 18 } },
+});
+
+function restoreLifeMoments(saved) {
+  const people = {};
+  for (const [pid, skills] of Object.entries(saved?.people || {})) {
+    if (!skills || typeof skills !== 'object' || ['__proto__', 'constructor', 'prototype'].includes(pid)) continue;
+    people[pid] = {};
+    for (const key of Object.keys(TALENTS)) {
+      const s = skills[key];
+      if (s && typeof s === 'object') people[pid][key] = {
+        xp: Math.max(0, Math.min(108, Number(s.xp) || 0)), month: Math.max(0, Number(s.month) || 0),
+        earned: Math.max(0, Math.min(18, Number(s.earned) || 0)),
+      };
+    }
+  }
+  return { people, birthdays: Array.isArray(saved?.birthdays) ? saved.birthdays.filter(b =>
+    typeof b?.pid === 'string' && Number.isInteger(b.year) && b.year > 0).slice(-32) : [],
+    inquiries: Array.isArray(saved?.inquiries) ? saved.inquiries.filter(q => q && typeof q.pid === 'string' &&
+      Object.hasOwn(TALENTS,q.skill) && Number.isInteger(q.month) && Number.isFinite(q.after)).slice(-8) : [],
+    birthdayInvites: Array.isArray(saved?.birthdayInvites) ? saved.birthdayInvites.filter(b=>typeof b?.pid==='string'&&Number.isInteger(b.month)).slice(-16) : [],
+    lastLessonMonth: Number.isInteger(saved?.lastLessonMonth) ? saved.lastLessonMonth : 0,
+    nextInvite: Number.isFinite(saved?.nextInvite) ? saved.nextInvite : 0 };
+}
+function talentRecord(d, skill) {
+  const skills = G.life.people[d.pid] ||= {};
+  if (!skills[skill]) {
+    const seed = JOBS[d.job]?.talent === skill ? 18 : skill === 'cooking' ? (d.job === 'baker' ? 18 : d.persona === 'foodie' || d.job === 'barista' ? 6 : 0)
+      : skill === 'music' && d.persona === 'nerd' ? 18 : skill === 'craft' && d.persona === 'maker' ? 18 : 0;
+    skills[skill] = { xp: seed, month: G.day, earned: 0 };
+  }
+  return skills[skill];
+}
+const talentLevel = (d, skill) => TALENT_STEPS.filter(n => talentRecord(d, skill).xp >= n).length - 1;
+const birthdayDone = d => G.life.birthdays.some(b => b.pid === d.pid && b.year === yearOf(G.day));
+function gainTalent(d, skill, amount, teacher) {
+  if (d.guest) return;
+  const record = talentRecord(d, skill), before = talentLevel(d, skill), theme = TALENTS[skill];
+  if (record.month !== G.day) { record.month = G.day; record.earned = 0; }
+  const gain = Math.max(0, Math.min(amount, 18 - record.earned, 108 - record.xp));
+  record.earned += gain; record.xp += gain;
+  const after = talentLevel(d, skill);
+  if (after <= before) return;
+  const discovery = theme.discoveries[after - 1];
+  const text = `${d.name}${teacher ? `在${teacher.name}的陪伴下，` : '慢慢练出了'}${teacher ? '学会了' : ''}「${discovery}」。`;
+  say(d, `这次做到了！${discovery}。`, 4); d.happy = 5;
+  d.needs.fun = Math.min(100, d.needs.fun + 8);
+  addHomeMemory('growth', '家里多了一个拿手活', text, teacher ? [d, teacher] : [d], `talent:${d.pid}:${skill}:${after}`);
+  NPCMemory.record(G, { type: 'small-milestone', time: absNow(), participants: teacher ? [d.pid, teacher.pid] : [d.pid], outcome: skill },
+    [{ person: d.pid, subject: teacher?.pid || d.pid, emotion: .8, impact: 80, interpretation: text }]);
+  addLog(`${theme.icon} ${text}`);
+}
+function finishTalentPractice(d, action) {
+  if (!action.furn || !G.furniture.includes(action.furn) || (action.practiceTime || 0) < 3) return;
+  const skill = Object.keys(TALENTS).find(key => TALENTS[key].uses.includes(action.type));
+  if (!skill) return;
+  gainTalent(d, skill, 6);
+  const level = talentLevel(d, skill);
+  if (level < 2 && G.life.lastLessonMonth !== G.day && Math.random() < .35 &&
+      !G.life.inquiries.some(q => q.pid === d.pid))
+    G.life.inquiries.push({ pid: d.pid, skill, month: G.day, after: absNow()+30 });
+  if (skill === 'cooking') d.needs.hunger = Math.min(100, d.needs.hunger + level * 3);
+  else d.needs.fun = Math.min(100, d.needs.fun + level * 2);
+  if (skill === 'music') for (const listener of residents()) {
+    if (listener.act?.type === 'join' && listener.act.target === d && listener.state === 'act' && canSee(d, listener))
+      listener.needs.fun = Math.min(100, listener.needs.fun + level * 3);
+  }
+}
+function tryLifeLesson(d) {
+  if (d.guest || G.home.active || G.community.active || G.keepsakes.project || G.life.lastLessonMonth === G.day ||
+      G.time < 8*60 || G.time > 20*60 || d.needs.energy < 35 || d.needs.hunger < 25) return false;
+  const inquiry = G.life.inquiries.find(q => q.pid === d.pid && q.after <= absNow() && q.month >= G.day-1);
+  if (!inquiry) return false;
+  inquiry.after = absNow()+45;
+  const teacher = residents().filter(o => o !== d && availableForHouseChat(o) && !homeAvailability(o,'stories') &&
+    !tensionBetween(d,o) && rel(d,o).f >= 30 && canSee(d,o) && talentLevel(o,inquiry.skill)>=1 &&
+    talentRecord(o,inquiry.skill).xp > talentRecord(d,inquiry.skill).xp)
+    .sort((a,b)=>rel(d,b).f-rel(d,a).f)[0];
+  if (!teacher) return false;
+  const kind = Object.keys(LESSON_SKILLS).find(key=>LESSON_SKILLS[key]===inquiry.skill);
+  if (startHomeTime(kind,[d.pid,teacher.pid],d.pid)) return false;
+  G.life.lastLessonMonth = G.day;
+  G.life.inquiries = G.life.inquiries.filter(q=>q!==inquiry);
+  say(d,`刚才那一步没太会，可以教教我吗？`,3.5);
+  save(); return true;
+}
+function lifeFocusCandidates(kind) {
+  if (kind === 'birthday') return residents().filter(d => birthdayOf(d) === monthOf(G.day) && !birthdayDone(d));
+  return residents();
+}
+function lifeTimePlan(kind, group, focusPid) {
+  if (kind === 'birthday') {
+    const honoree = focusPid ? group.find(d => d.pid === focusPid) : group.find(d => lifeFocusCandidates(kind).includes(d));
+    if (!honoree || birthdayOf(honoree) !== monthOf(G.day)) return { reason: '选上本月过生日的住户，再邀请愿意陪 TA 的人。' };
+    if (birthdayDone(honoree)) return { reason: `${honoree.name}今年已经一起许过愿啦。` };
+    if (group.some(d=>d!==honoree&&rel(d,honoree).f<0)) return { reason: '有位室友现在不太愿意参加，先让彼此留一点空间。' };
+    return { honoree: honoree.pid, year: yearOf(G.day), quiet: !isE(honoree) || ['nerd', 'lazy'].includes(honoree.persona) };
+  }
+  const skill = LESSON_SKILLS[kind];
+  if (!skill) return {};
+  if (group.length !== 2) return { reason: '一位想学的人、一位教 TA 的室友，先选两个人。' };
+  const learner = group.find(d => d.pid === focusPid) || (focusPid ? null : group.slice().sort((a,b) => talentRecord(a,skill).xp - talentRecord(b,skill).xp)[0]);
+  if (!learner) return { reason: '把想学的住户也选进这次活动里。' };
+  const teacher = group.find(d => d !== learner);
+  if (talentLevel(teacher,skill) < 1 || talentRecord(teacher,skill).xp <= talentRecord(learner,skill).xp)
+    return { reason: `需要一位更熟练的室友。先实际${skill === 'cooking' ? '做几次饭' : skill === 'music' ? '弹几次琴' : '做几次手作'}，就能慢慢上手。` };
+  if (rel(learner,teacher).f < 0) return { reason: '两个人现在不太愿意一起练，换一位室友吧。' };
+  return { skill, learner: learner.pid, teacher: teacher.pid };
+}
+function lifeTimeValid(a, group) {
+  const detail = a.detail || {};
+  if (a.kind === 'birthday') {
+    const honoree=group.find(d=>d.pid===detail.honoree);
+    return !!honoree && group.every(d=>d===honoree||rel(d,honoree).f>=0) && !G.life.birthdays.some(b=>b.pid===detail.honoree&&b.year===detail.year);
+  }
+  if (LESSON_SKILLS[a.kind]) return group.length === 2 && group.some(d => d.pid === detail.learner) && group.some(d => d.pid === detail.teacher) && rel(group[0],group[1]).f >= 0;
+  return true;
+}
+function lifeTimeLine(a, d, round) {
+  const detail = a.detail || {};
+  if (a.kind === 'birthday') {
+    const honoree = communityDoll(detail.honoree);
+    if (d === honoree) return round ? (detail.quiet ? '原来你们都记得。谢谢你们。' : '许好愿啦！明年也想和你们一起。')
+      : detail.quiet ? '不用唱得很大声……这样就很好。' : '等一下，我要认真许个愿！';
+    if (round) return detail.quiet ? '慢慢许愿，我们都在呢。' : '一、二、三，吹蜡烛啦！';
+    return d.persona === 'foodie' ? `给${honoree.name}留了最大的一块。` : d.persona === 'maker' ? '这张小卡片是我亲手做的。'
+      : d.persona === 'lazy' ? '我没忘，特意没有去睡午觉。' : `${honoree.name}，生日快乐。很高兴和你住在一起。`;
+  }
+  const skill = detail.skill;
+  if (!skill) return null;
+  const teaching = d.pid === detail.teacher;
+  const lines = {
+    cooking: teaching ? ['锅别太急，先把火调小一点。', '对，就是这个香味。下次你来掌勺。'] : ['我总怕翻坏……你帮我看一下。', '这回没有糊！下次做给你吃。'],
+    music: teaching ? ['先跟我弹这几个音，慢一点。', '错一拍也没事，我们从这里接上。'] : ['刚才又弹错了……我再来一遍。', '跟上了！原来这里要轻一点。'],
+    craft: teaching ? ['线别拉太紧，我把这一步做慢一点。', '这一针比刚才整齐多了。'] : ['这里总打结，能再教我一次吗？', '好了！这次我想自己收尾。'],
+  };
+  if (round === 0 && teaching && d.persona === 'lazy') return '我坐着慢慢教，你别着急。';
+  return lines[skill][round];
+}
+function finishLifeTime(a, group) {
+  const detail = a.detail;
+  if (a.kind === 'birthday') {
+    const honoree = group.find(d => d.pid === detail.honoree), others = group.filter(d => d !== honoree);
+    G.life.birthdays.push({ pid: honoree.pid, year: detail.year });
+    G.life.birthdays = G.life.birthdays.slice(-32);
+    honoree.happy = 6;
+    return { title: detail.quiet ? '轻声说一句生日快乐' : '大家都陪我许了愿',
+      text: `${others.map(d=>d.name).join('、')}陪${honoree.name}过了生日，${detail.quiet ? '没有起哄，只轻声送上祝福' : '一起拍手、吹灭了蜡烛'}。原来大家都记得。` };
+  }
+  if (!detail?.skill) return null;
+  const learner = group.find(d => d.pid === detail.learner), teacher = group.find(d => d.pid === detail.teacher);
+  gainTalent(learner, detail.skill, 10, teacher);
+  return { title: HOME_TIMES[a.kind].title,
+    text: `${teacher.name}陪${learner.name}一起学${TALENTS[detail.skill].name}，${detail.skill === 'cooking' ? '从怕翻坏到亲手做完了一小份' : detail.skill === 'music' ? '弹错的地方又慢慢试了一遍' : '终于把总打结的那一步做好了'}。` };
+}
+function tickLifeMoments() {
+  G.life.inquiries = G.life.inquiries.filter(q=>q.month >= G.day-1 && residents().some(d=>d.pid===q.pid)).slice(-8);
+  for (const pid of Object.keys(G.life.people)) if (!residents().some(d=>d.pid===pid)) delete G.life.people[pid];
+  if (G.home.active || G.community.active || G.community.outing || G.keepsakes.project ||
+      G.time < 17*60 || G.time > 20*60 || absNow() < G.life.nextInvite || G.mode !== 'live') return;
+  G.life.nextInvite = absNow() + 45;
+  for (const honoree of lifeFocusCandidates('birthday')) {
+    if (G.life.birthdayInvites.some(b=>b.pid===honoree.pid&&b.month===G.day)) continue;
+    if (!availableForHouseChat(honoree) || homeAvailability(honoree,'birthday')) continue;
+    const friends = residents().filter(d => d !== honoree && availableForHouseChat(d) && !homeAvailability(d,'birthday') &&
+      !tensionBetween(honoree,d) && (rel(honoree,d).f >= 35 || arePartners(honoree,d)))
+      .sort((a,b) => rel(honoree,b).f-rel(honoree,a).f);
+    const group = [honoree];
+    for (const d of friends) if (group.length < (isE(honoree) && !['nerd','lazy'].includes(honoree.persona) ? 4 : 2) &&
+      group.every(o => !tensionBetween(o,d))) group.push(d);
+    if (group.length >= 2 && !startHomeTime('birthday',group.map(d=>d.pid),honoree.pid)) {
+      G.life.birthdayInvites=G.life.birthdayInvites.filter(b=>b.month>=G.day-1);
+      G.life.birthdayInvites.push({pid:honoree.pid,month:G.day});save();
+      HOOK.toast(`${friends[0].name}给${honoree.name}准备了一个小小的生日。`, true); break;
+    }
+  }
+}
+function talentSummary(d) {
+  if (d.guest) return '';
+  return Object.entries(TALENTS).map(([key,t]) => {
+    const level = talentLevel(d,key);
+    return `${t.icon} ${t.name} · ${level ? t.discoveries[level-1] : TALENT_NAMES[0]}`;
+  }).join('　/　');
+}
+function drawLifeTime(c, f, x, y) {
+  const a = G.home?.active;
+  if (!a || a.anchor !== f.key || a.phase !== 'sharing') return;
+  if (a.kind === 'birthday') {
+    R(c,x+7,y+3,19,2,'#fff8e8'); R(c,x+9,y-3,15,6,'#d9989e');
+    R(c,x+9,y-4,15,2,'#fff0d6'); R(c,x+11,y-2,2,2,'#f4c2b6'); R(c,x+20,y-2,2,2,'#f4c2b6');
+    R(c,x+15,y-8,2,4,'#a7c8b5');
+    if (a.elapsed < 10) R(c,x+15,y-11+Math.floor(G.t*3)%2,2,3,'#f8cf76');
+    else if (a.elapsed < 13) R(c,x+16,y-12,1,2,'#f6ecd8');
+    R(c,x+2,y+1,4,4,'#fff0d6'); R(c,x+3,y+2,2,1,'#ba838b');
+  } else if (a.detail?.skill === 'cooking') {
+    const steam=Math.floor(G.t*2)%3;
+    R(c,x+6,y-7-steam,1,3,'#f6ecd8');R(c,x+10,y-10+steam,1,2,'#f6ecd8');
+    R(c,x+5,y-1,7,2,'#b88769');R(c,x+6,y-3,5,2,'#f0d3a6');
+  } else if (a.detail?.skill === 'music') {
+    R(c,x+7,y-14,1,5,'#b17c87'); R(c,x+5,y-10,3,2,'#b17c87'); R(c,x+8,y-14,3,1,'#b17c87');
+  } else if (a.detail?.skill === 'craft') {
+    R(c,x+4,y+1,9,5,'#dba3ac'); R(c,x+5,y+2,7,1,'#f4d7be'); R(c,x+6,y,1,7,'#f5e4c8');
+  }
+}
+</script>
+<script>
 // Portable saves are inspected before applying; the previous home remains recoverable.
 const HOME_IMPORT_BACKUP = SAVE_KEY + ':before-import';
 const HOME_FILE_LIMIT = 5 * 1024 * 1024;
@@ -6967,6 +7274,25 @@ function validatePortableHome(data) {
   }
   if (data.community && (!object(data.community) || !list(data.community.friends, 1000) || !list(data.community.applications, 1000))) throw Error('访客资料不完整。');
   if (data.keepsakes && (!object(data.keepsakes) || !list(data.keepsakes.pieces, 1000) || !object(data.keepsakes.corners) || !object(data.keepsakes.traditions))) throw Error('手作与小角落资料不完整。');
+  if (data.life) {
+    const life=data.life;
+    if (!object(life.people) || Object.keys(life.people).length>64 || !list(life.birthdays,32) || !list(life.inquiries,8) || !list(life.birthdayInvites,16) ||
+      !Number.isFinite(life.nextInvite) || !Number.isInteger(life.lastLessonMonth)) throw Error('生活里程碑资料不完整。');
+    for(const skills of Object.values(life.people)) {
+      if(!object(skills)) throw Error('本领记录不完整。');
+      for(const [key,s] of Object.entries(skills)) if(!Object.hasOwn(TALENTS,key) || !object(s) || !Number.isFinite(s.xp) || s.xp<0 || s.xp>108 ||
+        !Number.isInteger(s.month) || !Number.isFinite(s.earned) || s.earned<0 || s.earned>18) throw Error('本领记录不完整。');
+    }
+    if(life.birthdays.some(b=>!object(b)||typeof b.pid!=='string'||!Number.isInteger(b.year)||b.year<1)||
+      life.birthdayInvites.some(b=>!object(b)||typeof b.pid!=='string'||!Number.isInteger(b.month))||
+      life.inquiries.some(q=>!object(q)||typeof q.pid!=='string'||!Object.hasOwn(TALENTS,q.skill)||!Number.isInteger(q.month)||!Number.isFinite(q.after))) throw Error('生日或请教记录不完整。');
+  }
+  if(data.home?.active && (data.home.active.kind==='birthday'||LESSON_SKILLS[data.home.active.kind])) {
+    const a=data.home.active,detail=a.detail;
+    if(!object(detail) || (a.kind==='birthday' ? typeof detail.honoree!=='string'||!a.people.includes(detail.honoree)||!Number.isInteger(detail.year)
+      : detail.skill!==LESSON_SKILLS[a.kind]||typeof detail.learner!=='string'||typeof detail.teacher!=='string'||detail.learner===detail.teacher||
+        !a.people.includes(detail.learner)||!a.people.includes(detail.teacher))) throw Error('活动主角资料不完整。');
+  }
   if (data.npcMemory) {
     if (!object(data.npcMemory.people) || !object(data.npcMemory.events)) throw Error('住户的记忆资料不完整。');
     for (const memory of Object.values(data.npcMemory.people)) if (!list(memory.short, 1000) || !list(memory.long, 1000)) throw Error('住户的记忆资料不完整。');
@@ -7050,7 +7376,7 @@ function dollPose(d) {
 function drawDollObj(c, d) {
   const { x, y } = houseDollPoint(d);
   const care = d.act && CARE_ACTIONS.includes(d.act.type);
-  const speaking = d.state === 'act' && d.act?.type === 'chat' && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
+  const speaking = d.state === 'act' && ['chat','homeTime'].includes(d.act?.type) && d.bubble && !['argue', 'awkward', 'confront'].includes(d.act.kind);
   const eating = care && d.act.type === 'savedMeal' && d.state === 'act';
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: eating ? Math.floor(d.act.careElapsed * 2) % 4 : speaking ? Math.floor(G.t * 2) % 4 : d.frame, pose: dollPose(d), hop: d.hop,
@@ -7794,6 +8120,7 @@ function renderInfo() {
     <div class="persona">${GENDERS[d.gender]} · ${HEARTS[d.heart].icon} ${HEARTS[d.heart].name}：${HEARTS[d.heart].desc}</div>
     ${NEEDS.map(n => `<div class="need"><span>${n.name}</span><div class="bar"><i data-need="${n.key}" style="background:${n.color}"></i></div></div>`).join('')}
     <div class="doing">正在：<b id="infoDoing"></b></div>
+    <div class="persona talent-summary" id="infoTalents"></div>
     ${G.dolls.length > 1 ? `<div class="rels"><h4>人际关系</h4>${G.dolls.filter(o => o !== d).map(o => `
       <div class="rel" data-rel-row="${o.uid}"><div class="rel-top"><span>${esc(o.name)} <span class="stars" title="星座 + MBTI 缘分">${compatStars(d, o)}</span></span><small data-rl="${o.uid}"></small></div>
       <div class="rel-bars"><span title="友好度">🤝</span><div class="bar"><i data-rf="${o.uid}" style="background:#7cc576"></i></div>
@@ -7829,6 +8156,7 @@ function tickInfo() {
     }
     for (const i of document.querySelectorAll('[data-need]')) i.style.width = d.needs[i.dataset.need].toFixed(0) + '%';
     const s = $('#infoDoing'); if (s) s.textContent = doingText(d);
+    const talents = $('#infoTalents'); if (talents) { talents.textContent = talentSummary(d); talents.hidden = d.guest; }
     const m = $('#infoMoney'); if (m) { m.textContent = TEST_MODE ? '∞' : yuan(d.money); m.classList.toggle('neg', !TEST_MODE && d.money < 0); }
     for (const o of G.dolls) {
       if (o === d) continue;
@@ -7931,6 +8259,8 @@ $('#btnReset').onclick = () => {
   s.paperMoments = G.paperMoments;
   s.keepsakes = { ...G.keepsakes, corners: {}, project: null };
   s.home = { ...G.home, active: null };
+  s.life = G.life;
+  keepDolls.forEach(d=>{d.nextJob=G.dolls.find(o=>o.pid===d.pid)?.nextJob;});
   s.rel = keepRel; s.npcMemory = G.npcMemory; s.paper=G.paper; s.daily=G.daily; s.dayRelations=G.dayRelations; s.community=G.community; applySave(s); rebuild(); save(); HOOK.select(); renderPalette(); HOOK.toast('房间已恢复默认', true);
 };
 
@@ -8137,10 +8467,10 @@ function renderWardrobe() {
   const jobs = el('div', 'chips');
   for (const [k, J] of Object.entries(JOBS)) {
     const sub = J.start == null ? (k === 'artist' ? '不用出门 · 偶尔卖画' : '不用出门 · 没有收入') : `${hhmm(J.start)}–${hhmm(J.end)} · ${yuan(J.wage)}/月${k === 'student' ? ' · 不谈恋爱' : ''}`;
-    const b = el('button', 'chip' + (d.job === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
+    const b = el('button', 'chip' + ((d.nextJob || d.job) === k ? ' on' : ''), `${J.icon} ${J.name}<small>${sub}</small>`);
     b.onclick = () => {
-      d.job = k; SFX.play('pop');
-      if (k === 'student') { clearRomance(d); HOOK.toast('学生不参与恋爱剧情，和 TA 有关的恋爱关系已清零', true); }
+      changeResidentJob(d,k); SFX.play('pop');
+      HOOK.toast(d.nextJob ? `这次先完成原来的工作，回来后转为${J.name}。` : k==='student' ? '已设为学生，不参与恋爱剧情；下月使用新作息。' : `已设为${J.name}，下月开始使用新作息。`,true);
       renderWardrobe(); wdSaved();
     };
     jobs.append(b);
@@ -8533,6 +8863,14 @@ function showHomePage(page) {
 }
 function renderHomeWishes() {
   ensureHomeWishes();
+  $('#homeOccasions').replaceChildren(...residents().filter(d=>birthdayOf(d)===monthOf(G.day)).map(d=>{
+    const card=el('div','home-occasion'), text=el('span');
+    text.textContent=birthdayDone(d) ? `🎂 ${d.name}的生日，这个月已经一起许过愿了。` : `🎂 本月是${d.name}的生日。${!isE(d)?'TA 更喜欢安静的祝福。':'一起热热闹闹地许个愿吧。'}`;
+    card.append(homeCast([d],true),text);
+    if(!birthdayDone(d)) { const button=el('button','btn small ghost','陪 TA 过生日');
+      button.onclick=()=>{homeKind='birthday';renderHomeInvitation(d.pid,true)};card.append(button); }
+    return card;
+  }));
   $('#homeWishes').replaceChildren(...G.home.wishes.slice(-4).map(w => {
     const d = communityDoll(w.pid), card = el('article', 'home-wish' + (w.done ? ' fulfilled' : ''));
     const body = el('div'), title = el('small'), quote = el('p');
@@ -8550,30 +8888,40 @@ function renderHomeWishes() {
 function selectedHomePeople() { return [...document.querySelectorAll('#homePeople input:checked')].map(n => n.value); }
 function updateHomePlan() {
   const pids = selectedHomePeople();
-  const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids).reason;
-  $('#homePlanStatus').textContent = reason || `约好 ${pids.length} 个人${HOME_TIMES[homeKind].name}。${HOME_TIMES[homeKind].cost && !TEST_MODE ? '开饭时使用家庭基金 ¥30。' : '不用花钱。'}`;
+  const reason = G.home.active ? '大家已经在活动中，关上手记就能看他们慢慢聚过来。' : prepareHomeTime(homeKind, pids, $('#homeFocus').value).reason;
+  $('#homePlanStatus').textContent = reason || `约好 ${pids.length} 个人${HOME_TIMES[homeKind].name}。${HOME_TIMES[homeKind].cost && !TEST_MODE ? `开场时使用家庭基金 ¥${HOME_TIMES[homeKind].cost}。` : '不用花钱。'}`;
   $('#homeStart').disabled = !!reason;
 }
-function renderHomeInvitation(ownerPid) {
+function renderHomeInvitation(ownerPid, reset = false) {
   $('#homeKinds').replaceChildren(...Object.entries(HOME_TIMES).map(([key, theme]) => {
     const button = el('button', 'btn small' + (key === homeKind ? ' on' : ' ghost'));
     button.textContent = `${theme.icon} ${theme.name}`;
     button.setAttribute('aria-pressed', String(key === homeKind));
-    button.onclick = () => { homeKind = key; renderHomeInvitation(); };
+    button.onclick = () => { homeKind = key; renderHomeInvitation(undefined,true); };
     return button;
   }));
   $('#homeKindHint').textContent = HOME_TIMES[homeKind].hint;
+  const special=homeKind==='birthday'||!!LESSON_SKILLS[homeKind], focus=$('#homeFocus');
+  $('#homeFocusLabel').hidden=!special;
+  $('#homeFocusCaption').textContent=homeKind==='birthday'?'为谁过生日？':'这次谁来学？';
+  const candidates=special?lifeFocusCandidates(homeKind):[], oldFocus=focus.value;
+  focus.replaceChildren(...candidates.map(d=>{const o=el('option');o.value=d.pid;o.textContent=d.name;return o}));
+  focus.value=special?(candidates.find(d=>d.pid===ownerPid)?.pid||(!reset&&candidates.find(d=>d.pid===oldFocus)?.pid)||candidates[0]?.pid||''):'';
+  if(special&&!candidates.length){const o=el('option');o.value='';o.textContent='本月暂时没有待庆祝的生日';focus.append(o);}
+  focus.onchange=()=>renderHomeInvitation(focus.value,true);
   const previous = new Set(selectedHomePeople());
-  const owner = communityDoll(ownerPid);
+  const owner = communityDoll(special?focus.value:ownerPid);
   const available = residents().filter(d => !homeAvailability(d, homeKind));
-  const recommended = owner ? [owner, ...available.filter(d => d !== owner && !tensionBetween(owner, d))].slice(0, 2)
+  const skill=LESSON_SKILLS[homeKind];
+  const recommended = owner ? [owner, ...available.filter(d => d !== owner && !tensionBetween(owner, d) &&
+    (!skill || (talentLevel(d,skill)>=1 && talentRecord(d,skill).xp>talentRecord(owner,skill).xp)))].slice(0, 2)
     : available.slice(0, 2);
-  const chosen = ownerPid || !previous.size ? new Set(recommended.map(d => d.pid)) : previous;
+  const chosen = reset || ownerPid || !previous.size ? new Set(recommended.map(d => d.pid)) : previous;
   $('#homePeople').replaceChildren(...residents().map(d => {
     const label = el('label'), check = el('input'), body = el('span'), reason = homeAvailability(d, homeKind);
     check.type = 'checkbox'; check.value = d.pid; check.checked = chosen.has(d.pid) && !reason;
     check.disabled = !!reason; check.onchange = updateHomePlan;
-    body.textContent = d.name + (reason ? ` · ${reason}` : ` · ${PERSONAS[d.persona].name}`);
+    body.textContent = d.name + (reason ? ` · ${reason}` : skill ? ` · ${TALENT_NAMES[talentLevel(d,skill)]}` : ` · ${PERSONAS[d.persona].name}`);
     label.append(check, paperPortrait(d), body); return label;
   }));
   updateHomePlan();
@@ -8629,7 +8977,7 @@ $('#homeFavorites').onclick = () => {
   $('#homeFavorites').setAttribute('aria-pressed', String(homeOnlyFavorites)); renderHomeAlbum();
 };
 $('#homeStart').onclick = () => {
-  const reason = startHomeTime(homeKind, selectedHomePeople());
+  const reason = startHomeTime(homeKind, selectedHomePeople(), $('#homeFocus').value);
   if (reason) { $('#homePlanStatus').textContent = reason; return; }
   $('#homeDialog').close(); HOOK.toast('约好啦，大家正走过来。', true);
 };
