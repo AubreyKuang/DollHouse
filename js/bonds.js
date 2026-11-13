@@ -40,7 +40,7 @@ function trustWord(v) {
 
 /* ---------- 搭子：一起吃饭、一起打游戏会慢慢变成习惯 ---------- */
 function countTogether(kind, a, b) {
-  if (!a || !b || a === b || a.guest || b.guest) return;
+  if (!a || !b || a === b || a.guest || b.guest || (typeof tensionBetween === 'function' && tensionBetween(a, b))) return;
   G.habits ||= {};
   const store = G.habits[kind] ||= {};
   const k = relKey(a, b);
@@ -76,6 +76,7 @@ function noteSharedMeal(d, table) {
 }
 // 有搭子正在用这件家具时，更想凑过去
 function companionBonus(d, f, use) {
+  if (typeof tensionBetween === 'function' && f.users.some(o => o !== d && tensionBetween(d, o))) return -45;
   const kind = use === 'meal' ? 'meal' : use === 'game' ? 'game' : null;
   if (!kind) return 0;
   return f.users.some(o => o !== d && bondTagged(d, o, kind)) ? 22 : 0;

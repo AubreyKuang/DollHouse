@@ -82,6 +82,7 @@ if(dollhouse) {
     vm.runInContext(read('js/house-life.js'),ctx);
     if(fs.existsSync(path.join(root,'js/bonds.js')))vm.runInContext(read('js/bonds.js'),ctx);
     vm.runInContext(read('js/social.js'),ctx);
+    vm.runInContext(read('js/relationship-fallout.js'),ctx);
     ctx.startSocial(a,b);
     if(ctx.trustOf){assert.ok(ctx.trustOf(a,b)<0);assert.ok(ctx.trustOf(b,a)<0);}
     assert.equal(ctx.memory.recall(G,'alice').length,1);

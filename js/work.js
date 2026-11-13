@@ -93,7 +93,7 @@ function comeHome(d) {
 }
 
 function greetAfterWork(d, line, soaked) {
-  const nearby = residents().filter(o => o !== d && canSee(d, o) && canDisturb(d, o) &&
+  const nearby = residents().filter(o => o !== d && !tensionBetween(d, o) && canSee(d, o) && canDisturb(d, o) &&
     Math.abs(o.tx - d.tx) + Math.abs(o.ty - d.ty) <= 7 && availableForHouseChat(o) &&
     (arePartners(d, o) || rel(d, o).f >= 0));
   nearby.sort((a, b) => Number(arePartners(d, b)) - Number(arePartners(d, a)) || rel(d, b).f - rel(d, a).f);

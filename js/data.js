@@ -204,7 +204,7 @@ const DEFAULT_SAVE = {
   furniture: [
     // 二楼：卫生间、卧室、书房。
     { id: 'shower', x: 0, y: 13 }, { id: 'washstand', x: 1, y: 13 }, { id: 'toilet', x: 2, y: 13 },
-    { id: 'window', x: 1, y: -3 }, { id: 'moonLamp', x: 6, y: -2 },
+    { id: 'window', x: 1, y: -3 }, { id: 'window', x: 5, y: -3 }, { id: 'moonLamp', x: 7, y: -2 },
     { id: 'cloudBed', x: 4, y: 13 }, { id: 'lamp', x: 7, y: 13 }, { id: 'pawRug', x: 5, y: 17 },
     { id: 'window', x: 10, y: -3 }, { id: 'painting', x: 14, y: -2 },
     { id: 'shelf', x: 8, y: 12 }, { id: 'desk', x: 11, y: 13 },

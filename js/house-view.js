@@ -2,7 +2,7 @@
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
 const HOUSE_HEIGHT = 310;
-const HOUSE_MARGIN = 60;
+const HOUSE_MARGIN = 76;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
 const STOREYS = [
@@ -23,10 +23,10 @@ function stairPoint(progress) {
   const edge = HOUSE_X + W;
   const top = houseY(UPPER_LANDING * T + 14, STOREYS[1]);
   const bottom = houseY(LOWER_LANDING * T + 14, STOREYS[0]);
-  if (progress < .2) return { x: mixNum(x, edge + 8, progress / .2), y: top };
-  if (progress > .8) return { x: mixNum(edge + 28, x, (progress - .8) / .2), y: bottom };
+  if (progress < .2) return { x: mixNum(x, edge + 10, progress / .2), y: top };
+  if (progress > .8) return { x: mixNum(edge + 42, x, (progress - .8) / .2), y: bottom };
   const t = (progress - .2) / .6;
-  return { x: mixNum(edge + 8, edge + 28, t), y: mixNum(top, bottom, t) };
+  return { x: mixNum(edge + 10, edge + 42, t), y: mixNum(top, bottom, t) };
 }
 
 function houseDollPoint(d) {
@@ -167,87 +167,23 @@ function drawHouseGarden(c, left, right) {
 }
 
 function drawHouseRoof(c, left, right) {
-  const peak = left + Math.round(W * .58), eave = 70;
-  const pitch = (color, outer, inner) => housePoly(c, color, ...outer, ...[...inner].reverse());
-  const ridge = [[left - 7, eave], [peak, 7], [right + 9, 32]];
-  const rim = [[left - 3, eave + 1], [peak, 13], [right + 8, 38]];
-  const face = [[left + 8, eave + 1], [peak, 20], [right + 1, 44]];
-  const underside = [[left + 17, eave + 1], [peak, 25], [right - 5, 47]];
-  housePoly(c, '#f8ddba', ...ridge, [right + 9, eave]);
-  pitch('#684450', ridge, rim);
-  pitch('#ab6b6d', rim, face);
-  pitch('#dca68d', face, underside);
-  const glint = [[left + 2, eave], [peak, 15], [right + 7, 40]];
-  pitch('#d19488', rim, glint);
-  R(c, right + 1, 37, 8, 32, '#80525a');
-  R(c, right + 1, 43, 2, 26, '#bc8274');
-  c.save();
-  housePath(c, [...underside, [right - 5, eave], [left + 17, eave]]);
-  c.clip();
-  const plaster = c.createLinearGradient(0, 20, 0, eave);
-  plaster.addColorStop(0, '#f1c395');
-  plaster.addColorStop(.65, '#ffe4be');
-  plaster.addColorStop(1, '#edc198');
-  c.fillStyle = plaster;
-  c.fillRect(left, 20, W, eave - 20);
-  housePoly(c, '#ce9b7666', [left + 13, eave], [left + 67, 49], [left + 67, eave]);
-  for (let x = left + 72; x < right; x += 24) detail(c, x, 23, .5, 45, '#bc886818');
-  c.restore();
-  R(c, left + 65, 49, 3, 21, '#a38877');
-  R(c, left + 69, 62, W - 76, 8, '#d7b18c');
-  for (let y = 63; y < eave; y += 2) R(c, left + 69, y, W - 76, 1, '#c5a07f');
-  for (const [x, y, w, h] of [[peak - 48, 52, 24, 14], [peak - 22, 45, 15, 21], [peak - 3, 41, 22, 25], [right - 42, 54, 18, 12], [right - 23, 48, 15, 18]]) {
-    bevel(c, x, y, w, h, '#bb8962', '#9a674f');
-    R(c, x + 1, y + 1, w - 2, 2, '#e4b48a');
-    R(c, x + w - 5, y + 3, 4, h - 4, '#a47455');
-    detail(c, x + 2, y + h - 3, w - 8, .5, '#d29b73');
-    R(c, x + 3, y + 3, w - 10, 1, '#d9b489');
-    R(c, x + w - 9, y + 5, 3, 2, '#a27b62');
-    detail(c, x + w - 9, y + 5, 2.5, .5, '#ebc292');
-  }
-  box(c, peak + 26, 31, 13, 15, '#f5e9d5', '#9b8074');
-  R(c, peak + 28, 33, 9, 10, G.sky);
-  R(c, peak + 32, 33, 1, 10, '#f5e9d5');
-  R(c, peak + 28, 37, 9, 1, '#f5e9d5');
-  R(c, peak + 24, 46, 17, 2, '#b38e76');
-}
+  const center = (left + right) / 2, eave = 70;
+  // The two pitches share one center and one eave height at every house size.
+  housePoly(c, '#76505a', [left - 8, eave], [center, 7], [right + 8, eave]);
+  housePoly(c, '#c18a82', [left - 3, eave], [center, 12], [right + 3, eave]);
+  housePoly(c, '#f4d6b3', [left + 12, eave], [center, 20], [right - 12, eave]);
+  housePoly(c, '#ffe5c3', [left + 20, eave], [center, 24], [right - 20, eave]);
 
-function drawRoomDetails(c, x, right, top, back, storey, i) {
-  if (i === 0) {
-    const upper = storey === STOREYS[1];
-    const start = x + 10, stop = right - 10, y = top + 11;
-    const fabric = upper ? '#4a4963' : '#fff1e5';
-    for (let j = 0; j < 3; j++) {
-      const a = start + (stop - start) * j / 3, b = start + (stop - start) * (j + 1) / 3;
-      housePoly(c, fabric, [a, y], [a + 6, y + 4], [b - 6, y + 4], [b, y],
-        [b - 5, y + 7], [a + 5, y + 7]);
-      R(c, a - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
-    }
-    R(c, stop - 1, y - 1, 3, 3, upper ? '#b9a6c8' : '#cc858b');
-    if (!upper) {
-      const lampX = x + Math.floor((right - x) * .5);
-      R(c, lampX, top + 2, 1, 11, '#976b61');
-      R(c, lampX - 8, top + 12, 17, 2, '#976b61');
-      for (const [j, dx] of [-8, 0, 8].entries()) {
-        const drop = j === 1 ? 6 : 3;
-        R(c, lampX + dx, top + 13, 1, drop, '#a77962');
-        bevel(c, lampX + dx - 2, top + 13 + drop, 5, 5, '#ffe4ae', '#c89174');
-        R(c, lampX + dx - 1, top + 14 + drop, 2, 2, '#fff4cf');
-      }
-      R(c, x + 14, back - 31, 42, 4, '#cc8d97');
-      housePoly(c, '#fff2e5', [x + 14, back - 28], [x + 19, back - 28],
-        [x + 18, back - 11], [x + 13, back - 9]);
-      housePoly(c, '#fff2e5', [x + 51, back - 28], [x + 56, back - 28],
-        [x + 57, back - 9], [x + 52, back - 11]);
-    }
-  } else {
-    const ink = storey === STOREYS[1] ? '#f2e0df' : '#fff2db';
-    for (let px = x + 12; px + 19 < right; px += 32) {
-      R(c, px, top + 15, 18, 1, ink);
-      R(c, px, top + 15, 1, 26, ink);
-      R(c, px + 17, top + 15, 1, 26, ink);
-    }
-  }
+  // A single centered attic window keeps the gable light and uncluttered.
+  const x = center - 10, y = 35;
+  bevel(c, x - 2, y - 2, 24, 25, '#b58c75', '#a37b69');
+  bevel(c, x, y, 20, 21, '#fff0d6', '#dfb998');
+  R(c, x + 3, y + 3, 14, 15, G.sky);
+  if (G.night) R(c, x + 12, y + 5, 2, 2, '#fff3c6');
+  else R(c, x + 4, y + 7, 5, 2, '#fff7e7');
+  R(c, center - 1, y + 2, 2, 17, '#fff0d6');
+  R(c, x + 2, y + 10, 16, 2, '#fff0d6');
+  R(c, x - 3, y + 22, 26, 2, '#c69b7c');
 }
 
 function drawRoomFloor(c, x, end, back, front, base, pattern) {
@@ -346,7 +282,6 @@ function drawStorey(c, storey, wall, floor) {
     c.fillStyle = ceilingShade;
     c.fillRect(x, top, end - x, 14);
     R(c, x + inset, back - 14, end - x - inset * 2, 1, '#fff0d38e');
-    if (!bath && wall.id === 'cream') drawRoomDetails(c, x, end, top, back, storey, i);
   }
   for (const x of bathEdge > left ? [bathEdge, mid] : [mid]) {
     R(c, x - 2, top, 5, front - top, '#8a615c');
@@ -357,22 +292,32 @@ function drawStorey(c, storey, wall, floor) {
 
 function drawHouseStairs(c) {
   const edge = HOUSE_X + W;
-  const top = stairPoint(0).y, bottom = stairPoint(1).y;
-  R(c, edge + 4, top - 10, 29, bottom - top + 15, '#ad846b');
-  R(c, edge + 33, top - 10, 3, 252 - top + 10, '#80605c');
-  R(c, edge + 33, top - 10, 1, 252 - top + 10, '#d0a386');
-  R(c, edge - 5, top - 1, 17, 4, '#c4a384');
-  R(c, edge - 5, bottom - 1, 38, 4, '#c4a384');
-  housePoly(c, '#a08272', [edge + 2, top], [edge + 14, top],
-    [edge + 33, bottom], [edge + 22, bottom]);
-  for (let i = 0; i <= 16; i++) {
-    const p = stairPoint(.2 + .6 * i / 16);
-    R(c, p.x - 5, p.y - 1, 11, 2, '#f2d1a9');
-    R(c, p.x - 5, p.y + 1, 11, 2, '#957768');
-    if (i % 4 === 0) R(c, p.x + 4, p.y - 9, 1, 9, '#826b63');
+  const start = stairPoint(.2), end = stairPoint(.8);
+  const steps = 12, halfWidth = 9;
+  const rise = (end.y - start.y) / steps;
+  // One continuous stair body replaces the old backboard and floating stripes.
+  housePoly(c, '#a57e67', [start.x - halfWidth, start.y], [start.x + halfWidth, start.y],
+    [end.x + halfWidth, end.y + 4], [end.x - halfWidth, end.y + 4]);
+  for (let i = 0; i < steps; i++) {
+    const p = stairPoint(.2 + .6 * i / steps);
+    const x = Math.round(p.x) - halfWidth, y = Math.round(p.y);
+    R(c, x, y, halfWidth * 2, Math.ceil(rise) + 1, '#b38c70');
+    R(c, x, y, halfWidth * 2, 2, '#eed1aa');
+    R(c, x, y + 2, halfWidth * 2, 1, '#d4ac85');
   }
-  housePoly(c, '#76625e', [edge + 12, top - 10], [edge + 32, bottom - 10],
-    [edge + 32, bottom - 8], [edge + 12, top - 8]);
+  // Landings, posts and rail meet the same stair coordinates used by residents.
+  for (const p of [start, end]) {
+    R(c, edge - 3, Math.round(p.y), p.x + halfWidth - edge + 3, 4, '#b38c70');
+    R(c, edge - 3, Math.round(p.y), p.x + halfWidth - edge + 3, 2, '#eed1aa');
+  }
+  const rail = [start, end].map(p => ({ x: Math.round(p.x) + halfWidth, y: Math.round(p.y) }));
+  for (let i = 0; i <= 3; i++) {
+    const p = stairPoint(.2 + .6 * i / 3);
+    R(c, Math.round(p.x) + halfWidth - 1, Math.round(p.y) - 10, 2, 14, '#98745f');
+  }
+  housePoly(c, '#98745f', [rail[0].x - 1, rail[0].y - 12], [rail[1].x + 1, rail[1].y - 12],
+    [rail[1].x + 1, rail[1].y - 9], [rail[0].x - 1, rail[0].y - 9]);
+  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
 }
 
 function drawHouseShell(c, wall, floor) {
@@ -381,14 +326,9 @@ function drawHouseShell(c, wall, floor) {
   drawHouseRoof(c, l, r);
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
   for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
-    R(c, l - 4, y, W + 8, h, '#76504c');
-    R(c, l - 3, y + 1, W + 6, 2, '#dfb18d');
-    detail(c, l - 3, y + 1, W + 6, .5, '#f3c9a2');
-    R(c, l - 3, y + 3, W + 6, 1, '#b47e65');
-    if (h > 5) {
-      for (let x = l + 4; x < r - 12; x += 27) detail(c, x, y + 4.5, 10, .5, '#a36e59');
-      detail(c, l - 2, y + h - 1, W + 4, .5, '#d09170');
-    }
+    R(c, l - 4, y, W + 8, h, '#916953');
+    R(c, l - 3, y + 1, W + 6, h - 2, '#c69d79');
+    R(c, l - 3, y + 1, W + 6, 1, '#ebc9a2');
   }
   for (const x of [l - 4, r]) {
     for (const { wall: y, front } of STOREYS) {

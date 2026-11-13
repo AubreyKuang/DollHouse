@@ -20,11 +20,11 @@ Object.assign(ACT_LINES, {
 const swingOffset = t => Math.round(Math.sin(t * 5) * 3);
 Object.assign(DRAW, {
   gardenSwing(c, x, y, f, t) {
-    contactShadow(c, x + 1, y + 14, 46);
-    housePoly(c, '#82604e', [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
-    housePoly(c, '#82604e', [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
-    bevel(c, x + 6, y - 16, 36, 4, '#bc8968', '#765647');
-    detail(c, x + 8, y - 15, 32, .5, '#e1b48b');
+
+    housePoly(c, WOOD_D, [x + 1, y + 14], [x + 9, y - 14], [x + 13, y - 14], [x + 5, y + 14]);
+    housePoly(c, WOOD_D, [x + 43, y + 14], [x + 35, y - 14], [x + 39, y - 14], [x + 47, y + 14]);
+    bevel(c, x + 6, y - 16, 36, 4, WOOD, WOOD_D);
+    detail(c, x + 8, y - 15, 32, .5, WOOD_L);
     for (const seat of [0, 1]) {
       const left = x + 10 + seat * 16;
       const active = f.users?.some(d => d.state === 'act' && d.act?.seat === seat);
@@ -39,17 +39,17 @@ Object.assign(DRAW, {
     }
   },
   gardenBench(c, x, y) {
-    contactShadow(c, x + 2, y + 14, 28);
-    R(c, x + 5, y + 9, 3, 6, '#63715a'); R(c, x + 24, y + 9, 3, 6, '#63715a');
-    box(c, x + 2, y - 2, 28, 9, '#9bb48c', '#506e58');
+
+    R(c, x + 5, y + 9, 3, 6, FURNITURE_STYLE.mintDark); R(c, x + 24, y + 9, 3, 6, FURNITURE_STYLE.mintDark);
+    furnitureBox(c, x + 2, y - 2, 28, 9, FURNITURE_STYLE.mint, FURNITURE_STYLE.mintDark);
     R(c, x + 3, y + 1, 26, 1, '#c4d2a6'); R(c, x + 3, y + 4, 26, 1, '#6d8b6e');
-    bevel(c, x + 1, y + 6, 30, 4, '#b8c8a0', '#506e58');
+    bevel(c, x + 1, y + 6, 30, 4, FURNITURE_STYLE.mintLight, FURNITURE_STYLE.mintDark);
     detail(c, x + 3, y + 7, 26, .5, '#d6d9b4');
   },
   flowerBox(c, x, y, f, t) {
-    contactShadow(c, x + 1, y + 13, 30);
-    bevel(c, x + 1, y + 5, 30, 9, '#b68063', '#795a4f');
-    R(c, x + 2, y + 6, 28, 2, '#edb38b');
+
+    bevel(c, x + 1, y + 5, 30, 9, WOOD, WOOD_D);
+    R(c, x + 2, y + 6, 28, 2, WOOD_L);
     for (const [i, px] of [5, 11, 17, 23, 27].entries()) {
       const top = y + i % 2 * 3 - 4;
       R(c, x + px, top + 3, 1, 8, '#4a8158');
@@ -62,18 +62,18 @@ Object.assign(DRAW, {
     }
   },
   picnicTable(c, x, y, f) {
-    contactShadow(c, x + 4, y + 13, 40);
-    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, '#846552');
-    box(c, x + 2, y + 7, 44, 4, '#c28e63', '#846552');
-    box(c, x + 5, y, 38, 7, '#f1c8a0', '#846552');
+
+    for (const px of [6, 39]) R(c, x + px, y + 5, 3, 9, WOOD_D);
+    furnitureBox(c, x + 2, y + 7, 44, 4, WOOD, WOOD_D);
+    furnitureBox(c, x + 5, y, 38, 7, WOOD_L, WOOD_D);
     R(c, x + 12, y + 1, 24, 7, '#eeb6b1');
     for (let px = 12; px < 36; px += 4) R(c, x + px, y + 1, 2, 7, '#fff1dd');
     R(c, x + 12, y + 3, 24, 2, '#d991945a');
     if (f.active) { R(c, x + 17, y, 5, 3, '#f8f4dc'); R(c, x + 28, y - 2, 3, 4, '#b77984'); }
   },
   puzzleDesk(c, x, y, f, t) {
-    for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, '#9f765b');
-    box(c, x + 1, y - 2, 30, 10, '#ecc99f', '#9f765b');
+    for (const px of [4, 25]) R(c, x + px, y + 5, 3, 9, WOOD_D);
+    furnitureBox(c, x + 1, y - 2, 30, 10, FURNITURE_STYLE.cream, WOOD_D);
     R(c, x + 7, y, 18, 6, '#f9edda');
     const pieces = ['#7da7c8', '#8dac83', '#dc9a9d', '#e6b972'];
     const shown = f.active ? 2 + Math.floor(t * 2) % 3 : 2;

@@ -35,7 +35,7 @@ function drawDollObj(c, d) {
   drawDoll(c, x, y, d.look, {
     dir: d.dir, frame: d.frame, pose: dollPose(d), hop: d.hop,
     blink: (d.state === 'act' && d.act?.type === 'couchNap') || d.blink > 0 || (d.act && d.act.type === 'read' && d.state === 'act' && Math.sin(G.t * 2) > 0.7),
-    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && d.act.kind !== 'argue'))),
+    happy: d.happy > 0 || (d.act && d.state === 'act' && (['dance', 'game', 'tv', 'snack', 'cat', 'join', 'visitStay'].includes(d.act.type) || (d.act.type === 'chat' && !['argue', 'awkward', 'confront'].includes(d.act.kind)))),
   });
   if (d.state !== 'act') return;
   if (d.act?.type === 'rainTea') {
@@ -224,11 +224,11 @@ function drawHouseFurniture(c, f, t) {
     c.save();
     c.translate(x, bottom - FURNITURE[f.id].h * FLOOR_STEP);
     c.scale(1, FLOOR_STEP / T);
-    DRAW[f.id](c, 0, 0, f, t);
+    drawFurnitureArt(c, f.id, 0, 0, f, t);
     c.restore();
     return;
   }
-  DRAW[f.id](c, x, y, f, t);
+  drawFurnitureArt(c, f.id, x, y, f, t);
   if (!f.users?.length) drawCornerMark(c, f, x, y);
 }
 

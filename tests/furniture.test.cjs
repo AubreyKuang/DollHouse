@@ -926,3 +926,121 @@ test('an overtime worker chats with an available roommate in three turns', () =>
     assert.equal(listener.act, null);
   `);
 });
+
+test('upstairs window retrofit preserves custom wall decor and remembers player removals', () => {
+  runGame(`
+    const old = defaultHouseSave();
+    old.furniture = old.furniture.filter(f => f.id !== 'window' || f.y >= 0);
+    old.furniture.push({ id: 'painting', x: 4, y: -3 });
+    applySave(old);
+    assert.equal(G.furniture.filter(f => f.id === 'window' && f.y < 0).length, 3);
+    assert.ok(G.furniture.some(f => f.id === 'painting' && f.x === 4 && f.y === -3));
+    for (const f of G.furniture.filter(f => f.id === 'window')) assert.ok(canPlace(f.id, f.x, f.y, f));
+    G.furniture = G.furniture.filter(f => f.id !== 'window' || f.x >= BX);
+    const remaining = G.furniture.filter(f => f.id === 'window').length;
+    assert.ok(save()); load();
+    assert.equal(G.furniture.filter(f => f.id === 'window').length, remaining);
+    const full = defaultHouseSave();
+    full.furniture = [{ id: 'painting', x: 4, y: -3 }, { id: 'painting', x: 5, y: -3 },
+      { id: 'painting', x: 6, y: -3 }, { id: 'painting', x: 7, y: -3 }];
+    applySave(full);
+    assert.equal(G.furniture.filter(f => f.id === 'painting').length, 4);
+    assert.equal(G.furniture.filter(f => f.id === 'window' && f.x >= 4 && f.x < 8).length, 0);
+  `);
+});
+
+test('changing partners hurts the whole triangle and the consequences survive reload', () => {
+  runGame(`
+    load();
+    const [tao, lan, jing, tuan] = G.dolls;
+    tuan.state = jing.state = 'away';
+    const formerFriendship = rel(tuan, tao).f, oldTrust = trustOf(tuan, lan);
+    Object.assign(rel(lan, tao), { f: 90, l: 90 });
+    lan.act = { kind: 'flirt' };
+    Math.random = () => 0;
+    startSocial(lan, tao);
+    assert.ok(arePartners(lan, tao));
+    assert.equal(arePartners(lan, tuan), false);
+    assert.ok(rel(tuan, tao).f <= formerFriendship - 35);
+    assert.ok(trustOf(tuan, lan) < oldTrust);
+    assert.ok(trustOf(tuan, tao) < 0 && trustOf(tao, tuan) < 0);
+    assert.ok(jealousyOf(tuan, tao) >= 60);
+    assert.match(relLabel(rel(tuan, tao)), /心结/);
+    assert.match(relLabel(rel(tuan, lan)), /前任/);
+    assert.ok(NPCMemory.recall(G, tao.pid).some(m => m.subject === tuan.pid && /尴尬/.test(m.interpretation)));
+    const friendship = rel(tuan, tao).f;
+    assert.equal(recordRivalFallout(tuan, lan, tao), false);
+    assert.equal(rel(tuan, tao).f, friendship, 'one incident is not applied twice');
+    assert.ok(save()); load();
+    const ex = communityDoll(tuan.pid), other = communityDoll(tao.pid);
+    assert.equal(rel(ex, other).f, friendship);
+    assert.ok(tensionBetween(ex, other));
+    G.day += 4;
+    assert.equal(tensionBetween(ex, other), null);
+    assert.equal(rel(ex, other).f, friendship, 'time does not reset the lost friendship');
+  `);
+});
+
+test('a secret flirt stays private, while a witnessed affair also causes rivalry', () => {
+  runGame(`
+    load();
+    const [tao, lan, jing, tuan] = G.dolls;
+    tuan.state = jing.state = 'away';
+    Object.assign(rel(lan, tao), { f: 65, l: 20 });
+    const friendship = rel(tuan, tao).f;
+    lan.act = { kind: 'flirt' }; Math.random = () => 0;
+    startSocial(lan, tao);
+    assert.ok(rel(lan, tao).secret);
+    assert.ok(arePartners(lan, tuan));
+    assert.equal(rel(tuan, tao).f, friendship);
+    assert.equal(tensionBetween(tuan, tao), null);
+    tuan.state = 'idle';
+    rel(tuan, lan).l = 60;
+    caught(tuan, lan, tao);
+    assert.equal(arePartners(lan, tuan), false);
+    assert.ok(tensionBetween(tuan, tao));
+    assert.ok(rel(tuan, tao).f < friendship);
+    assert.ok(NPCMemory.recall(G, tuan.pid).some(m => m.subject === tao.pid && m.channel === 'witness'));
+    tao.job = 'student'; clearRomance(tao);
+    assert.equal(tensionBetween(tuan, tao), null);
+    assert.equal(rel(tuan, tao).tension, undefined);
+  `);
+});
+
+test('rivals exchange awkward lines, avoid friendly gains and physically step apart', () => {
+  runGame(`
+    load();
+    G.furniture = []; rebuild();
+    const [tao, lan, jing, tuan] = G.dolls;
+    lan.state = jing.state = 'away';
+    tao.state = tuan.state = 'idle'; tao.act = tuan.act = null;
+    placeDollAt(tuan, 10, 9); placeDollAt(tao, 11, 9);
+    announceChangedHeart(lan, tuan, tao);
+    hearts.length = 0;
+    const friendship = rel(tuan, tao).f;
+    startSocial(tuan, tao);
+    assert.equal(tuan.act.kind, 'awkward');
+    assert.match(tuan.bubble.text, /这里/);
+    tickHouseExchange(tuan, 1.6);
+    assert.match(tao.bubble.text, /就走/);
+    tickHouseExchange(tuan, 1.6);
+    assert.match(tuan.bubble.text, /安静/);
+    assert.equal(rel(tuan, tao).f, friendship);
+    assert.ok(hearts.every(h => h.txt === '…'));
+    assert.equal(companionBonus(tuan, { users: [tao] }, 'meal'), -45);
+    countTogether('meal', tuan, tao);
+    assert.equal(G.habits.meal?.[relKey(tuan, tao)], undefined);
+    tuan.act.t = 0; endAct(tuan);
+    assert.equal(tuan.state, 'walk');
+    const goal = tuan.path.at(-1);
+    assert.ok(Math.abs(goal.x - tao.tx) + Math.abs(goal.y - tao.ty) >= 4);
+    endAct(tuan); tao.state = tuan.state = 'idle';
+    tickRelationshipTension();
+    assert.equal(tuan.act, null, 'passing again immediately does not repeat the scene');
+    G.day += 1;
+    placeDollAt(tuan, 10, 9); placeDollAt(tao, 11, 9);
+    tickRelationshipTension();
+    assert.equal(tuan.act.kind, 'awkward');
+    assert.equal(tuan.act.partner, tao);
+  `);
+});

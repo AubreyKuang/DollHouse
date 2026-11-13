@@ -21,6 +21,8 @@ const SOCIAL = {
   hug:   { verb: '和{n}抱抱', a: ['抱一个！', '🤗'], b: ['嘿嘿～', '❤'] },
   flirt: { verb: '向{n}表白', a: ['我……我有话想说', '你今天真好看……', '要不要一起看星星？'], b: [] },
   kiss:  { verb: '和{n}亲亲', a: ['💋', '最喜欢你了'], b: ['❤ ❤', '我也是～'] },
+  awkward: { verb: '和{n}尴尬地打照面', a: ['……'], b: ['嗯。'] },
+  confront: { verb: '和{n}谈起感情里的心结', a: ['我还需要时间。'], b: ['好。'] },
   argue: { verb: '和{n}吵架', a: ['💢 哼！', '都怪你！', '你才是！'], b: ['💢 不理你了', '明明是你！', '哼！'] },
 };
 
@@ -36,8 +38,10 @@ const levelOf = (v, table) => table.find(([min]) => v >= min)[1];
 function relLabel(r) {
   if (r.lovers) return '💕 恋人';
   if (r.secret) return '🤫 偷偷暧昧';
+  const tension = activeTension(r);
+  if (tension) return (tension.kind === 'rival' ? '😶 心结未解' : '💔 前任 · 相处尴尬') + ' · ' + levelOf(r.f, REL_LEVELS);
   const love = levelOf(r.l, LOVE_LEVELS), tags = typeof bondTagsText === 'function' ? bondTagsText(r) : '';
-  return levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
+  return (r.ex ? '💔 前任 · ' : '') + levelOf(r.f, REL_LEVELS) + (love ? ' · ' + love : '') + (tags ? ' · ' + tags : '');
 }
 function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || null; }
 
@@ -46,7 +50,7 @@ function loverOf(d) { return G.dolls.find(o => o !== d && rel(d, o).lovers) || n
 const isStudent = d => d.job === 'student';
 const canRomance = (a, b) => !a.guest && !b.guest && !isStudent(a) && !isStudent(b);
 function clearRomance(d) {
-  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; }
+  for (const o of G.dolls) if (o !== d) { const r = rel(d, o); r.l = 0; r.lovers = false; r.secret = false; delete r.ex; delete r.tension; }
   for (const o of G.dolls) if (o.jealousOf && o.jealousOf.who === d) o.jealousOf = null;
   d.jealousOf = null;
 }
@@ -54,6 +58,7 @@ function clearRomance(d) {
 function bump(a, b, df, dl = 0) {
   if (!canRomance(a, b)) dl = 0;
   const r = rel(a, b), before = levelOf(r.f, REL_LEVELS);
+  if (df > 0 && tensionBetween(a, b)) { df *= .15; dl = 0; }
   const cp = compat(a, b);                                    // 星座 + MBTI 缘分
   if (df < 0 && !isF(a) && !isF(b)) df *= 0.7;                // 两个 T 型吵完架不太记仇
   r.f = Math.max(-100, Math.min(100, r.f + (df > 0 ? df * r.chem * cp : df)));
@@ -61,7 +66,7 @@ function bump(a, b, df, dl = 0) {
   const after = levelOf(r.f, REL_LEVELS);
   if (after !== before && df > 0 && ['朋友', '好友', '挚友'].includes(after)) HOOK.toast(`🤝 ${a.name} 和 ${b.name} 成为${after}了`);
   if (after === '不和' && before !== '不和') HOOK.toast(`💢 ${a.name} 和 ${b.name} 闹翻了……`);
-  if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 分手了……`); }
+  if (r.lovers && r.l < 30) { markBreakup(a, b); HOOK.toast(`💔 ${a.name} 和 ${b.name} 分手了……`); addLog(`💔 ${a.name} 和 ${b.name} 分手了，暂时还不知怎么面对彼此`); }
 }
 
 function weighted(list) {
@@ -78,7 +83,7 @@ function pickPartner(d, others) {
     const r = rel(d, o);
     let w = 12 + Math.max(0, r.f) * 0.6 + r.l * 0.6 + (r.lovers ? 40 : 0);
     if (d.heart === 'fickle' && lv && o !== lv) w += r.l * (lvAway ? 1.6 : 0.5);   // 花心的人趁对象不在去找暧昧对象
-    return [o, Math.max(1, w + 5 * NPCMemory.influence(G, d.pid, o.pid)) * compat(d, o)];
+    return [o, Math.max(1, w + 5 * NPCMemory.influence(G, d.pid, o.pid)) * compat(d, o) * (tensionBetween(d, o) ? .08 : 1)];
   }));
 }
 
@@ -141,6 +146,7 @@ function tickHouseExchange(d, dt) {
 
 // 两人到齐后开始互动（由 game.js 的 arrive 调用）
 function startSocial(d, p, introduced = false) {
+  if (tensionBetween(d, p)) { startTenseExchange(d, p); return; }
   const jealousTalk = !!(d.act && d.act.jealous);   // 吃醋后来“算账”的那次吵架
   let kind = (d.act && d.act.kind) || chooseKind(d, p);
   if (!canRomance(d, p) && (kind === 'kiss' || kind === 'flirt')) kind = 'chat';
@@ -191,17 +197,7 @@ function startSocial(d, p, introduced = false) {
         // 新欢比旧爱更喜欢了：花心的一方干脆变心
         for (const [x, old] of [[d, ld], [p, lp]]) {
           if (old && old !== (x === d ? p : d) && x.heart === 'fickle' && r.l >= 70 && r.l > rel(x, old).l) {
-            const o = rel(x, old); o.lovers = false; o.l = Math.max(0, o.l - 40); o.f = Math.max(-100, o.f - 20);
-            HOOK.toast(`💔 ${x.name} 变心了，甩了 ${old.name}`);
-            const rival = x === d ? p : d;
-            NPCMemory.record(G,{type:'breakup',time:absNow(),participants:[x.pid,old.pid],outcome:'left'},[
-              {person:old.pid,subject:x.pid,emotion:-1,impact:100,interpretation:`我被${x.name}抛下了`}
-            ]);
-            NPCMemory.record(G,{type:'rival',time:absNow(),participants:[old.pid,rival.pid,x.pid],outcome:'remembered'},[
-              {person:old.pid,subject:rival.pid,emotion:-.9,impact:95,interpretation:`${rival.name}抢走了${x.name}`}
-            ]);
-            addTrust(old, x, -35); addTrust(old, rival, -30); addJealousy(old, rival, 60);
-            say(old, '……怎么会这样'); spawnHeart(old, '💔');
+            announceChangedHeart(x, old, x === d ? p : d);
           }
         }
         if (r.l >= 70 && !loverOf(d) && !loverOf(p)) { r.lovers = true; r.secret = false; HOOK.toast(`💕 ${d.name} 和 ${p.name} 在一起了！`); }
@@ -298,7 +294,7 @@ function jealous(L, cheater, third) {
 function caught(L, cheater, third) {
   const r = rel(L, cheater), r3 = rel(cheater, third);
   r.f = Math.max(-100, r.f - 35); r.l = Math.max(0, r.l - 45);
-  const t3 = rel(L, third); t3.f = Math.max(-100, t3.f - 40); t3.l = 0;
+  recordRivalFallout(L, cheater, third, true);
   r3.secret = false;
   L.needs.fun = Math.max(0, L.needs.fun - 40);
   face(L, cheater.x, cheater.y);
@@ -308,7 +304,7 @@ function caught(L, cheater, third) {
   setTimeout(() => say(third, pick(['……', '对不起……', '我先走了'])), 2200);
   SFX.play('deny');
   if (r.l < 30 && r.lovers) {
-    r.lovers = false;
+    markBreakup(L, cheater, L);
     HOOK.toast(`💔 ${L.name} 撞见 ${cheater.name} 和 ${third.name}，两人分手了！`);
   } else HOOK.toast(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 在一起！`);
   NPCMemory.record(G, {
@@ -322,14 +318,8 @@ function caught(L, cheater, third) {
     { person: third.pid, subject: L.pid,
       interpretation: `${L.name}撞见了我和${cheater.name}`, emotion: -.7, impact: 80 }
   ]);
-  // 恋人单独记下“第三者”：这份记忆的主角是抢走恋人的人
-  NPCMemory.record(G, {
-    type: 'rival', time: absNow(), participants: [L.pid, third.pid, cheater.pid], outcome: 'remembered'
-  }, [
-    { person: L.pid, subject: third.pid, channel: 'witness',
-      interpretation: `${third.name}想抢走${cheater.name}`, emotion: -.95, impact: 95 }
-  ]);
-  addTrust(L, cheater, -40); addTrust(L, third, -30); addJealousy(L, third, 60);
+  addTrust(L, cheater, -40);
+  addLog(`💢 ${L.name} 撞见 ${cheater.name} 和 ${third.name} 亲密${r.lovers ? '，三个人之间有了心结' : '，两人分手了'}`);
 }
 
 // 能被打断去做别的事（不在睡觉、不在聊天、不在出门路上）
@@ -338,9 +328,10 @@ const interruptible = x => x.state === 'idle' || (x.state === 'walk' && x.act &&
 
 // 每帧：花心的人对恋人的感情会慢慢变淡；专一的人反而越来越深
 function socialTick(dt) {
+  tickRelationshipTension();
   // 保险：学生和任何人之间都不留恋爱关系
   for (const d of G.dolls) if (isStudent(d)) for (const o of G.dolls) if (o !== d) {
-    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; }
+    const r = rel(d, o); if (r.l || r.lovers || r.secret) { r.l = 0; r.lovers = false; r.secret = false; delete r.ex; delete r.tension; }
   }
   // 吃醋的人：等双方都有空，就立刻去找恋人算账
   for (const d of G.dolls) {
@@ -361,14 +352,14 @@ function socialTick(dt) {
     const fickle = (a.heart === 'fickle') + (b.heart === 'fickle');
     if (r.lovers && fickle) r.l = Math.max(0, r.l - 0.05 * fickle * dt);
     if (r.lovers && !fickle && a.heart === 'loyal' && b.heart === 'loyal') r.l = Math.min(100, r.l + 0.02 * dt);
-    if (r.lovers && r.l < 30) { r.lovers = false; HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); }
+    if (r.lovers && r.l < 30) { markBreakup(a, b); HOOK.toast(`💔 ${a.name} 和 ${b.name} 感情淡了，分手了`); addLog(`💔 ${a.name} 和 ${b.name} 感情淡了，分手后还有些尴尬`); }
   }
 }
 
 // 互动进行中：偶尔再说一句、冒爱心
 function tickSocial(d, dt) {
   const a = d.act, S = SOCIAL[a.kind] || SOCIAL.chat;
-  if (a.passive || a.exchange || Math.random() > dt * 0.45) return;
+  if (a.passive || a.exchange || a.tension || Math.random() > dt * 0.45) return;
   const who = Math.random() < 0.5 ? d : a.partner;
   const lines = who === d ? S.a : (S.b.length ? S.b : S.a);
   say(who, pick(lines), 1.8);

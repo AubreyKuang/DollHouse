@@ -32,7 +32,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    cottageLooksV: 2, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -146,6 +146,7 @@ function applySave(s) {
     if(canPlace(id,x,y))addFurniture(id,x,y);
   }
   fitHouseFurniture();
+  if (!s.houseWindowsV) addMissingUpperWindows();
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) {
     if (d.guest && d.pid !== G.community.active?.guestPid) continue;
@@ -326,6 +327,7 @@ function endAct(d) {
   }
   if (a && a.partner && a.partner.act && a.partner.act.partner === d) { a.partner.act = null; a.partner.state = 'idle'; a.partner.think = 1; }
   d.act = null; d.state = 'idle'; d.hop = 0; d.ft = 0; d.think = 1 + Math.random() * 2;
+  if (a?.tension && a.t <= 0 && a.partner) stepAwayAfterTension(d, a.partner);
 }
 
 function decide(d) {
@@ -523,7 +525,7 @@ function arrive(d) {
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
   if (mealMate && !houseExchangeActive(mealMate) && mealMate.act.t > 3.2) {
-    startHouseExchange(d, mealMate, ['坐下吃饭啦，你今天怎么样？', '现在能一起吃顿饭，挺好的。', '那我们慢慢吃。']);
+    startHouseExchange(d, mealMate, tensionLines(d, mealMate) || ['坐下吃饭啦，你今天怎么样？', '现在能一起吃顿饭，挺好的。', '那我们慢慢吃。']);
   }
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
   if (mate && !(f.coupleLogAt > absNow() - 600)) { f.coupleLogAt = absNow(); addLog(`🛏 ${mate.name} 和 ${d.name} 一起睡了`); }   // 一晚只记一次
