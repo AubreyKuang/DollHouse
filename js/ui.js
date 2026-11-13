@@ -193,6 +193,7 @@ const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
 const bookPickReaderButton = $('#bookPickReader');
 const bookDestination = $('#bookDestination');
+const bookRoutePreview = $('#bookRoutePreview');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
 let readingSeatOptions = '';
@@ -203,6 +204,7 @@ readingSeat.onchange = () => {
   bookNextIssue.checked = false;
   bookMoveStatus.textContent = '';
   bookDestination.value = '';
+  bookRoutePreview.textContent = '';
   refreshReadingSeats();
 };
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
@@ -219,7 +221,26 @@ bookPickReaderButton.onclick = () => {
   } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，传阅安排照旧。';
   refreshReadingSeats();
 };
-bookDestination.onchange = () => { bookMoveButton.disabled = !bookDestination.value; };
+bookDestination.onchange = () => {
+  bookMoveButton.disabled = !bookDestination.value;
+  bookRoutePreview.textContent = '';
+  const chair = selectedReadingSeat();
+  const target = G.furniture.find(f => f.key === bookDestination.value);
+  if (!chair || !target) return;
+  const readers = bookFollowupReaders(chair);
+  if (readers.length !== BOOK_PUBLIC_READERS) return;
+  if (readers.some(d => d.state === 'away')) {
+    bookRoutePreview.textContent = '有读者外出，回家后才能比较路线。';
+    return;
+  }
+  const describe = seat => {
+    if (quietStudy(seat)) return '安静牌生效，暂不能约聊';
+    if (canTalkAboutBook(seat, readers)) return '两位读者现在可聊';
+    const routes = bookMeetingRoutes(seat, readers);
+    return routes ? readers.map((d, i) => `${d.name}走 ${routes[i].length} 格`).join('、') : '暂无两人可到达的相邻位置';
+  };
+  bookRoutePreview.textContent = `按选座时的位置估算。原座：${describe(chair)}。新座：${describe(target)}。`;
+};
 bookMoveButton.onclick = () => {
   const source = selectedReadingSeat();
   const target = G.furniture.find(f => f.key === bookDestination.value);
@@ -228,6 +249,7 @@ bookMoveButton.onclick = () => {
     readingSeat.value = target.key;
     bookNextIssue.checked = false;
     bookDestination.value = '';
+    bookRoutePreview.textContent = '';
     bookMoveStatus.textContent = '荐书便条已移到这把椅子。';
     readingSeat.focus();
   } else {
@@ -389,6 +411,7 @@ function refreshReadingSeats() {
       return option;
     }));
     if (seats.some(f => f.key === previous)) readingSeat.value = previous;
+    else bookRoutePreview.textContent = '';
     readingSeatOptions = options;
   }
   const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
@@ -542,6 +565,7 @@ function refreshReadingSeats() {
     return [[seat.key, names[i] + (ready ? ' · 两位读者现在可聊' : '')]];
   });
   $('#bookMoveControls').hidden = !destinations.length;
+  if (!followupReaders.length && bookRoutePreview.textContent) bookRoutePreview.textContent = '';
   const destinationOptions = JSON.stringify(destinations);
   if (destinationOptions !== bookDestinationOptions) {
     const previous = bookDestination.value;
@@ -553,6 +577,7 @@ function refreshReadingSeats() {
       bookDestination.append(option);
     }
     if (destinations.some(([key]) => key === previous)) bookDestination.value = previous;
+    else bookRoutePreview.textContent = '';
     bookDestinationOptions = destinationOptions;
   }
   bookMoveButton.disabled = !bookDestination.value;

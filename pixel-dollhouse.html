@@ -637,8 +637,9 @@ body{
         </div>
         <div id="bookMoveControls" hidden>
           <label for="bookDestination">便条移到</label>
-          <select id="bookDestination"></select>
+          <select id="bookDestination" aria-describedby="bookRoutePreview"></select>
           <button type="button" class="btn small" id="bookMove" disabled>移荐书便条</button>
+          <span class="hint" id="bookRoutePreview" role="status"></span>
         </div>
         <span class="hint" id="bookMoveStatus" role="status"></span>
       </div>
@@ -7118,11 +7119,7 @@ function closeBookFollowup(chair, draft) {
     notes[chair.key] = note;
     return false;
   }
-  for (const d of G.dolls) {
-    if (d.act?.type !== 'bookMeet' || d.act.keepsakeKey !== chair.key) continue;
-    endAct(d);
-    d.path = [];
-  }
+  stopBookMeetingWalks(chair);
   return true;
 }
 
@@ -7242,6 +7239,24 @@ function talkAboutBook(chair) {
 }
 
 let bookMeetingCheck;
+function stopBookMeetingWalks(chair) {
+  for (const d of G.dolls) {
+    if (d.act?.type !== 'bookMeet' || d.act.keepsakeKey !== chair.key) continue;
+    endAct(d);
+    d.path = [];
+  }
+}
+
+function bookMeetingRoutes(chair, readers) {
+  if (quietStudy(chair)) return;
+  const room = cornerRoom(chair), tiles = [];
+  for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
+    const tile = { x, y };
+    if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === room) tiles.push(tile);
+  }
+  return pairRoutes(...readers, tiles);
+}
+
 function tickBookMeetings() {
   const minute = Math.floor(absNow() / 4);
   if (bookMeetingCheck === minute) return;
@@ -7273,12 +7288,7 @@ function tickBookMeetings() {
       continue;
     }
     if (!readers.every(d => d.state === 'idle' && hasTimeToDiscussReading(d))) continue;
-    const tiles = [];
-    for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
-      const tile = { x, y };
-      if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === cornerRoom(chair)) tiles.push(tile);
-    }
-    const routes = pairRoutes(...readers, tiles);
+    const routes = bookMeetingRoutes(chair, readers);
     if (routes) sendKeepsakePair(readers, routes, 'bookMeet', chair.key);
   }
 }
@@ -7404,7 +7414,10 @@ function moveBookRecommendation(source, target) {
   const previous = recommendations[target.key];
   recommendations[target.key] = note;
   delete recommendations[source.key];
-  if (save()) return true;
+  if (save()) {
+    stopBookMeetingWalks(source);
+    return true;
+  }
   recommendations[source.key] = note;
   if (previous === undefined) delete recommendations[target.key];
   else recommendations[target.key] = previous;
@@ -7542,8 +7555,9 @@ function drawCornerMark(c, f, x, y) {
 
 function pairRoutes(a, b, tiles) {
   const routes = d => tiles.map(tile => ({ tile, path: findPath(d.tx, d.ty, [tile]) })).filter(r => r.path);
+  const rightRoutes = routes(b);
   let best = null;
-  for (const left of routes(a)) for (const right of routes(b)) {
+  for (const left of routes(a)) for (const right of rightRoutes) {
     if (left.tile === right.tile || cornerDistance(left.tile, right.tile) !== 1) continue;
     const cost = left.path.length + right.path.length;
     if (!best || cost < best.cost) best = { cost, routes: [left.path, right.path] };
@@ -9585,6 +9599,7 @@ const bookReaderControls = $('#bookReaderControls');
 const bookNextReader = $('#bookNextReader');
 const bookPickReaderButton = $('#bookPickReader');
 const bookDestination = $('#bookDestination');
+const bookRoutePreview = $('#bookRoutePreview');
 const bookMoveButton = $('#bookMove');
 const bookMoveStatus = $('#bookMoveStatus');
 let readingSeatOptions = '';
@@ -9595,6 +9610,7 @@ readingSeat.onchange = () => {
   bookNextIssue.checked = false;
   bookMoveStatus.textContent = '';
   bookDestination.value = '';
+  bookRoutePreview.textContent = '';
   refreshReadingSeats();
 };
 const selectedReadingSeat = () => G.furniture.find(f => f.key === readingSeat.value && isWindowChair(f));
@@ -9611,7 +9627,26 @@ bookPickReaderButton.onclick = () => {
   } else if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，传阅安排照旧。';
   refreshReadingSeats();
 };
-bookDestination.onchange = () => { bookMoveButton.disabled = !bookDestination.value; };
+bookDestination.onchange = () => {
+  bookMoveButton.disabled = !bookDestination.value;
+  bookRoutePreview.textContent = '';
+  const chair = selectedReadingSeat();
+  const target = G.furniture.find(f => f.key === bookDestination.value);
+  if (!chair || !target) return;
+  const readers = bookFollowupReaders(chair);
+  if (readers.length !== BOOK_PUBLIC_READERS) return;
+  if (readers.some(d => d.state === 'away')) {
+    bookRoutePreview.textContent = '有读者外出，回家后才能比较路线。';
+    return;
+  }
+  const describe = seat => {
+    if (quietStudy(seat)) return '安静牌生效，暂不能约聊';
+    if (canTalkAboutBook(seat, readers)) return '两位读者现在可聊';
+    const routes = bookMeetingRoutes(seat, readers);
+    return routes ? readers.map((d, i) => `${d.name}走 ${routes[i].length} 格`).join('、') : '暂无两人可到达的相邻位置';
+  };
+  bookRoutePreview.textContent = `按选座时的位置估算。原座：${describe(chair)}。新座：${describe(target)}。`;
+};
 bookMoveButton.onclick = () => {
   const source = selectedReadingSeat();
   const target = G.furniture.find(f => f.key === bookDestination.value);
@@ -9620,6 +9655,7 @@ bookMoveButton.onclick = () => {
     readingSeat.value = target.key;
     bookNextIssue.checked = false;
     bookDestination.value = '';
+    bookRoutePreview.textContent = '';
     bookMoveStatus.textContent = '荐书便条已移到这把椅子。';
     readingSeat.focus();
   } else {
@@ -9781,6 +9817,7 @@ function refreshReadingSeats() {
       return option;
     }));
     if (seats.some(f => f.key === previous)) readingSeat.value = previous;
+    else bookRoutePreview.textContent = '';
     readingSeatOptions = options;
   }
   const chair = seats.find(f => f.key === readingSeat.value) || seats[0];
@@ -9934,6 +9971,7 @@ function refreshReadingSeats() {
     return [[seat.key, names[i] + (ready ? ' · 两位读者现在可聊' : '')]];
   });
   $('#bookMoveControls').hidden = !destinations.length;
+  if (!followupReaders.length && bookRoutePreview.textContent) bookRoutePreview.textContent = '';
   const destinationOptions = JSON.stringify(destinations);
   if (destinationOptions !== bookDestinationOptions) {
     const previous = bookDestination.value;
@@ -9945,6 +9983,7 @@ function refreshReadingSeats() {
       bookDestination.append(option);
     }
     if (destinations.some(([key]) => key === previous)) bookDestination.value = previous;
+    else bookRoutePreview.textContent = '';
     bookDestinationOptions = destinationOptions;
   }
   bookMoveButton.disabled = !bookDestination.value;

@@ -223,11 +223,7 @@ function closeBookFollowup(chair, draft) {
     notes[chair.key] = note;
     return false;
   }
-  for (const d of G.dolls) {
-    if (d.act?.type !== 'bookMeet' || d.act.keepsakeKey !== chair.key) continue;
-    endAct(d);
-    d.path = [];
-  }
+  stopBookMeetingWalks(chair);
   return true;
 }
 
@@ -347,6 +343,24 @@ function talkAboutBook(chair) {
 }
 
 let bookMeetingCheck;
+function stopBookMeetingWalks(chair) {
+  for (const d of G.dolls) {
+    if (d.act?.type !== 'bookMeet' || d.act.keepsakeKey !== chair.key) continue;
+    endAct(d);
+    d.path = [];
+  }
+}
+
+function bookMeetingRoutes(chair, readers) {
+  if (quietStudy(chair)) return;
+  const room = cornerRoom(chair), tiles = [];
+  for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
+    const tile = { x, y };
+    if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === room) tiles.push(tile);
+  }
+  return pairRoutes(...readers, tiles);
+}
+
 function tickBookMeetings() {
   const minute = Math.floor(absNow() / 4);
   if (bookMeetingCheck === minute) return;
@@ -378,12 +392,7 @@ function tickBookMeetings() {
       continue;
     }
     if (!readers.every(d => d.state === 'idle' && hasTimeToDiscussReading(d))) continue;
-    const tiles = [];
-    for (let y = chair.y - 2; y <= chair.y + 2; y++) for (let x = chair.x - 2; x <= chair.x + 2; x++) {
-      const tile = { x, y };
-      if (cornerDistance(tile, chair) <= 2 && free(x, y) && roomOf({ tx:x, ty:y }) === cornerRoom(chair)) tiles.push(tile);
-    }
-    const routes = pairRoutes(...readers, tiles);
+    const routes = bookMeetingRoutes(chair, readers);
     if (routes) sendKeepsakePair(readers, routes, 'bookMeet', chair.key);
   }
 }
@@ -509,7 +518,10 @@ function moveBookRecommendation(source, target) {
   const previous = recommendations[target.key];
   recommendations[target.key] = note;
   delete recommendations[source.key];
-  if (save()) return true;
+  if (save()) {
+    stopBookMeetingWalks(source);
+    return true;
+  }
   recommendations[source.key] = note;
   if (previous === undefined) delete recommendations[target.key];
   else recommendations[target.key] = previous;
@@ -647,8 +659,9 @@ function drawCornerMark(c, f, x, y) {
 
 function pairRoutes(a, b, tiles) {
   const routes = d => tiles.map(tile => ({ tile, path: findPath(d.tx, d.ty, [tile]) })).filter(r => r.path);
+  const rightRoutes = routes(b);
   let best = null;
-  for (const left of routes(a)) for (const right of routes(b)) {
+  for (const left of routes(a)) for (const right of rightRoutes) {
     if (left.tile === right.tile || cornerDistance(left.tile, right.tile) !== 1) continue;
     const cost = left.path.length + right.path.length;
     if (!best || cost < best.cost) best = { cost, routes: [left.path, right.path] };

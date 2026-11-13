@@ -659,6 +659,38 @@ test('readers wait for a free moment and walk to a saved window appointment', ()
   assert.ok(readers.every(d=>d.needs.social>43));
 `));
 
+test('a window appointment can move while the readers are on their way', () => game(`
+  const [author,first,second]=residents(), readers=[first,second];
+  const source=addFurniture('chair',11,4,{soloReading:true,readingNotes:true});
+  const target=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
+  G.furniture=[addFurniture('window',10,0),source,addFurniture('window',9,UPPER_WALL),target];rebuild();
+  G.keepsakes.bookRecommendations[source.key]={from:author.pid,to:first.pid,until:G.day+1,
+    readBy:readers.map(d=>d.pid),keepForPaper:true,question:true};
+  for(const [i,d] of readers.entries()){
+    Object.assign(d,{job:'none',state:'idle',act:null,path:[],needs:{energy:80,hunger:80,bladder:80,social:40,fun:50}});
+    placeDollAt(d,8+i,18);
+  }
+  const steps=seat=>bookMeetingRoutes(seat,readers).reduce((total,path)=>total+path.length,0);
+  assert.ok(steps(target)<steps(source));
+  assert.ok(toggleBookMeeting(source));
+  const deadline=bookMeetingUntil(bookRecommendation(source));
+  tickKeepsakes(0);
+  assert.ok(readers.every(d=>d.act?.keepsakeKey===source.key && d.path.length));
+  const write=save;
+  save=()=>false;assert.equal(moveBookRecommendation(source,target),false);
+  assert.ok(readers.every(d=>d.act?.keepsakeKey===source.key && d.path.length));
+  save=write;assert.ok(moveBookRecommendation(source,target));
+  assert.equal(bookRecommendation(source),null);
+  assert.equal(bookMeetingUntil(bookRecommendation(target)),deadline);
+  assert.ok(readers.every(d=>d.state==='idle' && !d.act && !d.path.length));
+  G.time+=4;tickKeepsakes(0);
+  assert.ok(readers.every(d=>d.act?.keepsakeKey===target.key));
+  for(let i=0;i<200&&!readers.every(d=>d.state==='act');i++)readers.forEach(d=>updateDoll(d,.1));
+  assert.ok(readers.every(d=>d.state==='act'));
+  G.time+=4;tickKeepsakes(0);
+  assert.equal(bookRecommendation(target).followupRoom,'study');
+`));
+
 test('a reserved excerpt gets its follow-up once before publication, including after moving and reloading', () => game(`
   const [author,first,second]=residents();
   const seat=addFurniture('chair',10,16,{soloReading:true,readingNotes:true});
