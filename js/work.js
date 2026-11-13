@@ -81,24 +81,33 @@ function comeHome(d) {
   if (p) placeDollAt(d, p.x, p.y);
   d.state = 'idle'; d.dir = 'down'; d.think = 2 + Math.random() * 2; d.away = false;
   if (door) door.openT = 0.8;
-  say(d, d.overtime ? J.tired : pick(J.back));
-  if (G.weather === 'rain' && Math.random() < 0.4) { d.needs.fun = Math.max(0, d.needs.fun - 8); setTimeout(() => say(d, '淋湿了……阿嚏！'), 1600); }
+  const soaked = G.weather === 'rain' && Math.random() < .4;
+  if (soaked) d.needs.fun = Math.max(0, d.needs.fun - 8);
+  const line = soaked ? '刚才雨好大，鞋子都湿了。' : d.overtime ? J.tired : pick(J.back);
+  say(d, line);
   payday(d);
   SFX.play('newday');
   HOOK.toast(`🏠 ${d.name} 回家了`);
-  // 在家的人打招呼；恋人会过来抱抱
-  const lover = loverOf(d);
-  for (const o of G.dolls) {
-    if (o === d || o.state === 'away' || lying(o) || o.state === 'lift') continue;
-    if (o === lover && (o.state === 'idle' || (o.act && !o.act.onFurn && o.act.type !== 'chat'))) {
-      if (o.act) endAct(o);
-      o.state = 'idle';
-      if (startAct(o, { type: 'chat', partner: d })) { o.act.kind = 'hug'; say(o, '欢迎回家 💕'); d.path = []; d.state = 'wait'; d.waitT = 8; }
-    } else if (rel(d, o).f >= 40 && Math.random() < 0.6) {
-      setTimeout(() => o.state !== 'away' && say(o, pick(['欢迎回来～', '回来啦！', `${d.name}辛苦啦`])), 600 + Math.random() * 900);
-    }
-  }
+  greetAfterWork(d, line, soaked);
   if (G.sel === d.uid) HOOK.select();
+}
+
+function greetAfterWork(d, line, soaked) {
+  const nearby = residents().filter(o => o !== d && canSee(d, o) && canDisturb(d, o) &&
+    Math.abs(o.tx - d.tx) + Math.abs(o.ty - d.ty) <= 7 && availableForHouseChat(o) &&
+    (arePartners(d, o) || rel(d, o).f >= 0));
+  nearby.sort((a, b) => Number(arePartners(d, b)) - Number(arePartners(d, a)) || rel(d, b).f - rel(d, a).f);
+  for (const roommate of nearby) {
+    const close = arePartners(d, roommate);
+    const tired = d.overtime || d.needs.energy < 35 || d.job === 'night';
+    const reply = soaked ? '门边有干毛巾，我给你拿一条。'
+      : tired ? pick(isF(roommate) ? ['辛苦了，坐会儿吧，我陪你。', '回来就好，先喘口气。']
+        : ['先坐会儿，水壶还有热水。', '鞋脱了歇会儿，慢慢说。'])
+      : ({ baker: '闻着好香，我去拿两个盘子。', barista: '下次也给我看看你的拉花。', student: '先歇一会儿，作业等会儿再写。' }[d.job] || '坐下说吧，我听着呢。');
+    if (startAct(roommate, { type: 'chat', partner: d, kind: close ? 'hug' : 'chat', exchange: {
+      lines: ['回来啦，辛苦了。', line, reply], log: `🏠 ${roommate.name} 迎了迎刚回家的 ${d.name}，两人聊起了${soaked ? '路上的大雨' : '今天的事'}`
+    } })) return;
+  }
 }
 
 // 每帧在 updateDoll 里调用；返回 true 表示这帧不用再做别的

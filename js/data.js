@@ -160,11 +160,11 @@ const ACT_NAMES = {
 const OUTFIT = {
   skin:  ['#ffe0c7', '#f6c9a4', '#e0a77e', '#b97a52', '#8a5638'],
   hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头' },
-  hairColor: ['#48313d', '#84583f', '#ba8455', '#e6c47d', '#e8dfcf', '#d98fa9', '#88a6c4', '#92b493', '#aa91bb', '#c97565'],
+  hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a'],
   top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫' },
   bottom:{ pants: '长裤', shorts: '短裤', skirt: '短裙' },
-  clothColor: ['#ca8290', '#e1ad71', '#efd189', '#88ab83', '#75a99e', '#7e9fbd', '#9582b1', '#d9cbbd', '#4e4557', '#fff7ea', '#b67a9e', '#8e6250'],
-  shoes: ['#48313d', '#fff7ea', '#ca8290', '#7e9fbd', '#8e6250', '#efd189'],
+  clothColor: ['#e26d7d', '#f0a64a', '#f2d16b', '#7cc576', '#5bb8b0', '#6aa9ec', '#8a7fe0', '#d8d0c4', '#3b3a4a', '#ffffff', '#c26a9a', '#8a5a3c'],
+  shoes: ['#3b2a2f', '#ffffff', '#e26d7d', '#6aa9ec', '#8a5a3c', '#f2d16b'],
   acc:   { none: '无', cap: '鸭舌帽', bow: '蝴蝶结', glasses: '眼镜', phones: '耳机', cat: '猫耳', flower: '小花', crown: '王冠' },
 };
 
@@ -220,9 +220,9 @@ const DEFAULT_SAVE = {
     { id: 'rug', x: 9, y: 9 },
   ],
   dolls: [
-    { pid: 'p-tao', tx: 5, ty: 18, zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: COTTAGE_STARTER_LOOKS['p-tao'] },
-    { pid: 'p-lan', tx: 10, ty: 17, zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: COTTAGE_STARTER_LOOKS['p-lan'] },
-    { pid: 'p-jing', tx: 4, ty: 9, zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: COTTAGE_STARTER_LOOKS['p-jing'] },
+    { pid: 'p-tao', tx: 5, ty: 18, zodiac: 'aries', mbti: 'ENFP', gender: 'f', heart: 'normal', name: '小桃', persona: 'genki', job: 'barista', money: 1800,  look: ORIGINAL_STARTER_LOOKS['p-tao'] },
+    { pid: 'p-lan', tx: 10, ty: 17, zodiac: 'gemini', mbti: 'ISTP', gender: 'm', heart: 'fickle', name: '阿懒', persona: 'lazy', job: 'none', money: 180, needs: { energy: 85, hunger: 75, fun: 55, social: 20 },   look: ORIGINAL_STARTER_LOOKS['p-lan'] },
+    { pid: 'p-jing', tx: 4, ty: 9, zodiac: 'aquarius', mbti: 'INTJ', gender: 'm', heart: 'loyal', name: '眼镜君', persona: 'nerd', job: 'office', money: 5200, look: ORIGINAL_STARTER_LOOKS['p-jing'] },
     { pid: 'p-tuan', tx: 13, ty: 10, zodiac: 'taurus', mbti: 'ISFJ', gender: 'f', heart: 'loyal', name: '团子', persona: 'foodie', job: 'baker', money: 2600, needs: { energy: 85, hunger: 80, fun: 60, social: 20 }, look: { skin: 0, hair: 'bun',   hairColor: 2, top: 'overall', topColor: 0,  bottom: 'shorts', bottomColor: 0, shoes: 1, acc: 'flower' } },
   ],
 };

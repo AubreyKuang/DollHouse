@@ -32,7 +32,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    cottageLooksV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 2, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -149,9 +149,9 @@ function applySave(s) {
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) {
     if (d.guest && d.pid !== G.community.active?.guestPid) continue;
-    const original = !s.cottageLooksV && ORIGINAL_STARTER_LOOKS[d.pid];
-    const unchanged = original && Object.keys(original).every(key => d.look?.[key] === original[key]);
-    addDoll(unchanged ? { ...d, look: { ...COTTAGE_STARTER_LOOKS[d.pid] } } : d);
+    const previous = s.cottageLooksV === 1 && COTTAGE_STARTER_LOOKS[d.pid];
+    const unchanged = previous && Object.keys(previous).every(key => d.look?.[key] === previous[key]);
+    addDoll(unchanged ? { ...d, look: ORIGINAL_STARTER_LOOKS[d.pid] } : d);
   }
   // 老存档：开局的小桃原来是学生，现在改成成年的咖啡师
   if (!s.ageV) for (const d of G.dolls) if (d.pid === 'p-tao' && d.job === 'student') {
@@ -377,7 +377,7 @@ function decide(d) {
     && canDisturb(d, o));   // 卧室里的人只会被同屋的人或恋人打扰
   if (others.length) {
     const p = pickPartner(d, others), r = rel(d, p);
-    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.12 + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
+    opts.push({ s: want({ social: 30 }) + (P.like.chat || 0) + traitBonus(d, 'chat') + Math.random() * 25 * noiseMul(d) + Math.max(0, r.f) * 0.23 + (canSee(d, p) && Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) <= 4 ? 10 : 0) + r.l * 0.15 + (r.lovers ? 15 : 0) + (G.furniture.some(f=>f.id==='sofa'&&Math.hypot(f.x-d.tx,f.y-d.ty)<5)?12:0), type: 'chat', partner: p });
   }
   // 恋人在家就想黏在一起；花心的人会去找暧昧对象，对象不在家时更大胆
   const lover = loverOf(d), lvBusy = lover && (lover.state === 'away' || lying(lover));
@@ -421,7 +421,7 @@ function startAct(d, o) {
     const p = o.partner, side = [[1, 0], [-1, 0]].map(([a, b]) => ({ x: p.tx + a, y: p.ty + b }));
     const path = findPath(d.tx, d.ty, side) || findPath(d.tx, d.ty, [[0, 1], [0, -1]].map(([a, b]) => ({ x: p.tx + a, y: p.ty + b })));
     if (!path) return false;
-    d.path = path; d.state = 'walk'; d.act = { type: 'chat', partner: p, pending: true, kind: o.kind, jealous: o.jealous };
+    d.path = path; d.state = 'walk'; d.act = { type: 'chat', partner: p, pending: true, kind: o.kind, jealous: o.jealous, exchange: o.exchange };
     if (o.jealous) { d.jealousOf = null; say(d, `${p.name}，你过来一下！`); }
     if (p.state === 'idle' || (p.state === 'walk' && p.act && p.act.type === 'wander')) { p.path = []; p.act = null; p.state = 'wait'; p.waitT = 8; }
     return true;
@@ -457,7 +457,9 @@ function arrive(d) {
   if (!a || a.type === 'wander') { d.act = null; d.state = 'idle'; d.think = 0.5 + Math.random() * 2; return; }
   if (a.type === 'chat') {
     const p = a.partner;
-    if (!G.dolls.includes(p) || p.state === 'lift' || (p.act && p.act.onFurn)) { endAct(d); return; }
+    if (!G.dolls.includes(p) || ['lift', 'away'].includes(p.state) || (p.act && p.act.onFurn) ||
+        (a.exchange && (!['idle', 'wait'].includes(p.state) || !canSee(d, p) || !canDisturb(d, p) ||
+          Math.abs(d.tx - p.tx) + Math.abs(d.ty - p.ty) !== 1))) { endAct(d); return; }
     if (p.act && (p.act.type === 'visitStay' || Object.hasOwn(ROUTINES, p.act.type) || (p.act.type === 'chat' && p.act.partner !== d))) { say(d, '在忙呢，下次吧'); endAct(d); return; }
     if (p.act && (p.act.furn || p.act.type === 'join')) endAct(p);
     startSocial(d, p);
@@ -503,8 +505,9 @@ function arrive(d) {
       addLog(`🌿 ${d.name} 和 ${companion.name} 一起${ACT_NAMES[a.type]}`);
     }
   }
+  const mealMate = a.type === 'meal' && f.users.find(o => o !== d && o.state === 'act' && o.act?.type === 'meal');
   if(a.type==='meal'){
-    if(f.users.some(o=>o!==d&&o.state==='act'))addLog(`🍲 ${d.name} 和室友一起用餐`);
+    if (mealMate) addLog(`🍲 ${d.name} 和 ${mealMate.name} 一起用餐`);
     noteSharedMeal(d,f);
     if(G.time>=17*60&&G.time<21*60)helpWithMeal(d,f);
   }
@@ -519,6 +522,9 @@ function arrive(d) {
   }
   const mate = f.id === 'bigbed' && f.users.find(u => u !== d && lying(u));
   say(d, mate ? pick(['晚安～💕', '往里挪一点嘛', '抱着睡～']) : pick(ACT_LINES[a.type] || ['…']));
+  if (mealMate && !houseExchangeActive(mealMate) && mealMate.act.t > 3.2) {
+    startHouseExchange(d, mealMate, ['坐下吃饭啦，你今天怎么样？', '现在能一起吃顿饭，挺好的。', '那我们慢慢吃。']);
+  }
   if (f.id === 'bigbed' && !mate) inviteLover(d, f);
   if (mate && !(f.coupleLogAt > absNow() - 600)) { f.coupleLogAt = absNow(); addLog(`🛏 ${mate.name} 和 ${d.name} 一起睡了`); }   // 一晚只记一次
   const snd = { snack: 'eat', cook: 'cook', piano: 'piano', game: 'game', bath: 'splash', shower: 'splash', wash: 'splash', cat: 'meow', water: 'splash' }[a.type];
@@ -571,9 +577,10 @@ function updateDoll(d, dt) {
       if (a.theme === 'music' && G.community.active?.hostPid === d.pid && Math.random() < dt * .8) SFX.play('piano');
     }
     if (a.type === 'dance') { d.ft += dt; if (d.ft > 0.25) { d.ft = 0; d.frame = (d.frame + 1) % 4; d.dir = ['down', 'right', 'up', 'left'][d.frame]; } d.hop = d.frame % 2 ? 2 : 0; N.fun = Math.min(100, N.fun + 2 * dt); }
+    if (a.exchange) tickHouseExchange(d, dt);
     if (a.type === 'chat') tickSocial(d, dt);
     if (a.type === 'join') { tickJoin(d, dt); if (!d.act) return; }
-    if (a.type !== 'chat' && a.type !== 'join' && a.type !== 'sleep' && Math.random() < dt * 0.12) say(d, pick(ACT_LINES[a.type] || ['♪']));
+    if (a.type !== 'chat' && a.type !== 'join' && a.type !== 'sleep' && !houseExchangeActive(d) && Math.random() < dt * 0.12) say(d, pick(ACT_LINES[a.type] || ['♪']));
     if (a.type === 'sleep' && Math.random() < dt * 0.15) { d.bubble = { text: 'Zzz…', t: 2, id: Math.random() }; SFX.play('snore'); }
     if (a.type === 'sleep' && a.furn.id === 'bigbed') {
       const mate = a.furn.users.find(u => u !== d && lying(u));
