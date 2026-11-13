@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>像素小屋</title>
-<link rel="stylesheet" href="style.css?v=2b20be3b4853">
+<link rel="stylesheet" href="style.css?v=c4e47572f205">
 </head>
 <body>
 <header class="topbar">
@@ -221,17 +221,28 @@
       <div class="wd-preview">
         <canvas id="wdCanvas" width="20" height="24"></canvas>
         <div id="wdSaved" class="wd-saved" aria-live="polite"></div>
-        <div class="wd-dir">
-          <button data-dir="left">◀</button>
-          <button data-dir="down">●</button>
-          <button data-dir="right">▶</button>
-          <button data-dir="up">▲</button>
+        <div class="wd-dir" role="group" aria-label="预览方向">
+          <button data-dir="left" aria-label="左侧">◀</button>
+          <button data-dir="down" aria-label="正面">●</button>
+          <button data-dir="right" aria-label="右侧">▶</button>
+          <button data-dir="up" aria-label="背面">▲</button>
         </div>
+        <label class="wd-pose-label">试穿动作 <select id="wdPose"><option value="stand">站一会儿</option><option value="walk">走两步</option><option value="sit">坐下来</option><option value="dance">跳个舞</option></select></label>
         <label class="wd-name">名字 <input id="wdName" maxlength="8"></label>
-        <button id="wdRandom" class="btn small">🎲 随机搭配</button>
+        <div class="wd-actions">
+          <button id="wdShuffle" class="btn small">🎨 换套搭配</button>
+          <button id="wdRandom" class="btn small">🎲 随机形象</button>
+          <button id="wdUndo" class="btn small ghost">还原本次穿搭</button>
+        </div>
         <button id="wdRemove" class="btn small ghost">请 TA 搬走</button>
       </div>
-      <div id="wdOptions" class="wd-options"></div>
+      <div class="wd-editor">
+        <div class="wd-pages" role="group" aria-label="衣橱内容">
+          <button data-wd-page="look" aria-pressed="true">穿搭与发型</button>
+          <button data-wd-page="profile" aria-pressed="false">人物设定</button>
+        </div>
+        <div id="wdOptions" class="wd-options"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -239,9 +250,9 @@
 <div id="toast" role="status"></div>
 
 <script src="js/calendar.js?v=a40460b9fe31"></script>
-<script src="js/data.js?v=e5b9cb28c36b"></script>
+<script src="js/data.js?v=13d2ef3c7fd1"></script>
 <script src="js/sprites.js?v=c2edd6c1746e"></script>
-<script src="js/doll.js?v=be89cbf19c6a"></script>
+<script src="js/doll.js?v=bbd96e401a26"></script>
 <script src="js/audio.js?v=bfed272d2ce4"></script>
 <script src="js/npc-memory.js?v=aa25de9db61f"></script>
 <script src="js/save-manager.js?v=d5ebb3e28e51"></script>
@@ -269,7 +280,7 @@
 <script src="js/save-portability.js?v=4098e1153894"></script>
 <script src="js/view.js?v=ebb93a7400cc"></script>
 <script src="js/paper-card.js?v=fd8e706a66cf"></script>
-<script src="js/ui.js?v=65e0fea3fa44"></script>
+<script src="js/ui.js?v=cad8b026606f"></script>
 <script src="js/home-ui.js?v=37c5a97ccccc"></script>
 </body>
 </html>

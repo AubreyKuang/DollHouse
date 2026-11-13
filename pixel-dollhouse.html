@@ -251,13 +251,42 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .wd-tabs button{background:var(--panel-2);border:2px solid var(--line);border-radius:6px;padding:3px 10px}
 .wd-tabs button.on{background:var(--sel);color:#3b2a2f}
 .wd-body{display:flex;gap:16px;padding:14px;overflow:auto;flex-wrap:wrap}
-.wd-preview{flex:0 0 200px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 auto;
+.wd-preview{flex:0 0 160px;display:flex;flex-direction:column;align-items:center;gap:8px;margin:0 auto;
   position:sticky;top:0;align-self:flex-start;background:var(--panel);z-index:1;padding-bottom:8px}
 .wd-saved{min-height:18px;font-size:13px;font-weight:700;color:#4f9a4a}
-#wdCanvas{width:200px;height:240px;image-rendering:auto;border:2px solid var(--line);border-radius:6px;
+#wdCanvas{width:160px;height:224px;image-rendering:pixelated;border:2px solid var(--line);border-radius:6px;box-sizing:content-box;
   background:repeating-conic-gradient(var(--panel-2) 0 25%,var(--panel) 0 50%) 0 0/20px 20px}
 .wd-dir{display:flex;gap:4px}
-.wd-dir button{border:2px solid var(--line);background:var(--panel-2);border-radius:4px;width:34px;height:28px}
+.wd-dir button{border:2px solid var(--line);background:var(--panel-2);border-radius:4px;width:36px;min-height:36px}
+.wd-dir button[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+.wd-pose-label{display:flex;gap:4px;align-items:center;font-size:12px}
+#wdPose{font:inherit;background:var(--panel-2);color:var(--ink);border:2px solid var(--line);border-radius:5px;min-height:32px}
+.wd-actions{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:170px}
+.wd-editor{flex:1 1 360px;min-width:0}
+.wd-pages{display:flex;gap:6px;margin-bottom:14px}
+.wd-pages button{flex:1;background:var(--panel-2);border:2px solid var(--line);border-radius:6px;min-height:38px}
+.wd-pages button[aria-pressed="true"]{background:var(--sel);color:#3b2a2f}
+.wd-sets{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.wd-set{display:flex;align-items:center;gap:4px;text-align:left;min-width:0;background:var(--panel-2);border:2px solid var(--line);border-radius:8px;padding:5px;font-size:12px}
+.wd-set.on{background:var(--sel);color:#3b2a2f}
+.wd-set canvas,.wd-hair canvas{width:40px;height:56px;flex-shrink:0;image-rendering:pixelated}
+.wd-hair{display:flex;flex-direction:column;align-items:center;width:68px;padding:3px}
+#wardrobe button:focus-visible,#wardrobe select:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+@media(max-width:620px){
+  #wardrobe{padding:8px}
+  #wardrobe .modal-card{max-height:calc(100dvh - 16px)}
+  .wd-body{display:block;padding:10px}
+  .wd-preview{position:relative;display:grid;grid-template-columns:84px minmax(0,1fr);gap:6px 10px;width:100%;margin:0 0 12px}
+  #wdCanvas{width:80px;height:112px;grid-column:1;grid-row:1/5}
+  .wd-dir,.wd-pose-label,.wd-name,.wd-saved{grid-column:2}
+  .wd-saved{grid-row:4}
+  .wd-actions{grid-column:1/-1;max-width:none;justify-content:flex-start}
+  #wdRemove{grid-column:1/-1;justify-self:end}
+  .wd-sets{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .wd-dir button{min-height:44px;width:44px}
+  #wardrobe .chip{min-height:36px}
+  #wardrobe .swatch{width:32px;height:32px}
+}
 .wd-name{font-size:13px;display:flex;gap:6px;align-items:center}
 .wd-name input{width:110px;font:inherit;padding:3px 6px;border:2px solid var(--line);border-radius:4px;background:var(--panel-2);color:var(--ink)}
 .wd-options{flex:1 1 360px;display:flex;flex-direction:column;gap:12px;min-width:0}
@@ -600,17 +629,28 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
       <div class="wd-preview">
         <canvas id="wdCanvas" width="20" height="24"></canvas>
         <div id="wdSaved" class="wd-saved" aria-live="polite"></div>
-        <div class="wd-dir">
-          <button data-dir="left">◀</button>
-          <button data-dir="down">●</button>
-          <button data-dir="right">▶</button>
-          <button data-dir="up">▲</button>
+        <div class="wd-dir" role="group" aria-label="预览方向">
+          <button data-dir="left" aria-label="左侧">◀</button>
+          <button data-dir="down" aria-label="正面">●</button>
+          <button data-dir="right" aria-label="右侧">▶</button>
+          <button data-dir="up" aria-label="背面">▲</button>
         </div>
+        <label class="wd-pose-label">试穿动作 <select id="wdPose"><option value="stand">站一会儿</option><option value="walk">走两步</option><option value="sit">坐下来</option><option value="dance">跳个舞</option></select></label>
         <label class="wd-name">名字 <input id="wdName" maxlength="8"></label>
-        <button id="wdRandom" class="btn small">🎲 随机搭配</button>
+        <div class="wd-actions">
+          <button id="wdShuffle" class="btn small">🎨 换套搭配</button>
+          <button id="wdRandom" class="btn small">🎲 随机形象</button>
+          <button id="wdUndo" class="btn small ghost">还原本次穿搭</button>
+        </div>
         <button id="wdRemove" class="btn small ghost">请 TA 搬走</button>
       </div>
-      <div id="wdOptions" class="wd-options"></div>
+      <div class="wd-editor">
+        <div class="wd-pages" role="group" aria-label="衣橱内容">
+          <button data-wd-page="look" aria-pressed="true">穿搭与发型</button>
+          <button data-wd-page="profile" aria-pressed="false">人物设定</button>
+        </div>
+        <div id="wdOptions" class="wd-options"></div>
+      </div>
     </div>
   </div>
 </div>
@@ -787,14 +827,42 @@ const ACT_NAMES = {
 // 服装
 const OUTFIT = {
   skin:  ['#ffe0c7', '#f6c9a4', '#e0a77e', '#b97a52', '#8a5638'],
-  hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头' },
-  hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a'],
-  top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫' },
-  bottom:{ pants: '长裤', shorts: '短裤', skirt: '短裙' },
-  clothColor: ['#e26d7d', '#f0a64a', '#f2d16b', '#7cc576', '#5bb8b0', '#6aa9ec', '#8a7fe0', '#d8d0c4', '#3b3a4a', '#ffffff', '#c26a9a', '#8a5a3c'],
+  hair:  { short: '短发', long: '长发', twin: '双马尾', bun: '丸子头', spiky: '刺猬头', bob: '波波头',
+    pixie: '短碎发', sidepart: '偏分短发', curl: '自然卷', pony: '高马尾', lowpony: '低马尾',
+    braids: '双麻花', halfup: '半扎发', doublebun: '双丸子', wavy: '波浪长发' },
+  hairColor: ['#3b2a2f', '#7a4a2e', '#c98a4b', '#f2d16b', '#e8e2d6', '#e27fa6', '#7aa8e8', '#8bd18b', '#a77fe0', '#e05a4a', '#61534b', '#a77763', '#c5a68b', '#505d76'],
+  top:   { tee: 'T恤', hoodie: '卫衣', dress: '连衣裙', overall: '背带裤', stripe: '条纹衫', suit: '小西装', cardigan: '针织开衫',
+    sweater: '软软毛衣', vest: '衬衫马甲', sailor: '海军领', apron: '小围裙', jacket: '短外套', raincoat: '雨衣', pinafore: '背带裙', pajamas: '睡衣' },
+  bottom:{ pants: '长裤', shorts: '短裤', skirt: '短裙', cropped: '九分裤', pleated: '百褶裙', denim: '牛仔裤' },
+  // 新颜色只追加，旧存档的颜色编号不变。
+  clothColor: ['#e26d7d', '#f0a64a', '#f2d16b', '#7cc576', '#5bb8b0', '#6aa9ec', '#8a7fe0', '#d8d0c4', '#3b3a4a', '#ffffff', '#c26a9a', '#8a5a3c', '#98b6a1', '#f1dfb9', '#879ab5', '#bc8390', '#b6a4c9', '#b88160'],
   shoes: ['#3b2a2f', '#ffffff', '#e26d7d', '#6aa9ec', '#8a5a3c', '#f2d16b'],
-  acc:   { none: '无', cap: '鸭舌帽', bow: '蝴蝶结', glasses: '眼镜', phones: '耳机', cat: '猫耳', flower: '小花', crown: '王冠' },
+  acc:   { none: '无', cap: '鸭舌帽', bow: '蝴蝶结', glasses: '眼镜', phones: '耳机', cat: '猫耳', flower: '小花', crown: '王冠',
+    beret: '贝雷帽', beanie: '毛线帽', headband: '发箍', starclip: '星星发夹', ribbon: '小缎带', roundglasses: '圆眼镜' },
+  extra: { none: '无', scarf: '小围巾', satchel: '斜挎包', backpack: '双肩包' },
+  shoeStyle: { classic: '原版小鞋', sneakers: '运动鞋', boots: '短靴', maryjanes: '搭扣鞋' },
 };
+
+// 穿搭只包含衣物，不改肤色、头发或人物设定；随机来客也从协调的配色中挑选。
+const OUTFIT_SETS = [
+  { id: 'mint', name: '薄荷漫步', look: { top: 'sweater', topColor: 12, bottom: 'cropped', bottomColor: 13, shoes: 1, shoeStyle: 'sneakers', acc: 'none', extra: 'satchel' } },
+  { id: 'bakery', name: '奶油面包师', look: { top: 'apron', topColor: 17, bottom: 'pants', bottomColor: 11, shoes: 4, shoeStyle: 'classic', acc: 'ribbon', extra: 'none' } },
+  { id: 'library', name: '莓果图书馆', look: { top: 'vest', topColor: 15, bottom: 'pleated', bottomColor: 8, shoes: 0, shoeStyle: 'maryjanes', acc: 'roundglasses', extra: 'none' } },
+  { id: 'tea', name: '暖茶开衫', look: { top: 'cardigan', topColor: 17, bottom: 'denim', bottomColor: 14, shoes: 4, shoeStyle: 'boots', acc: 'none', extra: 'scarf' } },
+  { id: 'sea', name: '海风假日', look: { top: 'sailor', topColor: 14, bottom: 'shorts', bottomColor: 13, shoes: 1, shoeStyle: 'sneakers', acc: 'headband', extra: 'none' } },
+  { id: 'rain', name: '雨后散步', look: { top: 'raincoat', topColor: 2, bottom: 'pants', bottomColor: 14, shoes: 3, shoeStyle: 'boots', acc: 'none', extra: 'none' } },
+  { id: 'cloud', name: '午睡棉云', look: { top: 'pajamas', topColor: 16, bottom: 'pants', bottomColor: 16, shoes: 1, shoeStyle: 'classic', acc: 'none', extra: 'none' } },
+  { id: 'lemon', name: '柠檬运动', look: { top: 'jacket', topColor: 2, bottom: 'shorts', bottomColor: 12, shoes: 1, shoeStyle: 'sneakers', acc: 'cap', extra: 'none' } },
+  { id: 'music', name: '星夜听歌', look: { top: 'hoodie', topColor: 14, bottom: 'denim', bottomColor: 8, shoes: 1, shoeStyle: 'sneakers', acc: 'phones', extra: 'none' } },
+  { id: 'garden', name: '花园手作', look: { top: 'pinafore', topColor: 12, bottom: 'skirt', bottomColor: 12, shoes: 4, shoeStyle: 'maryjanes', acc: 'flower', extra: 'none' } },
+  { id: 'artist', name: '秋日画家', look: { top: 'stripe', topColor: 17, bottom: 'cropped', bottomColor: 8, shoes: 0, shoeStyle: 'classic', acc: 'beret', extra: 'satchel' } },
+  { id: 'trail', name: '周末探险', look: { top: 'jacket', topColor: 12, bottom: 'denim', bottomColor: 14, shoes: 4, shoeStyle: 'boots', acc: 'beanie', extra: 'backpack' } },
+];
+
+function wearOutfit(look, id) {
+  const outfit = OUTFIT_SETS.find(set => set.id === id);
+  return outfit ? { ...look, ...outfit.look } : { ...look };
+}
 
 const WALLS = [
   { id: 'cream',  name: '奶油', base: '#f6e3c3', alt: '#edd3a8', pat: 'stripe' },
@@ -1338,16 +1406,39 @@ const HAIR = {
     bun: [[2, 3, 3, 1], [7, 3, 2, 1], [4, -3, 4, 3]],
     spiky: [[2, -2, 2, 2], [5, -3, 2, 3], [8, -2, 2, 2], [2, 3, 2, 1], [5, 3, 2, 1], [8, 3, 1, 1]],
     bob: [[2, 3, 8, 1], [0, 2, 2, 7], [10, 2, 2, 7]],
+    pixie: [[2, -1, 3, 1], [2, 3, 2, 1], [6, 3, 1, 1]],
+    sidepart: [[2, -1, 5, 1], [2, 3, 3, 1], [5, 2, 3, 1]],
+    curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 2, 3], [10, 3, 2, 3], [3, 3, 2, 1], [8, 3, 2, 1]],
+    pony: [[2, 3, 3, 1], [7, 3, 2, 1], [9, -3, 3, 3], [11, 0, 3, 6]],
+    lowpony: [[2, 3, 3, 1], [7, 3, 2, 1], [10, 7, 3, 5]],
+    braids: [[2, 3, 2, 1], [8, 3, 2, 1], [0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
+    halfup: [[0, 3, 2, 8], [10, 3, 2, 8], [2, 3, 3, 1], [7, 3, 2, 1], [5, -2, 3, 2]],
+    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3], [2, 3, 2, 1], [8, 3, 2, 1]],
+    wavy: [[0, 2, 2, 5], [-1, 7, 3, 3], [0, 10, 3, 3], [10, 2, 2, 5], [10, 7, 3, 3], [9, 10, 3, 3], [2, 3, 3, 1]],
   },
   up: {
     base: [[1, 0, 10, 9]],
     short: [], long: [[0, 2, 12, 11]], twin: [[-2, 3, 3, 7], [11, 3, 3, 7]],
     bun: [[4, -3, 4, 3]], spiky: [[2, -2, 2, 2], [5, -3, 2, 3], [8, -2, 2, 2]], bob: [[0, 2, 12, 7]],
+    pixie: [[2, -1, 3, 1], [3, 8, 5, 2]], sidepart: [[2, -1, 5, 1], [8, 7, 2, 3]],
+    curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 2, 5], [10, 3, 2, 5]],
+    pony: [[5, -3, 3, 3], [5, 1, 4, 6], [6, 7, 3, 4]],
+    lowpony: [[5, 7, 3, 6]],
+    braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2], [10, 5, 2, 3], [11, 8, 2, 3], [10, 11, 2, 2]],
+    halfup: [[0, 2, 12, 10], [5, -2, 3, 2], [4, 3, 4, 5]],
+    doublebun: [[-1, -2, 3, 3], [10, -2, 3, 3]],
+    wavy: [[0, 2, 12, 6], [-1, 7, 14, 3], [0, 10, 12, 3]],
   },
   right: {
     base: [[1, 0, 10, 3], [1, 2, 4, 6], [8, 3, 2, 1]],
     short: [], long: [[0, 2, 4, 11]], twin: [[-2, 3, 3, 7]],
     bun: [[3, -3, 4, 3]], spiky: [[2, -2, 2, 2], [5, -3, 2, 3], [8, -2, 2, 2]], bob: [[0, 2, 5, 7], [6, 3, 4, 1]],
+    pixie: [[3, -1, 3, 1]], sidepart: [[3, -1, 5, 1], [6, 3, 2, 1]],
+    curl: [[1, -1, 3, 2], [5, -2, 3, 2], [9, -1, 3, 2], [0, 3, 3, 5]],
+    pony: [[-2, -3, 3, 3], [-3, 0, 3, 7]], lowpony: [[-2, 6, 3, 6]],
+    braids: [[0, 5, 2, 3], [-1, 8, 2, 3], [0, 11, 2, 2]],
+    halfup: [[0, 2, 4, 10], [2, -2, 3, 2]], doublebun: [[0, -2, 3, 3]],
+    wavy: [[0, 2, 4, 5], [-1, 7, 4, 3], [0, 10, 4, 3]],
   },
 };
 
@@ -1374,12 +1465,15 @@ function drawDoll(c, cx, by, L, o = {}) {
 
   const walking = pose === 'walk';
   const bob = walking && fr % 2 === 1 ? -1 : 0;
-  const isDress = L.top === 'dress';
-  const legCol = L.bottom === 'pants' && !isDress ? C.bot : C.skin;
+  const isDress = L.top === 'dress' || L.top === 'pinafore';
+  const legCol = ['pants', 'denim', 'cropped'].includes(L.bottom) && !isDress ? C.bot : C.skin;
 
   // 腿
   if (pose === 'sit') {
     R(c, x + 3, y + 15, 6, 2, legCol); R(c, x + 3, y + 17, 2, 1, C.shoe); R(c, x + 7, y + 17, 2, 1, C.shoe);
+    if (L.shoeStyle === 'boots') { R(c, x + 3, y + 16, 2, 1, C.shoe); R(c, x + 7, y + 16, 2, 1, C.shoe); }
+    if (L.shoeStyle === 'sneakers') { R(c, x + 3, y + 17, 2, 1, '#fffaf0'); R(c, x + 7, y + 17, 2, 1, '#fffaf0'); }
+    if (L.shoeStyle === 'maryjanes') { R(c, x + 4, y + 16, 1, 1, '#fffaf0'); R(c, x + 8, y + 16, 1, 1, '#fffaf0'); }
   } else {
     let upL = 0, upR = 0;
     if (walking) { upL = fr === 1 ? 1 : 0; upR = fr === 3 ? 1 : 0; }
@@ -1389,7 +1483,15 @@ function drawDoll(c, cx, by, L, o = {}) {
       R(c, x + lx - 1, y + 15, 4, 5 - up, DOLL_INK);
       R(c, x + lx, y + 15, 2, 4 - up, legCol);
       if (L.bottom === 'shorts' && !isDress) R(c, x + lx, y + 15, 2, 1, C.bot);
+      if (L.bottom === 'cropped' && !isDress) R(c, x + lx, y + 18 - up, 2, 1, C.skin);
+      if (L.bottom === 'denim' && !isDress) R(c, x + lx, y + 18 - up, 2, 1, shade(C.bot, .16));
+      if (L.shoeStyle === 'boots') R(c, x + lx, y + 17 - up, 2, 2, C.shoe);
+      if (L.shoeStyle === 'sneakers' || L.shoeStyle === 'maryjanes') {
+        R(c, x + lx, y + 18 - up, 2, 1, L.shoeStyle === 'maryjanes' ? '#fffaf0' : C.shoe);
+      }
       R(c, x + lx, y + 19 - up, 2, 1, C.shoe);
+      if (L.shoeStyle === 'sneakers') R(c, x + lx, y + 19 - up, 2, 1, '#fffaf0');
+      if (L.shoeStyle === 'maryjanes') R(c, x + lx, y + 18 - up, 1, 1, C.shoe);
     };
     if (view === 'right') { leg(4 + (walking ? (fr === 1 ? -1 : fr === 3 ? 1 : 0) : 0), upL); leg(6 - (walking ? (fr === 1 ? -1 : fr === 3 ? 1 : 0) : 0), upR); }
     else { leg(3, upL); leg(7, upR); }
@@ -1409,18 +1511,24 @@ function drawDoll(c, cx, by, L, o = {}) {
     R(c, x + 4, yb + 13, 1, 1, '#dfba83');
   }
   if (L.top === 'suit' && front) { R(c, x + 5, yb + 10, 2, 3, '#ffffff'); R(c, x + 5, yb + 11, 1, 2, '#e26d7d'); }
+  drawClothingDetail(c, x, yb, L, C, view);
   // 下装（连衣裙自带裙摆）
-  if (isDress || L.bottom === 'skirt') {
-    const sc = isDress ? C.top : C.bot;
+  if (isDress || L.top === 'raincoat' || L.bottom === 'skirt' || L.bottom === 'pleated') {
+    const sc = isDress || L.top === 'raincoat' ? C.top : C.bot;
     R(c, x + 1, yb + 14, 10, 4, DOLL_INK); R(c, x + 2, yb + 14, 8, 3, sc); R(c, x + 2, yb + 16, 8, 1, shade(sc, -0.15));
+    if (L.bottom === 'pleated' && !isDress) { R(c, x + 4, yb + 14, 1, 2, shade(sc, -.12)); R(c, x + 7, yb + 14, 1, 2, shade(sc, -.12)); }
+    if (L.top === 'pinafore' && front) R(c, x + 5, yb + 14, 2, 1, shade(C.top, -.15));
+    if (L.top === 'raincoat' && front) R(c, x + 5, yb + 14, 2, 3, shade(C.top, -.15));
   } else if (pose !== 'sit') { R(c, x + 3, yb + 14, 6, 1, C.bot); }
+  if (L.top === 'apron' && front) { R(c, x + 4, yb + 14, 4, 2, '#fffaf0'); R(c, x + 5, yb + 14, 2, 1, '#dfba83'); }
 
   // 手臂
-  const sleeve = L.top === 'hoodie' || L.top === 'suit' || L.top === 'stripe' ? 3 : 2;
+  const sleeve = ['hoodie', 'suit', 'stripe', 'sweater', 'jacket', 'raincoat', 'pajamas'].includes(L.top) ? 3 : 2;
+  const sleeveColor = ['overall', 'vest', 'apron', 'pinafore'].includes(L.top) ? '#fffaf0' : C.top;
   const arm = (ax, dy, up) => {
     if (up) { R(c, x + ax - 1, yb + 5, 3, 7, DOLL_INK); R(c, x + ax, yb + 6, 1, 5, C.top); R(c, x + ax, yb + 5, 1, 1, C.skin); return; }
     R(c, x + ax - 1, yb + 9 + dy, 3, 6, DOLL_INK);
-    R(c, x + ax, yb + 10 + dy, 1, sleeve, L.top === 'overall' ? '#fffaf0' : C.top);
+    R(c, x + ax, yb + 10 + dy, 1, sleeve, sleeveColor);
     R(c, x + ax, yb + 10 + dy + sleeve, 1, 4 - sleeve, C.skin);
   };
   const sw = walking ? (fr === 1 ? 1 : fr === 3 ? -1 : 0) : 0;
@@ -1431,8 +1539,63 @@ function drawDoll(c, cx, by, L, o = {}) {
     arm(1, sw, upA); arm(10, -sw, upB);
   }
 
+  drawBodyAccessory(c, x, yb, L, C, view);
   drawHead(c, x, yb, L, C, view, o);
   c.restore();
+}
+
+function drawClothingDetail(c, x, y, L, C, view) {
+  const front = view === 'down', back = view === 'up', cream = '#fffaf0';
+  const r = (a, b, w, h, color) => R(c, x + a, y + b, w, h, color);
+  if (L.top === 'sweater') {
+    r(3, 13, 6, 1, shade(C.top, .14));
+    if (front) { r(4, 10, 4, 1, shade(C.top, -.13)); r(5, 11, 2, 1, cream); }
+  }
+  if (L.top === 'vest' || L.top === 'pinafore') {
+    r(3, 10, 6, 2, cream);
+    if (L.top === 'pinafore') { r(4, 10, 1, 3, C.top); r(7, 10, 1, 3, C.top); }
+    else if (front) { r(5, 11, 2, 1, cream); r(5, 13, 1, 1, '#dfba83'); }
+  }
+  if (L.top === 'sailor') {
+    r(3, 10, 6, back ? 3 : 1, cream);
+    if (front) { r(4, 11, 1, 1, cream); r(7, 11, 1, 1, cream); r(5, 12, 2, 2, '#bc8390'); }
+    if (back) r(4, 11, 4, 1, C.top);
+  }
+  if (L.top === 'apron') {
+    r(3, 10, 6, 1, cream);
+    if (front) { r(4, 11, 4, 4, cream); r(5, 13, 2, 1, '#dfba83'); }
+    else if (back) { r(3, 13, 6, 1, cream); r(5, 12, 2, 3, cream); }
+    else r(7, 11, 2, 4, cream);
+  }
+  if (L.top === 'jacket' || L.top === 'raincoat') {
+    if (front) {
+      r(5, 10, 2, 5, L.top === 'jacket' ? cream : shade(C.top, -.15));
+      r(3, 13, 1, 1, shade(C.top, -.18)); r(8, 13, 1, 1, shade(C.top, -.18));
+    } else if (back && L.top === 'raincoat') {
+      r(4, 10, 4, 2, shade(C.top, -.13)); r(5, 12, 2, 1, shade(C.top, -.13));
+    }
+  }
+  if (L.top === 'pajamas') {
+    if (front) { r(5, 10, 1, 5, cream); r(7, 11, 1, 1, cream); }
+    r(3, 12, 1, 1, cream); r(8, 14, 1, 1, cream);
+  }
+}
+
+// 身上与头上的配饰独立：眼镜可以和围巾一起戴；睡觉、泡澡只画头时不会出现背包。
+function drawBodyAccessory(c, x, y, L, C, view) {
+  const r = (a, b, w, h, color) => R(c, x + a, y + b, w, h, color);
+  if (L.extra === 'scarf') {
+    r(2, 9, 8, 2, '#f1dfb9'); r(view === 'up' ? 7 : 3, 11, 2, 3, '#f1dfb9');
+    r(2, 10, 8, 1, '#d1b48e');
+  } else if (L.extra === 'satchel') {
+    for (let i = 0; i < 4; i++) r(4 + i, 10 + i, 1, 1, '#8a5a3c');
+    box(c, x + (view === 'right' ? 2 : 8), y + 12, 4, 4, '#b88160', DOLL_INK);
+    r(view === 'right' ? 3 : 9, 13, 1, 1, '#f1dfb9');
+  } else if (L.extra === 'backpack') {
+    if (view === 'up') { box(c, x + 3, y + 10, 6, 6, '#b88160', DOLL_INK); r(4, 13, 4, 1, '#f1dfb9'); }
+    else if (view === 'right') box(c, x, y + 10, 3, 6, '#b88160', DOLL_INK);
+    else { r(3, 10, 1, 4, '#b88160'); r(8, 10, 1, 4, '#b88160'); }
+  }
 }
 
 function drawHead(c, x, y, L, C, view, o) {
@@ -1455,6 +1618,18 @@ function drawHead(c, x, y, L, C, view, o) {
   const rects = set.base.concat(set[L.hair] || []);
   blob(c, x, y, rects, C.hair);
   if (view !== 'up') R(c, x + 3, y + 1, 3, 1, shade(C.hair, 0.18)); // 头发高光
+  if (L.hair === 'braids') {
+    for (const h of [6, 9]) {
+      R(c, x + (h === 6 ? 0 : -1), y + h, 2, 1, shade(C.hair, .16));
+      if (view !== 'right') R(c, x + (h === 6 ? 10 : 11), y + h, 2, 1, shade(C.hair, .16));
+    }
+    R(c, x, y + 11, 2, 1, C.top);
+    if (view !== 'right') R(c, x + 10, y + 11, 2, 1, C.top);
+  }
+  if (view === 'up' && ['wavy', 'halfup'].includes(L.hair)) {
+    R(c, x + 2, y + 7, 1, 3, shade(C.hair, .12)); R(c, x + 9, y + 6, 1, 3, shade(C.hair, .12));
+  }
+  if (view === 'up' && ['pony', 'lowpony', 'halfup'].includes(L.hair)) R(c, x + 5, y + (L.hair === 'lowpony' ? 8 : 3), 3, 1, C.top);
   drawAcc(c, x, y, L, C, view);
 }
 
@@ -1482,6 +1657,27 @@ function drawAcc(c, x, y, L, C, view) {
     blob(c, x, y, [[3, -2, 6, 2]], '#f2c33a');
     R(c, x + 3, y - 4, 1, 2, '#f2c33a'); R(c, x + 5, y - 5, 2, 3, '#f2c33a'); R(c, x + 8, y - 4, 1, 2, '#f2c33a');
     R(c, x + 5, y - 2, 2, 1, '#e26d7d');
+  } else if (a === 'beret') {
+    blob(c, x, y, [[1, -2, 10, 3], [3, -3, 6, 1]], C.top);
+    R(c, x + 6, y - 4, 1, 1, DOLL_INK); R(c, x + 3, y - 2, 4, 1, shade(C.top, .13));
+  } else if (a === 'beanie') {
+    blob(c, x, y, [[2, -2, 8, 3], [1, 1, 10, 2]], C.top);
+    R(c, x + 4, y - 4, 3, 2, '#f1dfb9'); R(c, x + 2, y + 1, 8, 1, shade(C.top, .16));
+  } else if (a === 'headband') {
+    R(c, x + 2, y, 8, 1, '#f1dfb9'); R(c, x + 1, y + 1, 1, 3, '#f1dfb9'); R(c, x + 10, y + 1, 1, 3, '#f1dfb9');
+  } else if (a === 'starclip') {
+    const ax = view === 'right' ? 3 : 9;
+    R(c, x + ax - 1, y + 2, 3, 1, '#f2d16b'); R(c, x + ax, y + 1, 1, 3, '#f2d16b');
+  } else if (a === 'ribbon') {
+    const ax = view === 'right' ? 1 : view === 'up' ? 5 : 9;
+    R(c, x + ax - 1, y + 1, 2, 2, '#bc8390'); R(c, x + ax + 2, y + 1, 2, 2, '#bc8390');
+    R(c, x + ax + 1, y + 2, 1, 3, '#f1dfb9');
+  } else if (a === 'roundglasses' && view !== 'up') {
+    for (const gx of view === 'right' ? [6] : [2, 7]) {
+      R(c, x + gx, y + 5, 3, 1, '#89654b'); R(c, x + gx, y + 7, 3, 1, '#89654b');
+      R(c, x + gx - 1, y + 6, 1, 1, '#89654b'); R(c, x + gx + 3, y + 6, 1, 1, '#89654b');
+    }
+    if (view === 'down') R(c, x + 5, y + 6, 2, 1, '#89654b');
   }
 }
 
@@ -1505,12 +1701,14 @@ function dollPortrait(cv, L, dir = 'down', frame = 0, pose = 'stand') {
 
 function randomLook() {
   const keys = o => Object.keys(o), r = n => (Math.random() * n) | 0;
-  const top = pick(keys(OUTFIT.top));
-  return {
+  const look = {
     skin: r(OUTFIT.skin.length), hair: pick(keys(OUTFIT.hair)), hairColor: r(OUTFIT.hairColor.length),
-    top, topColor: r(OUTFIT.clothColor.length), bottom: pick(keys(OUTFIT.bottom)), bottomColor: r(OUTFIT.clothColor.length),
-    shoes: r(OUTFIT.shoes.length), acc: pick(keys(OUTFIT.acc)),
+    ...pick(OUTFIT_SETS).look,
   };
+  // 小概率换成自由款式，保留整套配色，让全部款式都有机会自然出现。
+  if (Math.random() < .25) { look.top = pick(keys(OUTFIT.top)); look.bottom = pick(keys(OUTFIT.bottom)); }
+  if (Math.random() < .25) look.acc = pick(keys(OUTFIT.acc));
+  return look;
 }
 </script>
 <script>
@@ -7559,26 +7757,43 @@ $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
 
 /* ---------- 衣橱 ---------- */
-let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0;
+let wdUid = null, wdDir = 'down', wdFrame = 0, wdTimer = 0, wdPage = 'look', wdPose = 'stand';
+const wdOriginalLooks = new Map();
 const wdDoll = () => G.dolls.find(d => d.uid === wdUid);
 
 function openWardrobe(uid) {
   const resident = residents().find(d => d.uid === uid) || residents()[0];
   if (!resident) return;
   wdUid = resident.uid;
+  wdPage = 'look';
+  wdOriginalLooks.clear();
+  for (const d of residents()) wdOriginalLooks.set(d.uid, { ...d.look });
   $('#wardrobe').hidden = false; SFX.play('open');
+  document.querySelector('.wd-body').scrollTop = 0;
   renderWardrobe();
 }
 function closeWardrobe() { $('#wardrobe').hidden = true; HOOK.select(); save(); }
 $('#wdClose').onclick = closeWardrobe;
 $('#wardrobe').addEventListener('pointerdown', e => { if (e.target.id === 'wardrobe') closeWardrobe(); });
 window.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#wardrobe').hidden) closeWardrobe(); });
-document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); });
+document.querySelectorAll('.wd-dir button').forEach(b => b.onclick = () => { wdDir = b.dataset.dir; SFX.play('click'); drawWdPreview(); });
+document.querySelectorAll('[data-wd-page]').forEach(b => b.onclick = () => {
+  wdPage = b.dataset.wdPage; document.querySelector('.wd-body').scrollTop = 0; renderWardrobe();
+});
+$('#wdPose').onchange = e => { wdPose = e.target.value; wdFrame = 0; drawWdPreview(); };
 $('#wdName').oninput = e => { const d = wdDoll(); if (d) { d.name = e.target.value.trim() || '无名'; renderWdTabs(); } };
 $('#wdName').onchange = () => wdSaved();
 $('#wdRandom').onclick = () => {
   const d = wdDoll(); if (!d) return;
   d.look = randomLook(); SFX.play('love'); renderWardrobe(); wdSaved();
+};
+$('#wdShuffle').onclick = () => {
+  const d = wdDoll(); if (!d) return;
+  d.look = wearOutfit(d.look, pick(OUTFIT_SETS).id); SFX.play('pop'); renderWardrobe(); wdSaved();
+};
+$('#wdUndo').onclick = () => {
+  const d = wdDoll(), original = wdOriginalLooks.get(d?.uid); if (!original) return;
+  d.look = { ...original }; renderWardrobe(); wdSaved();
 };
 $('#wdRemove').onclick = () => {
   const d = wdDoll(); if (!d) return;
@@ -7604,12 +7819,23 @@ function renderWardrobe() {
   const d = wdDoll(); if (!d) return;
   renderWdTabs();
   $('#wdName').value = d.name;
+  document.querySelectorAll('[data-wd-page]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.wdPage === wdPage)));
+  $('#wdUndo').disabled = JSON.stringify(d.look) === JSON.stringify(wdOriginalLooks.get(d.uid));
+  const scrollArea = document.querySelector('.wd-body'), scrollTop = scrollArea.scrollTop;
   const box = $('#wdOptions'); box.innerHTML = '';
   const section = (title, node) => { const s = el('div', 'opt'); s.append(el('h4', null, title), node); box.append(s); };
   const chips = (obj, key) => {
     const w = el('div', 'chips');
     for (const [k, name] of Object.entries(obj)) {
-      const b = el('button', 'chip' + (d.look[key] === k ? ' on' : ''), name);
+      const selected = (d.look[key] ?? (key === 'extra' ? 'none' : key === 'shoeStyle' ? 'classic' : '')) === k;
+      const b = el('button', 'chip' + (selected ? ' on' : ''), name);
+      b.setAttribute('aria-pressed', String(selected));
+      if (key === 'hair') {
+        b.classList.add('wd-hair');
+        const cv = document.createElement('canvas'); cv.width = 20; cv.height = 24;
+        cv.setAttribute('aria-hidden', 'true'); b.prepend(cv);
+        dollPortrait(cv, { ...d.look, hair: k, acc: 'none' });
+      }
       b.onclick = () => { d.look[key] = k; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     }
@@ -7619,12 +7845,39 @@ function renderWardrobe() {
     const w = el('div', 'chips');
     cols.forEach((col, i) => {
       const b = el('button', 'swatch' + (d.look[key] === i ? ' on' : ''));
-      b.style.background = col; b.setAttribute('aria-label', col);
+      b.style.background = col; b.setAttribute('aria-label', `${{ skin: '肤色', hairColor: '发色', topColor: '上衣颜色', bottomColor: '下装颜色', shoes: '鞋子颜色' }[key]} ${i + 1}`);
+      b.setAttribute('aria-pressed', String(d.look[key] === i));
       b.onclick = () => { d.look[key] = i; SFX.play('pop'); renderWardrobe(); wdSaved(); };
       w.append(b);
     });
     return w;
   };
+  if (wdPage === 'look') {
+    const sets = el('div', 'wd-sets');
+    for (const set of OUTFIT_SETS) {
+      const selected = Object.entries(set.look).every(([key, value]) => d.look[key] === value);
+      const b = el('button', 'wd-set' + (selected ? ' on' : ''));
+      b.setAttribute('aria-pressed', String(selected));
+      const cv = document.createElement('canvas'); cv.width = 20; cv.height = 24;
+      cv.setAttribute('aria-hidden', 'true');
+      b.append(cv, el('span', null, set.name));
+      dollPortrait(cv, wearOutfit(d.look, set.id));
+      b.onclick = () => { d.look = wearOutfit(d.look, set.id); SFX.play('pop'); renderWardrobe(); wdSaved(); };
+      sets.append(b);
+    }
+    section('今日穿什么 · 只换衣服，保留你的发型', sets);
+    section('发型', chips(OUTFIT.hair, 'hair'));
+    section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
+    section('肤色', swatches(OUTFIT.skin, 'skin'));
+    section('上衣', chips(OUTFIT.top, 'top'));
+    section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
+    if (!['dress', 'pinafore'].includes(d.look.top)) section('下装', chips(OUTFIT.bottom, 'bottom'));
+    if (!['dress', 'pinafore'].includes(d.look.top)) section(d.look.top === 'overall' ? '背带颜色' : '下装颜色', swatches(OUTFIT.clothColor, 'bottomColor'));
+    section('鞋款', chips(OUTFIT.shoeStyle, 'shoeStyle'));
+    section('鞋子颜色', swatches(OUTFIT.shoes, 'shoes'));
+    section('头上配饰', chips(OUTFIT.acc, 'acc'));
+    section('随身小物', chips(OUTFIT.extra, 'extra'));
+  } else {
   const pers = el('div', 'chips');
   for (const [k, P] of Object.entries(PERSONAS)) {
     const b = el('button', 'chip' + (d.persona === k ? ' on' : ''), `${P.icon} ${P.name}<small>${P.desc}</small>`);
@@ -7677,18 +7930,15 @@ function renderWardrobe() {
     hearts.append(b);
   }
   section('感情观', hearts);
-  section('肤色', swatches(OUTFIT.skin, 'skin'));
-  section('发型', chips(OUTFIT.hair, 'hair'));
-  section('发色', swatches(OUTFIT.hairColor, 'hairColor'));
-  section('上衣', chips(OUTFIT.top, 'top'));
-  section('上衣颜色', swatches(OUTFIT.clothColor, 'topColor'));
-  if (d.look.top !== 'dress') section('下装', chips(OUTFIT.bottom, 'bottom'));
-  section(d.look.top === 'overall' ? '背带颜色' : '下装颜色', swatches(OUTFIT.clothColor, 'bottomColor'));
-  section('鞋子', swatches(OUTFIT.shoes, 'shoes'));
-  section('配饰', chips(OUTFIT.acc, 'acc'));
+  }
+  scrollArea.scrollTop = scrollTop;
   drawWdPreview();
 }
-function drawWdPreview() { const d = wdDoll(); if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, 'walk'); }
+function drawWdPreview() {
+  const d = wdDoll();
+  document.querySelectorAll('.wd-dir button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.dir === wdDir)));
+  if (d) dollPortrait($('#wdCanvas'), d.look, wdDir, wdFrame, wdPose);
+}
 
 // 衣橱里每次换装都在预览下方显示一句确认，1.5 秒后消失
 let wdSavedTimer = 0;
