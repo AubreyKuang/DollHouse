@@ -214,6 +214,23 @@ function bookFollowupDraft(note) {
   return G.paperMoments.find(draft => draft.month >= G.day && draft.paperKey === note.paperKey) || null;
 }
 
+function closeBookFollowup(chair, draft) {
+  const note = bookRecommendation(chair);
+  if (!G.furniture.includes(chair) || chair.users.length || !draft || bookFollowupDraft(note) !== draft) return false;
+  const notes = G.keepsakes.bookRecommendations;
+  delete notes[chair.key];
+  if (!save()) {
+    notes[chair.key] = note;
+    return false;
+  }
+  for (const d of G.dolls) {
+    if (d.act?.type !== 'bookMeet' || d.act.keepsakeKey !== chair.key) continue;
+    endAct(d);
+    d.path = [];
+  }
+  return true;
+}
+
 function canDeferBookFollowup(note, draft) {
   return !!draft && draft.month === G.day && !draft.deferred && !note.followup && note.followupLetter !== 'read';
 }

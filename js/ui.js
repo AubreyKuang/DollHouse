@@ -181,6 +181,7 @@ const bookNextIssue = $('#bookNextIssue');
 const bookPaperReadingOnlyButton = $('#bookPaperReadingOnly');
 const bookPaperFollowupButton = $('#bookPaperFollowup');
 const bookPaperDeferButton = $('#bookPaperDefer');
+const bookPaperCloseButton = $('#bookPaperClose');
 const bookKeepForPaperButton = $('#bookKeepForPaper');
 const bookQuestionButton = $('#bookQuestion');
 const bookQuestionHint = $('#bookQuestionHint');
@@ -292,6 +293,22 @@ bookPaperDeferButton.onclick = () => {
   readingSeat.focus();
 };
 bookNextIssue.onchange = refreshReadingSeats;
+bookPaperCloseButton.onclick = () => {
+  const chair = selectedReadingSeat();
+  if (!chair || G.mode !== 'live' || chair.users.length) return;
+  const note = bookRecommendation(chair), draft = bookFollowupDraft(note);
+  if (!draft) return;
+  const issue = monthLabel(draft.month);
+  const detail = note.followup || note.followupLetter === 'read' ? '已经补入的经过也会刊出。' : '尚未完成的约聊或回笺会一并收起。';
+  if (!confirm(`收起便条后，已交的书摘仍会在${issue}月报刊出。${detail}\n要收起便条吗？`)) return;
+  if (!closeBookFollowup(chair, draft)) {
+    if (!G.saveOk) bookMoveStatus.textContent = '存档未写入，便条仍在窗边。';
+    return;
+  }
+  bookMoveStatus.textContent = `便条已收起，书摘会在${issue}月报照常刊出。`;
+  readingSeat.focus();
+  refreshReadingSeats();
+};
 bookKeepForPaperButton.onclick = () => {
   const chair = selectedReadingSeat();
   if (!chair || G.mode !== 'live' || !keepSharedBookForPaper(chair)) return;
@@ -394,6 +411,9 @@ function refreshReadingSeats() {
   bookPublicButton.hidden = !recommendation || recommendation.reply === true || !chair.readingNotes;
   bookPublicButton.disabled = !!publicReaders?.length || !!chair.users.length;
   const followupDraft = bookFollowupDraft(recommendation);
+  if (!followupDraft && document.activeElement === bookPaperCloseButton) readingSeat.focus();
+  bookPaperCloseButton.hidden = !followupDraft;
+  bookPaperCloseButton.disabled = !!chair.users.length;
   bookPaperButton.hidden = !publicReaders?.length || !!followupDraft;
   const completed = publicReaders?.length === BOOK_PUBLIC_READERS;
   $('#bookIssueChoice').hidden = !completed || !!followupDraft;
