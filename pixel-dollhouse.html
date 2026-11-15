@@ -5179,7 +5179,7 @@ function furnishThirdFloor() {
   if (!hasThirdFloor() || G.thirdFloorReady) return;
   for (const [id, x, y] of [
     ['window', 3, THIRD_WALL], ['window', 12, THIRD_WALL], ['bunnyPicture', 19, THIRD_WALL + 1],
-    ['cloudBed', 1, 27], ['moonLamp', 4, 27], ['vanity', 5, 27],
+    ['cloudBed', 1, 27], ['moonLamp', 6, THIRD_WALL + 1], ['vanity', 5, 27],
     ['shelf', 10, 26], ['chair', 11, 28], ['piano', 15, 26], ['craftBench', 19, 26],
     ['teaTray', 13, 30], ['beanbag', 17, 30], ['plushRabbit', 3, 31], ['pawRug', 4, 30],
   ]) if (canPlace(id, x, y)) addFurniture(id, x, y);
