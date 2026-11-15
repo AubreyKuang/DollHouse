@@ -146,15 +146,6 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 #cv{width:100%;height:100%;display:block;image-rendering:auto}
 #overlay{position:absolute;inset:0;pointer-events:none}
 .hint{font-size:13px;color:var(--muted);margin:10px 2px 0}
-.resident-quick{display:flex;gap:5px;overflow-x:auto;padding:6px 2px 2px}
-.resident-quick[hidden]{display:none}
-.resident-quick-person{display:flex;flex:1 0 76px;align-items:center;gap:4px;min-width:0;min-height:44px;padding:4px 6px;border:1px solid var(--hud-line);border-radius:6px;background:var(--hud-bg);color:var(--hud-ink);text-align:left}
-.resident-quick-person:focus-visible{outline:2px solid #f1cbab;outline-offset:-2px}
-.resident-quick-person[aria-pressed="true"]{background:#f1cbab;color:#36263b}
-.resident-quick-person canvas{flex:none;width:20px;height:24px;image-rendering:pixelated}
-.resident-quick-person span{min-width:0}
-.resident-quick-person :is(b,small){display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.resident-quick-person small{font-size:10px}
 .scene-action{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .scene-action{min-height:48px}
 #studySettings{align-self:flex-start;margin:4px 0;color:var(--hud-ink);font-size:12px}
@@ -596,7 +587,6 @@ body{
         <div id="overlay"></div>
       </div>
     </div>
-    <div id="residentQuick" class="resident-quick" role="group" aria-label="选择住户"></div>
     <div class="scene-action">
       <p id="hint" class="hint" role="status">选一位住户，再选一件家具。</p>
       <button type="button" id="quickFurniture" class="btn small" hidden></button>
@@ -917,6 +907,24 @@ const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
 const LOWER_LANDING = WALL_ROWS + 1;
 const UPPER_LANDING = ROWS - 1;
 const UPPER_WALL = -WALL_ROWS; // 二楼墙面用负数行，与既有地面坐标分开
+// Keep the original house and yard coordinates stable for existing saves.
+const THIRD_START = YARD_END;
+const THIRD_END = THIRD_START + 8;
+const THIRD_WALL = UPPER_WALL - WALL_ROWS;
+const hasThirdFloor = () => G.level >= 4;
+const isYardRow = row => row >= ROWS && row < YARD_END;
+const houseFloor = row => isYardRow(row) ? 0 : row < UPPER_WALL || row >= THIRD_START ? 3 : row < 0 || row >= FLOOR_SPLIT ? 2 : 1;
+const FLOOR_BOUNDS = [
+  { start: ROWS, end: YARD_END },
+  { start: WALL_ROWS, end: FLOOR_SPLIT, wall: 0 },
+  { start: FLOOR_SPLIT, end: ROWS, wall: UPPER_WALL },
+  { start: THIRD_START, end: THIRD_END, wall: THIRD_WALL },
+];
+const floorBounds = row => FLOOR_BOUNDS[houseFloor(row)];
+const walkEnd = () => hasThirdFloor() ? THIRD_END : YARD_END;
+const stairLinks = () => hasThirdFloor()
+  ? [[LOWER_LANDING, UPPER_LANDING], [FLOOR_SPLIT + 1, THIRD_END - 1]]
+  : [[LOWER_LANDING, UPPER_LANDING]];
 let W = COLS * T;
 const H = ROWS * T;
 
@@ -2694,7 +2702,7 @@ function shareHouseNews(speaker, listener) {
 
 const BOND_TAGS = { meal: { icon: '🍚', name: '饭搭子' }, game: { icon: '🎮', name: '游戏搭子' } };
 const BOND_TAG_AT = 3;                 // 一起吃饭 / 打游戏满 3 次就成了搭子
-const PRIVATE_ROOMS = new Set(['bed', 'upperBedroom']);
+const PRIVATE_ROOMS = new Set(['bed', 'upperBedroom', 'loftBedroom']);
 const clampBond = (v, min, max) => Math.max(min, Math.min(max, v));
 const bondKey = (a, b) => a.pid + '>' + b.pid;
 
@@ -2794,8 +2802,7 @@ function afterGroom(d) {
 /* ---------- 卧室隐私：关起门来，别人不会进来打扰 ---------- */
 const inPrivateRoom = d => d.state !== 'away' && PRIVATE_ROOMS.has(roomOf(d));
 function inPrivateRoomTile(f) {
-  if (f.y >= FLOOR_SPLIT) return f.x < BX && !(G.bathroom && f.x < BATH_X);
-  return f.x < BX;
+  return PRIVATE_ROOMS.has(roomOf({ tx: f.x, ty: floorBounds(f.y).start }));
 }
 const canDisturb = (d, o) => !inPrivateRoom(o) || roomOf(d) === roomOf(o) || arePartners(d, o);
 
@@ -2884,7 +2891,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, thirdFloorReady: G.thirdFloorReady, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -3016,6 +3023,7 @@ function applySave(s) {
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.studyQuiet = s.studyQuiet === true;
+  G.thirdFloorReady = s.thirdFloorReady === true;
   const quietUntil = s.studyQuietUntil, now = absNow();
   G.studyQuietUntil = !G.studyQuiet && Number.isInteger(quietUntil) && quietUntil > now &&
     quietUntil <= now + STUDY_QUIET_MINUTES ? quietUntil : null;
@@ -3030,6 +3038,7 @@ function applySave(s) {
   }
   fitHouseFurniture();
   if (!s.houseWindowsV) addMissingUpperWindows();
+  furnishThirdFloor();
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) {
     if (d.guest && d.pid !== G.community.active?.guestPid) continue;
@@ -3058,16 +3067,17 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
-  if (x < 0 || x + d.w > COLS) return false;
-  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : y >= ROWS) return false;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x + d.w > COLS) return false;
+  const bounds = floorBounds(y);
+  if (houseFloor(y) === 3 && !hasThirdFloor()) return false;
+  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : isYardRow(y)) return false;
   if (L === 'solid' && blocksStairs({ id, x, y })) return false;
-  if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
   if (L === 'wall') {
-    const start = y < 0 ? UPPER_WALL : 0;
+    const start = bounds.wall;
     if (y < start || y + d.h > start + WALL_ROWS) return false;
     if (id === 'door' && y !== WALL_ROWS - 2) return false;
   }
-  else if (y < WALL_ROWS || (!d.outdoor && y + d.h > ROWS)) return false;
+  else if (y < bounds.start || y + d.h > bounds.end) return false;
   if (straddles(x, y, d.w)) return false;
   if (L === 'solid' && blocksDoor({ x, y }, d)) return false;
   for (const f of G.furniture) {
@@ -3081,7 +3091,7 @@ function canPlace(id, x, y, ignore) {
 // 能走的格子：地板区域里没有实心家具
 function blockedMap() {
   const m = [];
-  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < YARD_END; y++) m[x][y] = y < WALL_ROWS; }
+  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < walkEnd(); y++) m[x][y] = y < WALL_ROWS; }
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
     const d = FURNITURE[f.id];
@@ -3100,11 +3110,10 @@ function rebuild() {
     d.path = [];
   }
 }
-const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < YARD_END && !BLOCK[x][y];
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < walkEnd() && !BLOCK[x][y];
 
 function nearestFree(x, y, floor) {
-  const first = floor === 3 ? ROWS : floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
-  const end = floor === 1 ? FLOOR_SPLIT : floor === 2 ? ROWS : YARD_END;
+  const { start: first, end } = FLOOR_BOUNDS[floor ?? houseFloor(y)];
   x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(first, Math.min(end - 1, y));
   const seen = new Set([x + ',' + y]), q = [[x, y]];
   while (q.length) {
@@ -3134,8 +3143,10 @@ function findPath(sx, sy, goals) {
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
     const neighbors = dirs.map(([dx, dy]) => [cx + dx, cy + dy])
       .filter(([nx, ny]) => !wallBetween(cx, cy, nx, ny));
-    if (cx === stairsColumn() && cy === LOWER_LANDING) neighbors.push([cx, UPPER_LANDING]);
-    if (cx === stairsColumn() && cy === UPPER_LANDING) neighbors.push([cx, LOWER_LANDING]);
+    if (cx === stairsColumn()) for (const [lower, upper] of stairLinks()) {
+      if (cy === lower) neighbors.push([cx, upper]);
+      if (cy === upper) neighbors.push([cx, lower]);
+    }
     if (yardGate(cx) && cy === FLOOR_SPLIT - 1) neighbors.push([cx, ROWS]);
     if (yardGate(cx) && cy === ROWS) neighbors.push([cx, FLOOR_SPLIT - 1]);
     for (const [nx, ny] of neighbors) {
@@ -3150,7 +3161,7 @@ function findPath(sx, sy, goals) {
 // 使用家具时站的位置：优先家具正下方，其次左右两侧
 function approachTiles(f) {
   const d = FURNITURE[f.id], out = [];
-  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : f.y < ROWS ? ROWS : YARD_END;
+  const { start, end } = floorBounds(f.y);
   const front = f.y + d.h < end;
   if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
   if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
@@ -3158,7 +3169,7 @@ function approachTiles(f) {
     if (!wallBetween(f.x, y, f.x - 1, y)) out.push({ x: f.x - 1, y });
     if (!wallBetween(right - 1, y, right, y)) out.push({ x: right, y });
   }
-  if (!front && f.y - 1 >= (f.y < FLOOR_SPLIT ? WALL_ROWS : FLOOR_SPLIT)) {
+  if (!front && f.y - 1 >= start) {
     for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y - 1 });
   }
   return out;
@@ -3198,9 +3209,10 @@ function say(d, text, dur = 2.6) { if (text) { d.bubble = { text, t: dur, id: Ma
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function takingStairs(d) {
-  return d.state === 'walk' && d.path.length > 0 && d.ty < ROWS && d.path[0].y < ROWS && Math.abs(d.path[0].y - d.ty) > 1;
+  return d.state === 'walk' && d.path.length > 0 && d.tx === stairsColumn() && d.path[0].x === stairsColumn() &&
+    stairLinks().some(([lower, upper]) => (d.ty === lower && d.path[0].y === upper) || (d.ty === upper && d.path[0].y === lower));
 }
-const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && (d.ty >= ROWS) !== (d.path[0].y >= ROWS);
+const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && isYardRow(d.ty) !== isYardRow(d.path[0].y);
 
 function endAct(d) {
   if (takingStairs(d) || takingYardPath(d)) placeDollAt(d, d.tx, d.ty);
@@ -3259,7 +3271,7 @@ function decide(d) {
     if(F.use==='groom')s+=groomBonus(d);              // 爱美的人更常去照镜子
     s+=companionBonus(d,f,F.use);                      // 饭搭子、游戏搭子在用，就想凑过去
     if(inPrivateRoomTile(f)&&!isE(d))s+=6;             // 内向的人喜欢待在卧室里
-    const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
+    const distance = isYardRow(f.y) && houseFloor(d.ty) === 1 ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
     s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     const paperMoment = paperFollowup(d, f);
     opts.push({ s: s + (paperMoment ? 35 : 0), type: F.use, furn: f, paperMoment });
@@ -3300,7 +3312,8 @@ function startAct(d, o) {
   if (Object.hasOwn(ROUTINES, o.type)) return startRoutine(d, o);
   if (o.type === 'dance') { d.state = 'act'; d.act = { type: 'dance', t: 9 + Math.random() * 4 }; nudgeAudience(d); say(d, pick(ACT_LINES.dance)); return true; }
   if (o.type === 'wander') {
-    const goal = nearestFree((Math.random() * COLS) | 0, WALL_ROWS + ((Math.random() * (ROWS - WALL_ROWS)) | 0));
+    const floor = FLOOR_BOUNDS[1 + Math.floor(Math.random() * (hasThirdFloor() ? 3 : 2))];
+    const goal = nearestFree((Math.random() * COLS) | 0, floor.start + ((Math.random() * (floor.end - floor.start)) | 0));
     const path = goal && findPath(d.tx, d.ty, [goal]);
     if (!path || !path.length) return false;
     d.path = path; d.state = 'walk'; d.act = { type: 'wander' };
@@ -3448,7 +3461,7 @@ function updateDoll(d, dt) {
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
     const onStairs = takingStairs(d);
     const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
-    if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
+    if (onStairs) d.dir = houseFloor(n.y) > houseFloor(d.ty) ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
     if (dist <= sp) {
       const from = { x: d.tx, y: d.ty };
@@ -4995,6 +5008,7 @@ const LEVELS = [null,
   { name: '小屋',     cols: 16, cap: 5 },
   { name: '温馨小家', cols: 20, cap: 6, cost: 3000 },
   { name: '梦想之家', cols: 24, cap: 8, cost: 8000 },
+  { name: '三层晴光小楼', cols: 24, cap: 10, cost: 12000 },
 ];
 
 const FUND_SHARE = 0.2;                                       // 工资里存进基金的比例
@@ -5003,6 +5017,7 @@ const GENEROSITY = { genki: 0.15, lazy: 0.05, nerd: 0.12, foodie: 0.2, social: 0
 // 房子变宽：改世界宽度，画布跟着变
 function setWorldSize(cols) {
   COLS = cols; W = COLS * T;
+  configureHouseView();
   HOOK.resize();
   BLOCK = blockedMap();
 }
@@ -5052,11 +5067,15 @@ function expand() {
   if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); return; }
   G.fund -= next.cost; G.level++;
   setWorldSize(next.cols);
+  fitHouseFurniture();
+  furnishThirdFloor();
+  rebuild();
   const unlocked = Object.keys(SHOP).filter(id => SHOP[id][1] === G.level).map(id => FURNITURE[id].name);
-  addLog(`🔨 小屋扩建成「${next.name}」！房子变大了，解锁了${unlocked.join('、')}`);
+  addLog(`🔨 小屋扩建成「${next.name}」！${hasThirdFloor() ? '三楼的卧室和共享活动区准备好了，现在最多可住 10 人。' : '房子变大了。'}${unlocked.length ? '解锁了' + unlocked.join('、') : ''}`);
   HOOK.toast(`🔨 扩建成「${next.name}」！`, true); SFX.play('newday');
   for (const d of G.dolls) if (d.state !== 'away') { say(d, pick(['哇，房子变大了！', '好宽敞！', '可以买新家具了！'])); d.happy = 3; }
   HOOK.refresh(); HOOK.select();
+  save();
 }
 
 // 小人会念叨想要的家具，提示玩家下一步买什么
@@ -5085,22 +5104,21 @@ const STUDY_QUIET_MINUTES = 60;
 const studyQuietTimed = () => G.studyQuietUntil > absNow();
 const studyQuietActive = () => G.studyQuiet || studyQuietTimed();
 
-const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
+const roomOf = d => isYardRow(d.ty) ? 'yard' : houseFloor(d.ty) === 3 ? (d.tx < BX ? 'loftBedroom' : 'loftStudio') : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
   : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
 const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty < FLOOR_SPLIT && G.bedDoor);
-const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
+const passageRow = y => houseFloor(y) === 3 ? THIRD_START + 4 : y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
 const crossesDivider = (x1, x2, divider) => Math.min(x1, x2) === divider - 1 && Math.max(x1, x2) === divider;
 const wallBetween = (x1, y1, x2, y2) =>
-  ((y1 >= ROWS || y2 >= ROWS) ? (y1 >= ROWS) !== (y2 >= ROWS) :
-  ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
+  houseFloor(y1) !== houseFloor(y2) || (!isYardRow(y1) && (
   (crossesDivider(x1, x2, BX) && y1 !== passageRow(y1)) ||
-  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y));
+  (G.bathroom && houseFloor(y1) === 2 && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y)));
 const isDoorTile = (x, y) => (y === passageRow(y) && (x === BX - 1 || x === BX)) ||
   (G.bathroom && y === BATH_DOOR_Y && (x === BATH_X - 1 || x === BATH_X));
-const straddles = (x, y, w) => y < ROWS && ((x < BX && x + w > BX) ||
-  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X));
+const straddles = (x, y, w) => !isYardRow(y) && ((x < BX && x + w > BX) ||
+  (G.bathroom && houseFloor(y) === 2 && x < BATH_X && x + w > BATH_X));
 
 function blocksDoor({ x, y }, { w, h }) {
   for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {
@@ -5112,17 +5130,18 @@ function blocksDoor({ x, y }, { w, h }) {
 function blocksStairs(f) {
   const { w, h } = FURNITURE[f.id], column = stairsColumn();
   return f.x <= column && column < f.x + w &&
-    [LOWER_LANDING, UPPER_LANDING].some(row => f.y <= row && row < f.y + h);
+    stairLinks().flat().some(row => f.y <= row && row < f.y + h);
 }
 
 function fitHouseFurniture() {
   for (const f of [...G.furniture]) {
     const F = FURNITURE[f.id], layer = layerOf(f.id);
     const wall = layer === 'wall';
-    const upper = f.y < 0 || f.y >= FLOOR_SPLIT;
-    const first = wall ? (upper ? UPPER_WALL : 0) : (upper ? FLOOR_SPLIT : WALL_ROWS);
-    const end = wall ? first + WALL_ROWS : (upper ? ROWS : FLOOR_SPLIT);
+    const bounds = floorBounds(f.y);
+    const first = wall ? bounds.wall : bounds.start;
+    const end = wall ? first + WALL_ROWS : bounds.end;
     if (!straddles(f.x, f.y, F.w) && !(layer === 'solid' && (blocksDoor(f, F) || blocksStairs(f)))) continue;
+    for (const resident of [...f.users]) endAct(resident);
 
     let best = null;
     for (let y = first; y + F.h <= end; y++) for (let x = 0; x + F.w <= COLS; x++) {
@@ -5145,7 +5164,7 @@ function fitHouseFurniture() {
 function addMissingUpperWindows() {
   const rooms = G.bathroom ? [[0, BATH_X], [BATH_X, BX], [BX, COLS]] : [[0, BX], [BX, COLS]];
   for (const [left, right] of rooms) {
-    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && f.x >= left && f.x < right)) continue;
+    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && houseFloor(f.y) === 2 && f.x >= left && f.x < right)) continue;
     const center = (left + right - FURNITURE.window.w) / 2;
     const positions = [];
     for (let x = left; x + FURNITURE.window.w <= right; x++) positions.push(x);
@@ -5153,6 +5172,18 @@ function addMissingUpperWindows() {
     const x = positions.find(x => canPlace('window', x, UPPER_WALL));
     if (x !== undefined) addFurniture('window', x, UPPER_WALL);
   }
+}
+
+// Furnish a newly built floor once; subsequent saves respect the player's edits.
+function furnishThirdFloor() {
+  if (!hasThirdFloor() || G.thirdFloorReady) return;
+  for (const [id, x, y] of [
+    ['window', 3, THIRD_WALL], ['window', 12, THIRD_WALL], ['bunnyPicture', 19, THIRD_WALL + 1],
+    ['cloudBed', 1, 27], ['moonLamp', 4, 27], ['vanity', 5, 27],
+    ['shelf', 10, 26], ['chair', 11, 28], ['piano', 15, 26], ['craftBench', 19, 26],
+    ['teaTray', 13, 30], ['beanbag', 17, 30], ['plushRabbit', 3, 31], ['pawRug', 4, 30],
+  ]) if (canPlace(id, x, y)) addFurniture(id, x, y);
+  G.thirdFloorReady = true;
 }
 
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }
@@ -5615,7 +5646,7 @@ function routinePartnerAvailable(d, p, id) {
 }
 
 function routineFurnitureRow(f) {
-  return layerOf(f.id) === 'wall' ? (f.y < 0 ? FLOOR_SPLIT : WALL_ROWS) : f.y;
+  return layerOf(f.id) === 'wall' ? floorBounds(f.y).start : f.y;
 }
 
 function routineOptions(d, want) {
@@ -6468,10 +6499,10 @@ function arrivePicnic(d, event) {
 }
 </script>
 <script>
-// Two cutaway storeys over the existing simulation grid. The front edges
+// Expandable cutaway storeys over the existing simulation grid. The front edges
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
-const HOUSE_HEIGHT = 310;
+let HOUSE_HEIGHT = 310;
 const HOUSE_MARGIN = 76;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
@@ -6482,17 +6513,29 @@ const STOREYS = [
     rooms: ['#625a76', '#d7b9c6'], floors: ['#766481', '#a4ad8c'] },
 ];
 const YARD = { wall: 258, back: 258, front: 300, row: ROWS, step: 7 };
-const storeyOf = row => row >= ROWS ? YARD : STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
+const storeyOf = row => isYardRow(row) ? YARD : STOREYS[houseFloor(row) - 1];
+
+function configureHouseView() {
+  const shift = hasThirdFloor() ? 94 : 0;
+  HOUSE_HEIGHT = 310 + shift;
+  Object.assign(STOREYS[0], { wall: 165 + shift, back: 225 + shift, front: 252 + shift });
+  Object.assign(STOREYS[1], { wall: 74 + shift, back: 134 + shift, front: 158 + shift });
+  Object.assign(YARD, { wall: 258 + shift, back: 258 + shift, front: 300 + shift });
+  STOREYS.length = 2;
+  if (hasThirdFloor()) STOREYS.push({ wall: 74, back: 134, front: 158, row: THIRD_START, wallRow: THIRD_WALL,
+    rooms: ['#ddc8d6', '#d6dec0'], floors: ['#c5a69b', '#c5b18d'] });
+}
 
 function houseY(y, storey) {
   return storey.back + (y - storey.row * T) * (storey.step || FLOOR_STEP) / T;
 }
 
-function stairPoint(progress) {
+function stairPoint(progress, flight = 0) {
   const x = HOUSE_X + stairsColumn() * T + 8;
   const edge = HOUSE_X + W;
-  const top = houseY(UPPER_LANDING * T + 14, STOREYS[1]);
-  const bottom = houseY(LOWER_LANDING * T + 14, STOREYS[0]);
+  const [lower, upper] = stairLinks()[flight];
+  const top = houseY(upper * T + 14, storeyOf(upper));
+  const bottom = houseY(lower * T + 14, storeyOf(lower));
   if (progress < .2) return { x: mixNum(x, edge + 10, progress / .2), y: top };
   if (progress > .8) return { x: mixNum(edge + 42, x, (progress - .8) / .2), y: bottom };
   const t = (progress - .2) / .6;
@@ -6502,7 +6545,9 @@ function stairPoint(progress) {
 function houseDollPoint(d) {
   if (d.state === 'lift') return { x: d.liftX, y: d.liftY };
   if (takingStairs(d)) {
-    return stairPoint((UPPER_LANDING * T + 14 - d.y) / ((UPPER_LANDING - LOWER_LANDING) * T));
+    const flight = stairLinks().findIndex(link => link.includes(d.ty));
+    const [lower, upper] = stairLinks()[flight];
+    return stairPoint((upper * T + 14 - d.y) / ((upper - lower) * T), flight);
   }
   if (takingYardPath(d)) {
     const inside = FLOOR_SPLIT - 1, outside = ROWS;
@@ -6528,19 +6573,20 @@ function houseFurnitureRect(f) {
 }
 
 function houseTile(p, id) {
-  const storey = p.y >= YARD.back ? YARD : p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
+  const storey = [...STOREYS, YARD].find(floor => p.y >= floor.wall && p.y < floor.front);
+  if (!storey) return null;
   const F = id && FURNITURE[id];
   const wall = F && layerOf(id) === 'wall';
   const x = F ? Math.round((p.x - HOUSE_X) / T - F.w / 2) : Math.floor((p.x - HOUSE_X) / T);
   if (p.x < HOUSE_X || p.x >= HOUSE_X + W || p.y < storey.wall || p.y >= storey.front) return null;
   if (wall) {
-    if (p.y >= storey.back) return null;
+    if (storey === YARD || p.y >= storey.back) return null;
     const row = Math.round((p.y - storey.wall - 5 - F.h * T / 2) / WALL_STEP);
     return { x, y: storey.wallRow + Math.max(0, Math.min(WALL_ROWS - F.h, row)) };
   }
   if (p.y < storey.back) return null;
   const y = storey.row + (p.y - storey.back) / (storey.step || FLOOR_STEP);
-  const end = storey === YARD ? YARD_END : storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
+  const end = floorBounds(storey.row).end;
   return { x, y: F ? Math.max(storey.row, Math.min(end - F.h, Math.round(y - F.h / 2))) : Math.floor(y) };
 }
 
@@ -6559,21 +6605,24 @@ function housePoly(c, color, ...points) {
 
 function drawHouseGarden(c, left, right) {
   const width = W + HOUSE_MARGIN;
+  const shift = HOUSE_HEIGHT - 310;
   R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
   const season = seasonOf(G.day).id;
   const snowy = G.weather === 'snow';
   const grass = season === 'autumn' ? '#b9b181' : snowy ? '#cbdace' : '#a7bd8b';
   const leaf = season === 'autumn' ? '#c4a172' : '#89a97d';
   const canopy = shade(leaf, -.10), leafLight = shade(leaf, .08);
-  const sky = c.createLinearGradient(0, 18, 0, 230);
+  const sky = c.createLinearGradient(0, 18, 0, 230 + shift);
   sky.addColorStop(0, G.night ? '#35315100' : '#86b5dc48');
   sky.addColorStop(1, G.night ? '#b59bc35b' : '#ffefd496');
   c.fillStyle = sky;
-  c.fillRect(0, 0, width, 230);
+  c.fillRect(0, 0, width, 230 + shift);
+  c.save();
+  c.translate(0, shift);
   const horizon = snowy ? '#b9c9ca' : '#a6baa2';
   housePoly(c, horizon, [0, 213], [19, 196], [63, 224], [right - 18, 213],
     [right + 22, 194], [width, 211], [width, 239], [0, 239]);
-  R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
+  R(c, 0, 229, width, 81, grass);
   for (const [x, y, size] of [[-13, 171, 42], [right + 2, 165, 37], [right + 21, 197, 40]]) {
     R(c, x + 14, y - 4, 6, 231 - y, '#785749');
     R(c, x + 16, y - 3, 2, 229 - y, '#aa8061');
@@ -6587,12 +6636,12 @@ function drawHouseGarden(c, left, right) {
       detail(c, x + dx + 1, y + dy - .5, 2, .5, leafLight);
     }
   }
-  const lawn = c.createLinearGradient(0, YARD.back, 0, YARD.front);
+  const lawn = c.createLinearGradient(0, YARD.back - shift, 0, YARD.front - shift);
   lawn.addColorStop(0, shade(grass, -.045));
   lawn.addColorStop(.5, shade(grass, .055));
   lawn.addColorStop(1, shade(grass, .09));
   c.fillStyle = lawn;
-  c.fillRect(left - 5, YARD.back, W + 10, YARD.front - YARD.back);
+  c.fillRect(left - 5, YARD.back - shift, W + 10, YARD.front - YARD.back);
   R(c, 0, 301, width, 9, '#d4c0a2');
   R(c, 0, 301, width, 1, '#e0d3b5');
   for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
@@ -6608,6 +6657,7 @@ function drawHouseGarden(c, left, right) {
     R(c, x + 1, 254, 1, 44, '#e8d2af');
     for (let y = 256; y < 300; y += 7) R(c, x - 1, y, 5, 3, '#d5bc99');
   }
+  c.translate(0, -shift);
   for (const [x, y] of [[3, 43], [right + 12, 57], [right - 25, 8]]) {
     const glow = G.night ? '#d9d2ec' : '#fff0d4', underside = G.night ? '#9e9cbc' : '#edc7ba';
     R(c, x, y + 8, 32, 4, underside);
@@ -6616,6 +6666,7 @@ function drawHouseGarden(c, left, right) {
     R(c, x + 11, y, 9, 5, glow);
     detail(c, x + 4, y + 10, 23, .5, '#fff4dc');
   }
+  c.translate(0, shift);
   const grassDark = shade(grass, -.14);
   for (let i = 0; i < 44; i++) {
     const x = Math.round(rnd(i + 690) * width), y = Math.round(261 + rnd(i + 810) * 36);
@@ -6634,6 +6685,7 @@ function drawHouseGarden(c, left, right) {
       R(c, x, y, 1, 5, '#d7e6eeaa');
     }
   }
+  c.restore();
 }
 
 function drawHouseRoof(c, left, right) {
@@ -6716,7 +6768,7 @@ function drawStorey(c, storey, wall, floor) {
       c.scale(1, FLOOR_STEP / T);
       c.translate(0, -storey.row * T);
       drawFloor(c, { ...floor, base: floorBase, alt: shade(floorBase, -.09) },
-        storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
+        storey.row * T, floorBounds(storey.row).end * T);
     }
     c.restore();
 
@@ -6760,16 +6812,16 @@ function drawStorey(c, storey, wall, floor) {
   }
 }
 
-function drawHouseStairs(c) {
+function drawHouseStairs(c, flight = 0) {
   const edge = HOUSE_X + W;
-  const start = stairPoint(.2), end = stairPoint(.8);
+  const start = stairPoint(.2, flight), end = stairPoint(.8, flight);
   const steps = 12, halfWidth = 9;
   const rise = (end.y - start.y) / steps;
   // One continuous stair body replaces the old backboard and floating stripes.
   housePoly(c, '#a57e67', [start.x - halfWidth, start.y], [start.x + halfWidth, start.y],
     [end.x + halfWidth, end.y + 4], [end.x - halfWidth, end.y + 4]);
   for (let i = 0; i < steps; i++) {
-    const p = stairPoint(.2 + .6 * i / steps);
+    const p = stairPoint(.2 + .6 * i / steps, flight);
     const x = Math.round(p.x) - halfWidth, y = Math.round(p.y);
     R(c, x, y, halfWidth * 2, Math.ceil(rise) + 1, '#b38c70');
     R(c, x, y, halfWidth * 2, 2, '#eed1aa');
@@ -6782,18 +6834,18 @@ function drawHouseStairs(c) {
   }
   const rail = [start, end].map(p => ({ x: Math.round(p.x) + halfWidth, y: Math.round(p.y) }));
   for (let i = 0; i <= 3; i++) {
-    const p = stairPoint(.2 + .6 * i / 3);
+    const p = stairPoint(.2 + .6 * i / 3, flight);
     R(c, Math.round(p.x) + halfWidth - 1, Math.round(p.y) - 10, 2, 14, '#98745f');
   }
   housePoly(c, '#98745f', [rail[0].x - 1, rail[0].y - 12], [rail[1].x + 1, rail[1].y - 12],
     [rail[1].x + 1, rail[1].y - 9], [rail[0].x - 1, rail[0].y - 9]);
-  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
+  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[flight].front - rail[1].y - 4, '#98745f');
 }
 
 function drawHouseInterior(c, wall, floor) {
   const l = HOUSE_X, r = l + W;
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
-  for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
+  for (const [y, h] of [[69, 5], ...STOREYS.map((storey, i) => [storey.front, i ? 7 : 6])]) {
     R(c, l - 4, y, W + 8, h, '#916953');
     R(c, l - 3, y + 1, W + 6, h - 2, '#c69d79');
     R(c, l - 3, y + 1, W + 6, 1, '#ebc9a2');
@@ -6805,7 +6857,7 @@ function drawHouseInterior(c, wall, floor) {
       detail(c, x + 3, y, 1, front - y, '#744f4c');
     }
   }
-  drawHouseStairs(c);
+  stairLinks().forEach((_, flight) => drawHouseStairs(c, flight));
 }
 </script>
 <script>
@@ -6921,8 +6973,8 @@ function restoreKeepsakes(saved) {
 
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
-const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
+const cornerRoom = f => roomOf({ tx: f.x, ty: layerOf(f.id) === 'wall' ? floorBounds(f.y).start : f.y });
+const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房', loftBedroom: '三楼卧室', loftStudio: '三楼活动室', yard: '院子' };
 const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);
@@ -8546,7 +8598,9 @@ function validatePortableHome(data) {
     }
   }
   for (const f of data.furniture) if (!f || !Object.hasOwn(FURNITURE, f.id) || !Number.isInteger(f.x) ||
-    !Number.isInteger(f.y) || f.x < 0 || f.x >= 24 || f.y < UPPER_WALL || f.y >= YARD_END) throw Error('有一件家具的数据不完整。');
+    !Number.isInteger(f.y) || f.x < 0 || f.x >= LEVELS[data.level].cols ||
+    f.y < (data.level >= 4 ? THIRD_WALL : UPPER_WALL) ||
+    f.y >= (data.level >= 4 ? THIRD_END : YARD_END)) throw Error('有一件家具的数据不完整。');
   for (const key of ['rel', 'trust', 'jealousy', 'inv']) if (data[key] !== undefined && !object(data[key])) throw Error('人际关系或仓库数据损坏了。');
   for (const key of ['log', 'paper', 'paperMoments']) if (data[key] !== undefined && !list(data[key], 1000)) throw Error('日志或月报数据损坏了。');
   if (data.home) {
@@ -8642,6 +8696,7 @@ HOOK.resize = () => {
   ctx.scale(SCENE_SCALE, SCENE_SCALE);
   lctx.scale(SCENE_SCALE, SCENE_SCALE);
   ctx.imageSmoothingEnabled = false;
+  cv.setAttribute?.('aria-label', `${hasThirdFloor() ? '三' : '两'}层像素小洋房与院子`);
   document.getElementById('houseLayout').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
 const overlay = document.getElementById('overlay');
@@ -8653,7 +8708,7 @@ function drawHouseShell(c) {
   const left = HOUSE_X, right = left + W;
   drawHouseGarden(c, left, right);
   drawHouseRoof(c, left, right);
-  const key = [W, BX, G.bathroom, G.wall, G.floor].join(':');
+  const key = [W, HOUSE_HEIGHT, BX, G.bathroom, G.wall, G.floor].join(':');
   if (key !== interiorKey) {
     interiorCv.width = cv.width;
     interiorCv.height = cv.height;
@@ -9271,7 +9326,7 @@ cv.addEventListener('pointerleave', () => { hoverDoll = null; hoverFurniture = n
 const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {
   const tile = rawDropTile(p);
-  return tile && nearestFree(tile.x, tile.y, tile.y >= ROWS ? 3 : tile.y >= FLOOR_SPLIT ? 2 : 1);
+  return tile && nearestFree(tile.x, tile.y, houseFloor(tile.y));
 }
 
 function cancelPlacing() {
@@ -9493,32 +9548,6 @@ function renderDollList() {
   $('#btnAddDoll').textContent = count ? `＋ 邀请新住户 · ${count} 份申请` : '＋ 邀请新住户';
 }
 
-function renderResidentQuick() {
-  const strip = $('#residentQuick');
-  if (!strip) return;
-  const roster = JSON.stringify(G.dolls.map(d => [d.uid, d.name, d.look]));
-  if (strip.dataset.roster === roster) return;
-  strip.dataset.roster = roster;
-  strip.replaceChildren(...G.dolls.map(d => {
-    const button = el('button', 'resident-quick-person');
-    button.type = 'button';
-    button.dataset.resident = d.uid;
-    const portrait = el('canvas');
-    portrait.width = 20; portrait.height = 24;
-    portrait.setAttribute('aria-hidden', 'true');
-    dollPortrait(portrait, d.look);
-    const label = el('span'), status = el('small');
-    status.dataset.doing = d.uid;
-    label.append(el('b', null, esc(d.name)), status);
-    button.append(portrait, label);
-    button.onclick = () => {
-      G.sel = G.sel === d.uid ? null : d.uid;
-      SFX.play('click'); HOOK.select();
-    };
-    return button;
-  }));
-}
-
 function renderInfo() {
   const card = $('#dollInfo'), d = G.dolls.find(o => o.uid === G.sel);
   if (!d) { card.hidden = true; return; }
@@ -9601,7 +9630,6 @@ function tickInfo() {
 }
 
 HOOK.select = () => {
-  renderResidentQuick();
   refreshSceneHint();
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
@@ -9839,7 +9867,7 @@ function refreshReadingSeats() {
   const seats = G.mode === 'live' ? G.furniture.filter(isWindowChair) : [];
   $('#readingSeatControls').hidden = !seats.length;
   if (!seats.length) return;
-  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y >= FLOOR_SPLIT ? f.y - FLOOR_SPLIT + 1 : f.y - WALL_ROWS + 1} 排`);
+  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y - floorBounds(f.y).start + 1} 排`);
   const options = JSON.stringify(seats.map((f, i) => [f.key, names[i]]));
   if (options !== readingSeatOptions) {
     const previous = readingSeat.value;
@@ -10047,7 +10075,7 @@ function refreshSceneHint() {
     : resident ? furnitureOrderHint(resident, hoverFurniture)
     : '选一位住户，再选一件家具。';
   if (hint.textContent !== text) hint.textContent = text;
-  const strip = $('#residentQuick'), action = $('#quickFurniture');
+  const action = $('#quickFurniture');
   const quietHint = $('#studyQuietHint');
   $('#studySettings').hidden = studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
@@ -10066,14 +10094,9 @@ function refreshSceneHint() {
       : '书房开放，熟人可以路过搭话或结伴阅读。';
   if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
   refreshReadingSeats();
-  if (!strip || !action) return;
-  strip.hidden = G.mode !== 'live';
-  for (const button of strip.children) {
-    const pressed = String(Number(button.dataset.resident) === G.sel);
-    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
-  }
+  if (!action) return;
   const target = furnitureTargets.find(f => f.id === 'sofa') || furnitureTargets[0];
-  const alternative = !target && !strip.hidden && resident && G.dolls.find(person =>
+  const alternative = !target && G.mode === 'live' && resident && G.dolls.find(person =>
     person !== resident && G.furniture.some(furniture => available(person, furniture)));
   action.hidden = !target && !alternative;
   if (target) {
