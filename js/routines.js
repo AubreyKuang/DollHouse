@@ -63,7 +63,7 @@ function routinePartnerAvailable(d, p, id) {
 }
 
 function routineFurnitureRow(f) {
-  return layerOf(f.id) === 'wall' ? (f.y < 0 ? FLOOR_SPLIT : WALL_ROWS) : f.y;
+  return layerOf(f.id) === 'wall' ? floorBounds(f.y).start : f.y;
 }
 
 function routineOptions(d, want) {

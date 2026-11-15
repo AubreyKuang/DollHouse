@@ -13,22 +13,21 @@ const STUDY_QUIET_MINUTES = 60;
 const studyQuietTimed = () => G.studyQuietUntil > absNow();
 const studyQuietActive = () => G.studyQuiet || studyQuietTimed();
 
-const roomOf = d => d.ty >= ROWS ? 'yard' : d.ty >= FLOOR_SPLIT
+const roomOf = d => isYardRow(d.ty) ? 'yard' : houseFloor(d.ty) === 3 ? (d.tx < BX ? 'loftBedroom' : 'loftStudio') : d.ty >= FLOOR_SPLIT
   ? (G.bathroom && d.tx < BATH_X ? 'bathroom' : d.tx < BX ? 'upperBedroom' : 'study')
   : (d.tx < BX ? 'bed' : 'living');
 const inBedroom = d => d.state !== 'away' && roomOf(d) === 'bed';
 const canSee = (a, b) => roomOf(a) === roomOf(b) || (a.ty < FLOOR_SPLIT && b.ty < FLOOR_SPLIT && G.bedDoor);
-const passageRow = y => y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
+const passageRow = y => houseFloor(y) === 3 ? THIRD_START + 4 : y < FLOOR_SPLIT ? DY : UPPER_DOOR_Y;
 const crossesDivider = (x1, x2, divider) => Math.min(x1, x2) === divider - 1 && Math.max(x1, x2) === divider;
 const wallBetween = (x1, y1, x2, y2) =>
-  ((y1 >= ROWS || y2 >= ROWS) ? (y1 >= ROWS) !== (y2 >= ROWS) :
-  ((y1 < FLOOR_SPLIT) !== (y2 < FLOOR_SPLIT)) ||
+  houseFloor(y1) !== houseFloor(y2) || (!isYardRow(y1) && (
   (crossesDivider(x1, x2, BX) && y1 !== passageRow(y1)) ||
-  (G.bathroom && y1 >= FLOOR_SPLIT && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y));
+  (G.bathroom && houseFloor(y1) === 2 && crossesDivider(x1, x2, BATH_X) && y1 !== BATH_DOOR_Y)));
 const isDoorTile = (x, y) => (y === passageRow(y) && (x === BX - 1 || x === BX)) ||
   (G.bathroom && y === BATH_DOOR_Y && (x === BATH_X - 1 || x === BATH_X));
-const straddles = (x, y, w) => y < ROWS && ((x < BX && x + w > BX) ||
-  (G.bathroom && (y < 0 || y >= FLOOR_SPLIT) && x < BATH_X && x + w > BATH_X));
+const straddles = (x, y, w) => !isYardRow(y) && ((x < BX && x + w > BX) ||
+  (G.bathroom && houseFloor(y) === 2 && x < BATH_X && x + w > BATH_X));
 
 function blocksDoor({ x, y }, { w, h }) {
   for (let row = y; row < y + h; row++) for (let col = x; col < x + w; col++) {
@@ -40,17 +39,18 @@ function blocksDoor({ x, y }, { w, h }) {
 function blocksStairs(f) {
   const { w, h } = FURNITURE[f.id], column = stairsColumn();
   return f.x <= column && column < f.x + w &&
-    [LOWER_LANDING, UPPER_LANDING].some(row => f.y <= row && row < f.y + h);
+    stairLinks().flat().some(row => f.y <= row && row < f.y + h);
 }
 
 function fitHouseFurniture() {
   for (const f of [...G.furniture]) {
     const F = FURNITURE[f.id], layer = layerOf(f.id);
     const wall = layer === 'wall';
-    const upper = f.y < 0 || f.y >= FLOOR_SPLIT;
-    const first = wall ? (upper ? UPPER_WALL : 0) : (upper ? FLOOR_SPLIT : WALL_ROWS);
-    const end = wall ? first + WALL_ROWS : (upper ? ROWS : FLOOR_SPLIT);
+    const bounds = floorBounds(f.y);
+    const first = wall ? bounds.wall : bounds.start;
+    const end = wall ? first + WALL_ROWS : bounds.end;
     if (!straddles(f.x, f.y, F.w) && !(layer === 'solid' && (blocksDoor(f, F) || blocksStairs(f)))) continue;
+    for (const resident of [...f.users]) endAct(resident);
 
     let best = null;
     for (let y = first; y + F.h <= end; y++) for (let x = 0; x + F.w <= COLS; x++) {
@@ -73,7 +73,7 @@ function fitHouseFurniture() {
 function addMissingUpperWindows() {
   const rooms = G.bathroom ? [[0, BATH_X], [BATH_X, BX], [BX, COLS]] : [[0, BX], [BX, COLS]];
   for (const [left, right] of rooms) {
-    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && f.x >= left && f.x < right)) continue;
+    if (G.furniture.some(f => f.id === 'window' && f.y < 0 && houseFloor(f.y) === 2 && f.x >= left && f.x < right)) continue;
     const center = (left + right - FURNITURE.window.w) / 2;
     const positions = [];
     for (let x = left; x + FURNITURE.window.w <= right; x++) positions.push(x);
@@ -81,6 +81,18 @@ function addMissingUpperWindows() {
     const x = positions.find(x => canPlace('window', x, UPPER_WALL));
     if (x !== undefined) addFurniture('window', x, UPPER_WALL);
   }
+}
+
+// Furnish a newly built floor once; subsequent saves respect the player's edits.
+function furnishThirdFloor() {
+  if (!hasThirdFloor() || G.thirdFloorReady) return;
+  for (const [id, x, y] of [
+    ['window', 3, THIRD_WALL], ['window', 12, THIRD_WALL], ['bunnyPicture', 19, THIRD_WALL + 1],
+    ['cloudBed', 1, 27], ['moonLamp', 6, THIRD_WALL + 1], ['vanity', 5, 27],
+    ['shelf', 10, 26], ['chair', 11, 28], ['piano', 15, 26], ['craftBench', 19, 26],
+    ['teaTray', 13, 30], ['beanbag', 17, 30], ['plushRabbit', 3, 31], ['pawRug', 4, 30],
+  ]) if (canPlace(id, x, y)) addFurniture(id, x, y);
+  G.thirdFloorReady = true;
 }
 
 function doorOpenNow() { return G.bedDoor || G.dolls.some(d => d.state !== 'away' && d.ty === DY && (d.tx === BX - 1 || d.tx === BX)); }

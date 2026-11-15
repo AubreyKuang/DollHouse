@@ -17,6 +17,7 @@ HOOK.resize = () => {
   ctx.scale(SCENE_SCALE, SCENE_SCALE);
   lctx.scale(SCENE_SCALE, SCENE_SCALE);
   ctx.imageSmoothingEnabled = false;
+  cv.setAttribute?.('aria-label', `${hasThirdFloor() ? '三' : '两'}层像素小洋房与院子`);
   document.getElementById('houseLayout').style.setProperty('--scene-ratio', cv.width / cv.height);
 };
 const overlay = document.getElementById('overlay');
@@ -28,7 +29,7 @@ function drawHouseShell(c) {
   const left = HOUSE_X, right = left + W;
   drawHouseGarden(c, left, right);
   drawHouseRoof(c, left, right);
-  const key = [W, BX, G.bathroom, G.wall, G.floor].join(':');
+  const key = [W, HOUSE_HEIGHT, BX, G.bathroom, G.wall, G.floor].join(':');
   if (key !== interiorKey) {
     interiorCv.width = cv.width;
     interiorCv.height = cv.height;
@@ -646,7 +647,7 @@ cv.addEventListener('pointerleave', () => { hoverDoll = null; hoverFurniture = n
 const rawDropTile = p => houseTile({ x: p.x, y: p.y + 12 }) || houseTile(p);
 function dropTile(p) {
   const tile = rawDropTile(p);
-  return tile && nearestFree(tile.x, tile.y, tile.y >= ROWS ? 3 : tile.y >= FLOOR_SPLIT ? 2 : 1);
+  return tile && nearestFree(tile.x, tile.y, houseFloor(tile.y));
 }
 
 function cancelPlacing() {

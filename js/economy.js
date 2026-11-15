@@ -34,6 +34,7 @@ const LEVELS = [null,
   { name: '小屋',     cols: 16, cap: 5 },
   { name: '温馨小家', cols: 20, cap: 6, cost: 3000 },
   { name: '梦想之家', cols: 24, cap: 8, cost: 8000 },
+  { name: '三层晴光小楼', cols: 24, cap: 10, cost: 12000 },
 ];
 
 const FUND_SHARE = 0.2;                                       // 工资里存进基金的比例
@@ -42,6 +43,7 @@ const GENEROSITY = { genki: 0.15, lazy: 0.05, nerd: 0.12, foodie: 0.2, social: 0
 // 房子变宽：改世界宽度，画布跟着变
 function setWorldSize(cols) {
   COLS = cols; W = COLS * T;
+  configureHouseView();
   HOOK.resize();
   BLOCK = blockedMap();
 }
@@ -91,11 +93,15 @@ function expand() {
   if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); return; }
   G.fund -= next.cost; G.level++;
   setWorldSize(next.cols);
+  fitHouseFurniture();
+  furnishThirdFloor();
+  rebuild();
   const unlocked = Object.keys(SHOP).filter(id => SHOP[id][1] === G.level).map(id => FURNITURE[id].name);
-  addLog(`🔨 小屋扩建成「${next.name}」！房子变大了，解锁了${unlocked.join('、')}`);
+  addLog(`🔨 小屋扩建成「${next.name}」！${hasThirdFloor() ? '三楼的卧室和共享活动区准备好了，现在最多可住 10 人。' : '房子变大了。'}${unlocked.length ? '解锁了' + unlocked.join('、') : ''}`);
   HOOK.toast(`🔨 扩建成「${next.name}」！`, true); SFX.play('newday');
   for (const d of G.dolls) if (d.state !== 'away') { say(d, pick(['哇，房子变大了！', '好宽敞！', '可以买新家具了！'])); d.happy = 3; }
   HOOK.refresh(); HOOK.select();
+  save();
 }
 
 // 小人会念叨想要的家具，提示玩家下一步买什么

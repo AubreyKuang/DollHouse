@@ -3,7 +3,7 @@
 
 const BOND_TAGS = { meal: { icon: '🍚', name: '饭搭子' }, game: { icon: '🎮', name: '游戏搭子' } };
 const BOND_TAG_AT = 3;                 // 一起吃饭 / 打游戏满 3 次就成了搭子
-const PRIVATE_ROOMS = new Set(['bed', 'upperBedroom']);
+const PRIVATE_ROOMS = new Set(['bed', 'upperBedroom', 'loftBedroom']);
 const clampBond = (v, min, max) => Math.max(min, Math.min(max, v));
 const bondKey = (a, b) => a.pid + '>' + b.pid;
 
@@ -103,8 +103,7 @@ function afterGroom(d) {
 /* ---------- 卧室隐私：关起门来，别人不会进来打扰 ---------- */
 const inPrivateRoom = d => d.state !== 'away' && PRIVATE_ROOMS.has(roomOf(d));
 function inPrivateRoomTile(f) {
-  if (f.y >= FLOOR_SPLIT) return f.x < BX && !(G.bathroom && f.x < BATH_X);
-  return f.x < BX;
+  return PRIVATE_ROOMS.has(roomOf({ tx: f.x, ty: floorBounds(f.y).start }));
 }
 const canDisturb = (d, o) => !inPrivateRoom(o) || roomOf(d) === roomOf(o) || arePartners(d, o);
 

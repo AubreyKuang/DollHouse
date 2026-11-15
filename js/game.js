@@ -33,7 +33,7 @@ const G = {
 const validHouseSave=s=>Array.isArray(s.furniture)&&Array.isArray(s.dolls);
 function houseSaveData() {
   return {
-    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
+    cottageLooksV: 2, houseWindowsV: 1, floorsV: 1, yardV: 1, thirdFloorReady: G.thirdFloorReady, bathroom: G.bathroom, community: G.community, monthEvents: G.monthEvents, paper: G.paper, daily: G.daily, dayRelations: G.dayRelations,
     wall: G.wall, floor: G.floor, time: G.time, day: G.day, paperMoments: G.paperMoments,
     keepsakes: G.keepsakes, home: G.home, care: G.care, life: G.life,
     furniture: [...G.furniture, ...(G.build.placing?.moved ? [{ ...G.build.placing, ...G.build.placing.orig }] : [])]
@@ -165,6 +165,7 @@ function applySave(s) {
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
   G.studyQuiet = s.studyQuiet === true;
+  G.thirdFloorReady = s.thirdFloorReady === true;
   const quietUntil = s.studyQuietUntil, now = absNow();
   G.studyQuietUntil = !G.studyQuiet && Number.isInteger(quietUntil) && quietUntil > now &&
     quietUntil <= now + STUDY_QUIET_MINUTES ? quietUntil : null;
@@ -179,6 +180,7 @@ function applySave(s) {
   }
   fitHouseFurniture();
   if (!s.houseWindowsV) addMissingUpperWindows();
+  furnishThirdFloor();
   ensureDoor(); BLOCK = blockedMap();
   for (const d of s.dolls) {
     if (d.guest && d.pid !== G.community.active?.guestPid) continue;
@@ -207,16 +209,17 @@ const layerOf = id => FURNITURE[id].layer || 'solid';
 
 function canPlace(id, x, y, ignore) {
   const d = FURNITURE[id], L = layerOf(id);
-  if (x < 0 || x + d.w > COLS) return false;
-  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : y >= ROWS) return false;
+  if (!Number.isInteger(x) || !Number.isInteger(y) || x < 0 || x + d.w > COLS) return false;
+  const bounds = floorBounds(y);
+  if (houseFloor(y) === 3 && !hasThirdFloor()) return false;
+  if (d.outdoor ? y < ROWS + 1 || y + d.h >= YARD_END : isYardRow(y)) return false;
   if (L === 'solid' && blocksStairs({ id, x, y })) return false;
-  if(y<FLOOR_SPLIT&&y+d.h>FLOOR_SPLIT)return false;
   if (L === 'wall') {
-    const start = y < 0 ? UPPER_WALL : 0;
+    const start = bounds.wall;
     if (y < start || y + d.h > start + WALL_ROWS) return false;
     if (id === 'door' && y !== WALL_ROWS - 2) return false;
   }
-  else if (y < WALL_ROWS || (!d.outdoor && y + d.h > ROWS)) return false;
+  else if (y < bounds.start || y + d.h > bounds.end) return false;
   if (straddles(x, y, d.w)) return false;
   if (L === 'solid' && blocksDoor({ x, y }, d)) return false;
   for (const f of G.furniture) {
@@ -230,7 +233,7 @@ function canPlace(id, x, y, ignore) {
 // 能走的格子：地板区域里没有实心家具
 function blockedMap() {
   const m = [];
-  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < YARD_END; y++) m[x][y] = y < WALL_ROWS; }
+  for (let x = 0; x < COLS; x++) { m[x] = []; for (let y = 0; y < walkEnd(); y++) m[x][y] = y < WALL_ROWS; }
   for (const f of G.furniture) {
     if (layerOf(f.id) !== 'solid') continue;
     const d = FURNITURE[f.id];
@@ -249,11 +252,10 @@ function rebuild() {
     d.path = [];
   }
 }
-const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < YARD_END && !BLOCK[x][y];
+const free = (x, y) => x >= 0 && y >= 0 && x < COLS && y < walkEnd() && !BLOCK[x][y];
 
 function nearestFree(x, y, floor) {
-  const first = floor === 3 ? ROWS : floor === 2 ? FLOOR_SPLIT : WALL_ROWS;
-  const end = floor === 1 ? FLOOR_SPLIT : floor === 2 ? ROWS : YARD_END;
+  const { start: first, end } = FLOOR_BOUNDS[floor ?? houseFloor(y)];
   x = Math.max(0, Math.min(COLS - 1, x)); y = Math.max(first, Math.min(end - 1, y));
   const seen = new Set([x + ',' + y]), q = [[x, y]];
   while (q.length) {
@@ -283,8 +285,10 @@ function findPath(sx, sy, goals) {
     const dirs = [[1, 0], [-1, 0], [0, 1], [0, -1]].sort(() => Math.random() - 0.5);
     const neighbors = dirs.map(([dx, dy]) => [cx + dx, cy + dy])
       .filter(([nx, ny]) => !wallBetween(cx, cy, nx, ny));
-    if (cx === stairsColumn() && cy === LOWER_LANDING) neighbors.push([cx, UPPER_LANDING]);
-    if (cx === stairsColumn() && cy === UPPER_LANDING) neighbors.push([cx, LOWER_LANDING]);
+    if (cx === stairsColumn()) for (const [lower, upper] of stairLinks()) {
+      if (cy === lower) neighbors.push([cx, upper]);
+      if (cy === upper) neighbors.push([cx, lower]);
+    }
     if (yardGate(cx) && cy === FLOOR_SPLIT - 1) neighbors.push([cx, ROWS]);
     if (yardGate(cx) && cy === ROWS) neighbors.push([cx, FLOOR_SPLIT - 1]);
     for (const [nx, ny] of neighbors) {
@@ -299,7 +303,7 @@ function findPath(sx, sy, goals) {
 // 使用家具时站的位置：优先家具正下方，其次左右两侧
 function approachTiles(f) {
   const d = FURNITURE[f.id], out = [];
-  const end = f.y < FLOOR_SPLIT ? FLOOR_SPLIT : f.y < ROWS ? ROWS : YARD_END;
+  const { start, end } = floorBounds(f.y);
   const front = f.y + d.h < end;
   if (front) for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y + d.h });
   if (d.mode === 'on' || !front) for (let j = 0; j < d.h; j++) {
@@ -307,7 +311,7 @@ function approachTiles(f) {
     if (!wallBetween(f.x, y, f.x - 1, y)) out.push({ x: f.x - 1, y });
     if (!wallBetween(right - 1, y, right, y)) out.push({ x: right, y });
   }
-  if (!front && f.y - 1 >= (f.y < FLOOR_SPLIT ? WALL_ROWS : FLOOR_SPLIT)) {
+  if (!front && f.y - 1 >= start) {
     for (let i = 0; i < d.w; i++) out.push({ x: f.x + i, y: f.y - 1 });
   }
   return out;
@@ -347,9 +351,10 @@ function say(d, text, dur = 2.6) { if (text) { d.bubble = { text, t: dur, id: Ma
 const pick = a => a[(Math.random() * a.length) | 0];
 
 function takingStairs(d) {
-  return d.state === 'walk' && d.path.length > 0 && d.ty < ROWS && d.path[0].y < ROWS && Math.abs(d.path[0].y - d.ty) > 1;
+  return d.state === 'walk' && d.path.length > 0 && d.tx === stairsColumn() && d.path[0].x === stairsColumn() &&
+    stairLinks().some(([lower, upper]) => (d.ty === lower && d.path[0].y === upper) || (d.ty === upper && d.path[0].y === lower));
 }
-const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && (d.ty >= ROWS) !== (d.path[0].y >= ROWS);
+const takingYardPath = d => d.state === 'walk' && d.path.length > 0 && isYardRow(d.ty) !== isYardRow(d.path[0].y);
 
 function endAct(d) {
   if (takingStairs(d) || takingYardPath(d)) placeDollAt(d, d.tx, d.ty);
@@ -408,7 +413,7 @@ function decide(d) {
     if(F.use==='groom')s+=groomBonus(d);              // 爱美的人更常去照镜子
     s+=companionBonus(d,f,F.use);                      // 饭搭子、游戏搭子在用，就想凑过去
     if(inPrivateRoomTile(f)&&!isE(d))s+=6;             // 内向的人喜欢待在卧室里
-    const distance = f.y >= ROWS && d.ty < FLOOR_SPLIT ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
+    const distance = isYardRow(f.y) && houseFloor(d.ty) === 1 ? f.y - ROWS + FLOOR_SPLIT - d.ty : Math.abs(f.y - d.ty);
     s -= (Math.abs(f.x - d.tx) + distance) * 1.2;
     const paperMoment = paperFollowup(d, f);
     opts.push({ s: s + (paperMoment ? 35 : 0), type: F.use, furn: f, paperMoment });
@@ -449,7 +454,8 @@ function startAct(d, o) {
   if (Object.hasOwn(ROUTINES, o.type)) return startRoutine(d, o);
   if (o.type === 'dance') { d.state = 'act'; d.act = { type: 'dance', t: 9 + Math.random() * 4 }; nudgeAudience(d); say(d, pick(ACT_LINES.dance)); return true; }
   if (o.type === 'wander') {
-    const goal = nearestFree((Math.random() * COLS) | 0, WALL_ROWS + ((Math.random() * (ROWS - WALL_ROWS)) | 0));
+    const floor = FLOOR_BOUNDS[1 + Math.floor(Math.random() * (hasThirdFloor() ? 3 : 2))];
+    const goal = nearestFree((Math.random() * COLS) | 0, floor.start + ((Math.random() * (floor.end - floor.start)) | 0));
     const path = goal && findPath(d.tx, d.ty, [goal]);
     if (!path || !path.length) return false;
     d.path = path; d.state = 'walk'; d.act = { type: 'wander' };
@@ -597,7 +603,7 @@ function updateDoll(d, dt) {
     const gx = n.x * T + 8, gy = n.y * T + 14, dx = gx - d.x, dy = gy - d.y, dist = Math.hypot(dx, dy);
     const onStairs = takingStairs(d);
     const sp = P.speed * T * dt * (N.energy < 20 ? 0.6 : 1) * (takingYardPath(d) ? 6 : onStairs ? 2 : 1);
-    if (onStairs) d.dir = n.y === UPPER_LANDING ? 'up' : 'down';
+    if (onStairs) d.dir = houseFloor(n.y) > houseFloor(d.ty) ? 'up' : 'down';
     else if (dist > 0.01) face(d, gx, gy);
     if (dist <= sp) {
       const from = { x: d.tx, y: d.ty };
