@@ -55,32 +55,6 @@ function renderDollList() {
   $('#btnAddDoll').textContent = count ? `＋ 邀请新住户 · ${count} 份申请` : '＋ 邀请新住户';
 }
 
-function renderResidentQuick() {
-  const strip = $('#residentQuick');
-  if (!strip) return;
-  const roster = JSON.stringify(G.dolls.map(d => [d.uid, d.name, d.look]));
-  if (strip.dataset.roster === roster) return;
-  strip.dataset.roster = roster;
-  strip.replaceChildren(...G.dolls.map(d => {
-    const button = el('button', 'resident-quick-person');
-    button.type = 'button';
-    button.dataset.resident = d.uid;
-    const portrait = el('canvas');
-    portrait.width = 20; portrait.height = 24;
-    portrait.setAttribute('aria-hidden', 'true');
-    dollPortrait(portrait, d.look);
-    const label = el('span'), status = el('small');
-    status.dataset.doing = d.uid;
-    label.append(el('b', null, esc(d.name)), status);
-    button.append(portrait, label);
-    button.onclick = () => {
-      G.sel = G.sel === d.uid ? null : d.uid;
-      SFX.play('click'); HOOK.select();
-    };
-    return button;
-  }));
-}
-
 function renderInfo() {
   const card = $('#dollInfo'), d = G.dolls.find(o => o.uid === G.sel);
   if (!d) { card.hidden = true; return; }
@@ -163,7 +137,6 @@ function tickInfo() {
 }
 
 HOOK.select = () => {
-  renderResidentQuick();
   refreshSceneHint();
   renderDollList(); renderInfo(); tickInfo(); updateCommunityStatus();
 };
@@ -401,7 +374,7 @@ function refreshReadingSeats() {
   const seats = G.mode === 'live' ? G.furniture.filter(isWindowChair) : [];
   $('#readingSeatControls').hidden = !seats.length;
   if (!seats.length) return;
-  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y >= FLOOR_SPLIT ? f.y - FLOOR_SPLIT + 1 : f.y - WALL_ROWS + 1} 排`);
+  const names = seats.map(f => `${readingRoomNames[cornerRoom(f)]} · 第 ${f.x + 1} 列，第 ${f.y - floorBounds(f.y).start + 1} 排`);
   const options = JSON.stringify(seats.map((f, i) => [f.key, names[i]]));
   if (options !== readingSeatOptions) {
     const previous = readingSeat.value;
@@ -609,7 +582,7 @@ function refreshSceneHint() {
     : resident ? furnitureOrderHint(resident, hoverFurniture)
     : '选一位住户，再选一件家具。';
   if (hint.textContent !== text) hint.textContent = text;
-  const strip = $('#residentQuick'), action = $('#quickFurniture');
+  const action = $('#quickFurniture');
   const quietHint = $('#studyQuietHint');
   $('#studySettings').hidden = studyQuietButton.hidden = G.mode !== 'live';
   quietHint.hidden = studyQuietButton.hidden;
@@ -628,14 +601,9 @@ function refreshSceneHint() {
       : '书房开放，熟人可以路过搭话或结伴阅读。';
   if (quietHint.textContent !== quietText) quietHint.textContent = quietText;
   refreshReadingSeats();
-  if (!strip || !action) return;
-  strip.hidden = G.mode !== 'live';
-  for (const button of strip.children) {
-    const pressed = String(Number(button.dataset.resident) === G.sel);
-    if (button.getAttribute('aria-pressed') !== pressed) button.setAttribute('aria-pressed', pressed);
-  }
+  if (!action) return;
   const target = furnitureTargets.find(f => f.id === 'sofa') || furnitureTargets[0];
-  const alternative = !target && !strip.hidden && resident && G.dolls.find(person =>
+  const alternative = !target && G.mode === 'live' && resident && G.dolls.find(person =>
     person !== resident && G.furniture.some(furniture => available(person, furniture)));
   action.hidden = !target && !alternative;
   if (target) {

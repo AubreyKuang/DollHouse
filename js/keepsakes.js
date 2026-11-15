@@ -13,8 +13,8 @@ function restoreKeepsakes(saved) {
 
 const KEEPSAKE_FINISHES = { rose: ['莓果粉', '#cf8e9e'], sage: ['鼠尾草绿', '#91ad93'], honey: ['蜂蜜木色', '#d5aa79'] };
 const cornerDistance = (a, b) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
-const cornerRoom = f => roomOf({ tx: f.x, ty: f.y < 0 ? FLOOR_SPLIT : Math.max(f.y, WALL_ROWS) });
-const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房' };
+const cornerRoom = f => roomOf({ tx: f.x, ty: layerOf(f.id) === 'wall' ? floorBounds(f.y).start : f.y });
+const readingRoomNames = { bed: '卧室', living: '客厅', bathroom: '浴室', upperBedroom: '二楼卧室', study: '书房', loftBedroom: '三楼卧室', loftStudio: '三楼活动室', yard: '院子' };
 const quietStudy = f => studyQuietActive() && cornerRoom(f) === 'study';
 const isWindowChair = f => f.id === 'chair' && G.furniture.some(w => w.id === 'window' &&
   cornerRoom(w) === cornerRoom(f) && Math.abs(w.x + 1 - f.x) <= 3);

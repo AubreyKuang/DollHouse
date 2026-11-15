@@ -1,7 +1,7 @@
-// Two cutaway storeys over the existing simulation grid. The front edges
+// Expandable cutaway storeys over the existing simulation grid. The front edges
 // are shallow in screen space while the back walls and sprites stay upright.
 const HOUSE_X = 14;
-const HOUSE_HEIGHT = 310;
+let HOUSE_HEIGHT = 310;
 const HOUSE_MARGIN = 76;
 const FLOOR_STEP = 3;
 const WALL_STEP = 18;
@@ -12,17 +12,29 @@ const STOREYS = [
     rooms: ['#625a76', '#d7b9c6'], floors: ['#766481', '#a4ad8c'] },
 ];
 const YARD = { wall: 258, back: 258, front: 300, row: ROWS, step: 7 };
-const storeyOf = row => row >= ROWS ? YARD : STOREYS[+(row < 0 || row >= FLOOR_SPLIT)];
+const storeyOf = row => isYardRow(row) ? YARD : STOREYS[houseFloor(row) - 1];
+
+function configureHouseView() {
+  const shift = hasThirdFloor() ? 94 : 0;
+  HOUSE_HEIGHT = 310 + shift;
+  Object.assign(STOREYS[0], { wall: 165 + shift, back: 225 + shift, front: 252 + shift });
+  Object.assign(STOREYS[1], { wall: 74 + shift, back: 134 + shift, front: 158 + shift });
+  Object.assign(YARD, { wall: 258 + shift, back: 258 + shift, front: 300 + shift });
+  STOREYS.length = 2;
+  if (hasThirdFloor()) STOREYS.push({ wall: 74, back: 134, front: 158, row: THIRD_START, wallRow: THIRD_WALL,
+    rooms: ['#ddc8d6', '#d6dec0'], floors: ['#c5a69b', '#c5b18d'] });
+}
 
 function houseY(y, storey) {
   return storey.back + (y - storey.row * T) * (storey.step || FLOOR_STEP) / T;
 }
 
-function stairPoint(progress) {
+function stairPoint(progress, flight = 0) {
   const x = HOUSE_X + stairsColumn() * T + 8;
   const edge = HOUSE_X + W;
-  const top = houseY(UPPER_LANDING * T + 14, STOREYS[1]);
-  const bottom = houseY(LOWER_LANDING * T + 14, STOREYS[0]);
+  const [lower, upper] = stairLinks()[flight];
+  const top = houseY(upper * T + 14, storeyOf(upper));
+  const bottom = houseY(lower * T + 14, storeyOf(lower));
   if (progress < .2) return { x: mixNum(x, edge + 10, progress / .2), y: top };
   if (progress > .8) return { x: mixNum(edge + 42, x, (progress - .8) / .2), y: bottom };
   const t = (progress - .2) / .6;
@@ -32,7 +44,9 @@ function stairPoint(progress) {
 function houseDollPoint(d) {
   if (d.state === 'lift') return { x: d.liftX, y: d.liftY };
   if (takingStairs(d)) {
-    return stairPoint((UPPER_LANDING * T + 14 - d.y) / ((UPPER_LANDING - LOWER_LANDING) * T));
+    const flight = stairLinks().findIndex(link => link.includes(d.ty));
+    const [lower, upper] = stairLinks()[flight];
+    return stairPoint((upper * T + 14 - d.y) / ((upper - lower) * T), flight);
   }
   if (takingYardPath(d)) {
     const inside = FLOOR_SPLIT - 1, outside = ROWS;
@@ -58,19 +72,20 @@ function houseFurnitureRect(f) {
 }
 
 function houseTile(p, id) {
-  const storey = p.y >= YARD.back ? YARD : p.y < STOREYS[0].wall ? STOREYS[1] : STOREYS[0];
+  const storey = [...STOREYS, YARD].find(floor => p.y >= floor.wall && p.y < floor.front);
+  if (!storey) return null;
   const F = id && FURNITURE[id];
   const wall = F && layerOf(id) === 'wall';
   const x = F ? Math.round((p.x - HOUSE_X) / T - F.w / 2) : Math.floor((p.x - HOUSE_X) / T);
   if (p.x < HOUSE_X || p.x >= HOUSE_X + W || p.y < storey.wall || p.y >= storey.front) return null;
   if (wall) {
-    if (p.y >= storey.back) return null;
+    if (storey === YARD || p.y >= storey.back) return null;
     const row = Math.round((p.y - storey.wall - 5 - F.h * T / 2) / WALL_STEP);
     return { x, y: storey.wallRow + Math.max(0, Math.min(WALL_ROWS - F.h, row)) };
   }
   if (p.y < storey.back) return null;
   const y = storey.row + (p.y - storey.back) / (storey.step || FLOOR_STEP);
-  const end = storey === YARD ? YARD_END : storey === STOREYS[1] ? ROWS : FLOOR_SPLIT;
+  const end = floorBounds(storey.row).end;
   return { x, y: F ? Math.max(storey.row, Math.min(end - F.h, Math.round(y - F.h / 2))) : Math.floor(y) };
 }
 
@@ -89,21 +104,24 @@ function housePoly(c, color, ...points) {
 
 function drawHouseGarden(c, left, right) {
   const width = W + HOUSE_MARGIN;
+  const shift = HOUSE_HEIGHT - 310;
   R(c, 0, 0, width, HOUSE_HEIGHT, G.sky);
   const season = seasonOf(G.day).id;
   const snowy = G.weather === 'snow';
   const grass = season === 'autumn' ? '#b9b181' : snowy ? '#cbdace' : '#a7bd8b';
   const leaf = season === 'autumn' ? '#c4a172' : '#89a97d';
   const canopy = shade(leaf, -.10), leafLight = shade(leaf, .08);
-  const sky = c.createLinearGradient(0, 18, 0, 230);
+  const sky = c.createLinearGradient(0, 18, 0, 230 + shift);
   sky.addColorStop(0, G.night ? '#35315100' : '#86b5dc48');
   sky.addColorStop(1, G.night ? '#b59bc35b' : '#ffefd496');
   c.fillStyle = sky;
-  c.fillRect(0, 0, width, 230);
+  c.fillRect(0, 0, width, 230 + shift);
+  c.save();
+  c.translate(0, shift);
   const horizon = snowy ? '#b9c9ca' : '#a6baa2';
   housePoly(c, horizon, [0, 213], [19, 196], [63, 224], [right - 18, 213],
     [right + 22, 194], [width, 211], [width, 239], [0, 239]);
-  R(c, 0, 229, width, HOUSE_HEIGHT - 229, grass);
+  R(c, 0, 229, width, 81, grass);
   for (const [x, y, size] of [[-13, 171, 42], [right + 2, 165, 37], [right + 21, 197, 40]]) {
     R(c, x + 14, y - 4, 6, 231 - y, '#785749');
     R(c, x + 16, y - 3, 2, 229 - y, '#aa8061');
@@ -117,12 +135,12 @@ function drawHouseGarden(c, left, right) {
       detail(c, x + dx + 1, y + dy - .5, 2, .5, leafLight);
     }
   }
-  const lawn = c.createLinearGradient(0, YARD.back, 0, YARD.front);
+  const lawn = c.createLinearGradient(0, YARD.back - shift, 0, YARD.front - shift);
   lawn.addColorStop(0, shade(grass, -.045));
   lawn.addColorStop(.5, shade(grass, .055));
   lawn.addColorStop(1, shade(grass, .09));
   c.fillStyle = lawn;
-  c.fillRect(left - 5, YARD.back, W + 10, YARD.front - YARD.back);
+  c.fillRect(left - 5, YARD.back - shift, W + 10, YARD.front - YARD.back);
   R(c, 0, 301, width, 9, '#d4c0a2');
   R(c, 0, 301, width, 1, '#e0d3b5');
   for (let x = 0; x < width; x += 16) R(c, x, 303, 1, 6, '#b0a88e');
@@ -138,6 +156,7 @@ function drawHouseGarden(c, left, right) {
     R(c, x + 1, 254, 1, 44, '#e8d2af');
     for (let y = 256; y < 300; y += 7) R(c, x - 1, y, 5, 3, '#d5bc99');
   }
+  c.translate(0, -shift);
   for (const [x, y] of [[3, 43], [right + 12, 57], [right - 25, 8]]) {
     const glow = G.night ? '#d9d2ec' : '#fff0d4', underside = G.night ? '#9e9cbc' : '#edc7ba';
     R(c, x, y + 8, 32, 4, underside);
@@ -146,6 +165,7 @@ function drawHouseGarden(c, left, right) {
     R(c, x + 11, y, 9, 5, glow);
     detail(c, x + 4, y + 10, 23, .5, '#fff4dc');
   }
+  c.translate(0, shift);
   const grassDark = shade(grass, -.14);
   for (let i = 0; i < 44; i++) {
     const x = Math.round(rnd(i + 690) * width), y = Math.round(261 + rnd(i + 810) * 36);
@@ -164,6 +184,7 @@ function drawHouseGarden(c, left, right) {
       R(c, x, y, 1, 5, '#d7e6eeaa');
     }
   }
+  c.restore();
 }
 
 function drawHouseRoof(c, left, right) {
@@ -246,7 +267,7 @@ function drawStorey(c, storey, wall, floor) {
       c.scale(1, FLOOR_STEP / T);
       c.translate(0, -storey.row * T);
       drawFloor(c, { ...floor, base: floorBase, alt: shade(floorBase, -.09) },
-        storey.row * T, (storey === STOREYS[1] ? ROWS : FLOOR_SPLIT) * T);
+        storey.row * T, floorBounds(storey.row).end * T);
     }
     c.restore();
 
@@ -290,16 +311,16 @@ function drawStorey(c, storey, wall, floor) {
   }
 }
 
-function drawHouseStairs(c) {
+function drawHouseStairs(c, flight = 0) {
   const edge = HOUSE_X + W;
-  const start = stairPoint(.2), end = stairPoint(.8);
+  const start = stairPoint(.2, flight), end = stairPoint(.8, flight);
   const steps = 12, halfWidth = 9;
   const rise = (end.y - start.y) / steps;
   // One continuous stair body replaces the old backboard and floating stripes.
   housePoly(c, '#a57e67', [start.x - halfWidth, start.y], [start.x + halfWidth, start.y],
     [end.x + halfWidth, end.y + 4], [end.x - halfWidth, end.y + 4]);
   for (let i = 0; i < steps; i++) {
-    const p = stairPoint(.2 + .6 * i / steps);
+    const p = stairPoint(.2 + .6 * i / steps, flight);
     const x = Math.round(p.x) - halfWidth, y = Math.round(p.y);
     R(c, x, y, halfWidth * 2, Math.ceil(rise) + 1, '#b38c70');
     R(c, x, y, halfWidth * 2, 2, '#eed1aa');
@@ -312,18 +333,18 @@ function drawHouseStairs(c) {
   }
   const rail = [start, end].map(p => ({ x: Math.round(p.x) + halfWidth, y: Math.round(p.y) }));
   for (let i = 0; i <= 3; i++) {
-    const p = stairPoint(.2 + .6 * i / 3);
+    const p = stairPoint(.2 + .6 * i / 3, flight);
     R(c, Math.round(p.x) + halfWidth - 1, Math.round(p.y) - 10, 2, 14, '#98745f');
   }
   housePoly(c, '#98745f', [rail[0].x - 1, rail[0].y - 12], [rail[1].x + 1, rail[1].y - 12],
     [rail[1].x + 1, rail[1].y - 9], [rail[0].x - 1, rail[0].y - 9]);
-  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[0].front - rail[1].y - 4, '#98745f');
+  R(c, rail[1].x - 1, rail[1].y + 4, 3, STOREYS[flight].front - rail[1].y - 4, '#98745f');
 }
 
 function drawHouseInterior(c, wall, floor) {
   const l = HOUSE_X, r = l + W;
   for (const storey of STOREYS) drawStorey(c, storey, wall, floor);
-  for (const [y, h] of [[69, 5], [158, 7], [252, 6]]) {
+  for (const [y, h] of [[69, 5], ...STOREYS.map((storey, i) => [storey.front, i ? 7 : 6])]) {
     R(c, l - 4, y, W + 8, h, '#916953');
     R(c, l - 3, y + 1, W + 6, h - 2, '#c69d79');
     R(c, l - 3, y + 1, W + 6, 1, '#ebc9a2');
@@ -335,5 +356,5 @@ function drawHouseInterior(c, wall, floor) {
       detail(c, x + 3, y, 1, front - y, '#744f4c');
     }
   }
-  drawHouseStairs(c);
+  stairLinks().forEach((_, flight) => drawHouseStairs(c, flight));
 }

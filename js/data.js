@@ -10,6 +10,24 @@ const WALL_ROWS = 3;       // 一楼墙面占据前 3 行
 const LOWER_LANDING = WALL_ROWS + 1;
 const UPPER_LANDING = ROWS - 1;
 const UPPER_WALL = -WALL_ROWS; // 二楼墙面用负数行，与既有地面坐标分开
+// Keep the original house and yard coordinates stable for existing saves.
+const THIRD_START = YARD_END;
+const THIRD_END = THIRD_START + 8;
+const THIRD_WALL = UPPER_WALL - WALL_ROWS;
+const hasThirdFloor = () => G.level >= 4;
+const isYardRow = row => row >= ROWS && row < YARD_END;
+const houseFloor = row => isYardRow(row) ? 0 : row < UPPER_WALL || row >= THIRD_START ? 3 : row < 0 || row >= FLOOR_SPLIT ? 2 : 1;
+const FLOOR_BOUNDS = [
+  { start: ROWS, end: YARD_END },
+  { start: WALL_ROWS, end: FLOOR_SPLIT, wall: 0 },
+  { start: FLOOR_SPLIT, end: ROWS, wall: UPPER_WALL },
+  { start: THIRD_START, end: THIRD_END, wall: THIRD_WALL },
+];
+const floorBounds = row => FLOOR_BOUNDS[houseFloor(row)];
+const walkEnd = () => hasThirdFloor() ? THIRD_END : YARD_END;
+const stairLinks = () => hasThirdFloor()
+  ? [[LOWER_LANDING, UPPER_LANDING], [FLOOR_SPLIT + 1, THIRD_END - 1]]
+  : [[LOWER_LANDING, UPPER_LANDING]];
 let W = COLS * T;
 const H = ROWS * T;
 

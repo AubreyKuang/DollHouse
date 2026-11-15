@@ -40,7 +40,9 @@ function validatePortableHome(data) {
     }
   }
   for (const f of data.furniture) if (!f || !Object.hasOwn(FURNITURE, f.id) || !Number.isInteger(f.x) ||
-    !Number.isInteger(f.y) || f.x < 0 || f.x >= 24 || f.y < UPPER_WALL || f.y >= YARD_END) throw Error('有一件家具的数据不完整。');
+    !Number.isInteger(f.y) || f.x < 0 || f.x >= LEVELS[data.level].cols ||
+    f.y < (data.level >= 4 ? THIRD_WALL : UPPER_WALL) ||
+    f.y >= (data.level >= 4 ? THIRD_END : YARD_END)) throw Error('有一件家具的数据不完整。');
   for (const key of ['rel', 'trust', 'jealousy', 'inv']) if (data[key] !== undefined && !object(data[key])) throw Error('人际关系或仓库数据损坏了。');
   for (const key of ['log', 'paper', 'paperMoments']) if (data[key] !== undefined && !list(data[key], 1000)) throw Error('日志或月报数据损坏了。');
   if (data.home) {
