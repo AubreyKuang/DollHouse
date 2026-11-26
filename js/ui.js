@@ -1351,15 +1351,15 @@ document.getElementById('paperCopy').onclick = async () => {
 const paperAuto=document.getElementById('paperAuto');
 const paperPreference = TEST_MODE ? 'house-test-paper-auto' : 'house-paper-auto';
 paperAuto.checked=true;
-try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
-paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
+try{paperAuto.checked=SaveManager.getStorage().getItem(paperPreference)!=='off';}catch{}
+paperAuto.onchange=()=>{try{SaveManager.getStorage().setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
 
 const houseOffline = $('#houseOffline');
 houseOffline.checked = offlineEnabled();
 houseOffline.onchange = () => {
   try {
-    localStorage.setItem(OFFLINE_KEY, houseOffline.checked ? 'on' : 'off');
+    SaveManager.getStorage().setItem(OFFLINE_KEY, houseOffline.checked ? 'on' : 'off');
   } catch {
     houseOffline.checked = offlineEnabled();
     HOOK.toast('浏览器暂时无法保存这项设置。', true);

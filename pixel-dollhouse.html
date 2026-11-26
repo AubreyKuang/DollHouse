@@ -2315,6 +2315,174 @@ const NPCMemory = (() => {
 })();
 </script>
 <script>
+/* TapTap H5 host. TapTap injects a global `tap` object; in a normal browser it is
+   absent and this file does nothing. DollHouse is a single-player game with no server
+   and no account: it never calls tap.login and sends nothing anywhere. Inside the
+   host it only marks the page; saving goes through HouseStorage. */
+const TapTapHost = (() => {
+  const host = () => {
+    const tap = globalThis.tap;
+    return !!tap && typeof tap === 'object' && ['setStorageSync', 'getSystemInfoSync', 'onShow', 'login'].some(name => typeof tap[name] === 'function');
+  };
+  let marked = false;
+  function mark() {
+    if (marked || !host()) return;
+    marked = true;
+    globalThis.document?.documentElement?.classList?.add('taptap-host');
+  }
+  mark();
+  // The host may inject `tap` after the first scripts run.
+  globalThis.addEventListener?.('load', mark);
+  return { get inHost() { return host(); } };
+})();
+</script>
+<script>
+/* Where the house is saved.
+   In-app WebViews (the TapTap H5 host among them) may lack localStorage, or keep it
+   and then refuse every write. Each store is trusted only after a probe value is
+   written and read back unchanged:
+
+     tap.setStorageSync → localStorage → this visit only
+
+   The house is loaded synchronously at startup and saved every few seconds, so the
+   store must answer synchronously; IndexedDB is not used. Every store looks like
+   localStorage (getItem / setItem / removeItem), which is what SaveManager expects.
+   A browser keeps the real localStorage object, so a second tab still sees the save
+   change underneath it. */
+const HouseStorage = (() => {
+  const PROBE = 'dollhouse-probe', MIGRATED = 'dollhouse-migrated';
+  // TapTap allows 1MB per key and 10MB in all. 200k UTF-16 units stay under 1MB in UTF-8.
+  const CHUNK = 200000;
+  // Everything the game keeps, in both the normal and the test house.
+  const KEYS = ['pixel-dollhouse-v1', 'pixel-dollhouse-test-v1'].flatMap(key =>
+    ['', ':backup', ':snapshots', ':before-import', ':before-import:snapshots'].map(suffix => key + suffix))
+    .concat(['house-offline', 'house-test-offline', 'house-paper-auto', 'house-test-paper-auto']);
+  const quiet = fn => { try { return fn(); } catch { return null; } };
+  const token = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+  function tapKV() {
+    const tap = globalThis.tap;
+    if (typeof tap?.setStorageSync !== 'function' || typeof tap.getStorageSync !== 'function') return null;
+    return {
+      get(key) { const value = tap.getStorageSync(key); return value === '' || value === undefined || value === null ? null : String(value); },
+      set(key, value) { tap.setStorageSync(key, value); },
+      remove(key) { if (typeof tap.removeStorageSync === 'function') tap.removeStorageSync(key); else tap.setStorageSync(key, ''); },
+    };
+  }
+  function works(kv) {
+    if (!kv) return false;
+    try {
+      const value = '屋' + token();
+      kv.set(PROBE, value); const back = kv.get(PROBE); kv.remove(PROBE);
+      return back === value;
+    } catch { return false; }
+  }
+
+  // Long values span several keys. A new copy's chunks land before its manifest, so a
+  // torn write keeps the old copy; a failed write throws, as a full localStorage would.
+  function chunkedStorage(kv) {
+    const cache = new Map();
+    const manifest = head => {
+      const meta = quiet(() => JSON.parse(head));
+      return meta && typeof meta.chunks === 'string' && Number.isInteger(meta.n) ? meta : null;
+    };
+    const drop = (key, meta) => { for (let i = 0; i < meta.n; i++) quiet(() => kv.remove(key + '#' + meta.chunks + ':' + i)); };
+    function read(key) {
+      const head = kv.get(key);
+      if (head === null) return null;
+      const meta = manifest(head);
+      if (!meta) return head;
+      let value = '';
+      for (let i = 0; i < meta.n; i++) {
+        const part = kv.get(key + '#' + meta.chunks + ':' + i);
+        if (part === null) return null; // A lost chunk: SaveManager falls back to :backup.
+        value += part;
+      }
+      return value;
+    }
+    function pieces(value) {
+      const out = [];
+      for (let start = 0; start < value.length;) {
+        let end = Math.min(value.length, start + CHUNK);
+        // Never split a surrogate pair (emoji in the log): a lone half would not survive UTF-8.
+        const code = value.charCodeAt(end - 1);
+        if (end < value.length && code >= 0xd800 && code <= 0xdbff) end--;
+        out.push(value.slice(start, end)); start = end;
+      }
+      return out;
+    }
+    return {
+      getItem(key) {
+        key = String(key);
+        if (!cache.has(key)) cache.set(key, read(key));
+        return cache.get(key);
+      },
+      setItem(key, value) {
+        key = String(key); value = String(value);
+        if (cache.has(key) && cache.get(key) === value) return;
+        const prior = manifest(kv.get(key)), meta = { chunks: token(), n: 0 }, parts = pieces(value);
+        try {
+          for (const part of parts) kv.set(key + '#' + meta.chunks + ':' + meta.n++, part);
+          kv.set(key, JSON.stringify(meta));
+        } catch (error) {
+          drop(key, meta);
+          throw error;
+        }
+        if (prior) drop(key, prior);
+        cache.set(key, value);
+      },
+      removeItem(key) {
+        key = String(key);
+        const prior = manifest(kv.get(key));
+        kv.remove(key);
+        if (prior) drop(key, prior);
+        cache.set(key, null);
+      },
+    };
+  }
+
+  function localStore() {
+    const ls = quiet(() => globalThis.localStorage);
+    if (!ls || typeof ls.setItem !== 'function' || typeof ls.getItem !== 'function') return null;
+    const kv = { get: key => ls.getItem(key) ?? null, set: (key, value) => { ls.setItem(key, value); },
+      remove: key => { if (typeof ls.removeItem === 'function') ls.removeItem(key); } };
+    return works(kv) ? ls : null;
+  }
+  function memoryStore() {
+    const data = new Map();
+    return {
+      getItem: key => data.has(String(key)) ? data.get(String(key)) : null,
+      setItem: (key, value) => { data.set(String(key), String(value)); },
+      removeItem: key => { data.delete(String(key)); },
+    };
+  }
+
+  function pick() {
+    const tap = quiet(tapKV);
+    if (works(tap)) {
+      const storage = chunkedStorage(tap);
+      // A house a browser visit left behind comes along once.
+      if (quiet(() => tap.get(MIGRATED)) === null) {
+        const local = quiet(localStore);
+        for (const key of KEYS) {
+          const old = local && quiet(() => local.getItem(key));
+          if (old && storage.getItem(key) === null) quiet(() => storage.setItem(key, old));
+        }
+        quiet(() => tap.set(MIGRATED, '1'));
+      }
+      return { kind: 'tap', storage };
+    }
+    const local = quiet(localStore);
+    if (local) return { kind: 'local', storage: local };
+    return { kind: 'memory', storage: memoryStore() };
+  }
+
+  const chosen = pick();
+  if (chosen.kind === 'memory') quiet(() => console.warn('No storage reads back: the house is kept for this visit only'));
+  return { kind: chosen.kind, storage: chosen.storage, CHUNK };
+})();
+</script>
+<script>
 /* Shared snapshot storage. The primary key remains readable by older builds.
    v2: older saves are migrated instead of rejected, and a few dated snapshots are kept for rewinding. */
 const SaveManager = (() => {
@@ -2323,7 +2491,7 @@ const SaveManager = (() => {
   const observed = new Map();
 
   function getStorage() {
-    try { return globalThis.localStorage; } catch { return null; }
+    try { return typeof HouseStorage === 'object' ? HouseStorage.storage : globalThis.localStorage; } catch { return null; }
   }
 
   function versionOf(raw) {
@@ -2962,7 +3130,7 @@ const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
 let catchingUp = false;
 
 function offlineEnabled() {
-  try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; }
+  try { return SaveManager.getStorage().getItem(OFFLINE_KEY) !== 'off'; } catch { return false; }
 }
 
 function catchUpOffline(since, now = Date.now()) {
@@ -8658,13 +8826,14 @@ function importPortableHome(data, undo = false) {
   const snapshotsKey = SAVE_KEY + ':snapshots';
   let alongside;
   try {
+    const storage = SaveManager.getStorage();
     if (undo) {
-      const backup = JSON.parse(localStorage.getItem(HOME_IMPORT_BACKUP));
-      const snapshots = backup?.snapshots ?? localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
+      const backup = JSON.parse(storage.getItem(HOME_IMPORT_BACKUP));
+      const snapshots = backup?.snapshots ?? storage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
       alongside = [[snapshotsKey, snapshots]];
     } else {
       const backup = JSON.parse(exportHomeSave());
-      backup.snapshots = localStorage.getItem(snapshotsKey) || '[]';
+      backup.snapshots = storage.getItem(snapshotsKey) || '[]';
       alongside = [[HOME_IMPORT_BACKUP, JSON.stringify(backup)], [snapshotsKey, '[]']];
     }
   } catch { throw Error('无法读取备份，恢复已取消。'); }
@@ -10844,15 +11013,15 @@ document.getElementById('paperCopy').onclick = async () => {
 const paperAuto=document.getElementById('paperAuto');
 const paperPreference = TEST_MODE ? 'house-test-paper-auto' : 'house-paper-auto';
 paperAuto.checked=true;
-try{paperAuto.checked=localStorage.getItem(paperPreference)!=='off';}catch{}
-paperAuto.onchange=()=>{try{localStorage.setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
+try{paperAuto.checked=SaveManager.getStorage().getItem(paperPreference)!=='off';}catch{}
+paperAuto.onchange=()=>{try{SaveManager.getStorage().setItem(paperPreference,paperAuto.checked?'on':'off');}catch{}};
 updateHousePaperButton();
 
 const houseOffline = $('#houseOffline');
 houseOffline.checked = offlineEnabled();
 houseOffline.onchange = () => {
   try {
-    localStorage.setItem(OFFLINE_KEY, houseOffline.checked ? 'on' : 'off');
+    SaveManager.getStorage().setItem(OFFLINE_KEY, houseOffline.checked ? 'on' : 'off');
   } catch {
     houseOffline.checked = offlineEnabled();
     HOOK.toast('浏览器暂时无法保存这项设置。', true);
@@ -11104,9 +11273,10 @@ function showHomeSaveStatus() {
   const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
   $('#saveState').textContent = status === 'newer' ? '此进度由新版游戏保存，请打开新版继续。'
     : status === 'conflict' ? '另一标签页已更新进度。本页已暂停保存。可先下载备份，再刷新读取最新进度。'
+    : HouseStorage.kind === 'memory' ? '⚠ 当前环境无法保存进度，关闭后小屋不会保留。可以先下载一份备份。'
     : G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
     : `✓ ${monthLabel(G.day)} · ${residents().length} 位住户 · ${TEST_MODE ? '测试小屋' : '正式小屋'}`;
-  try { $('#saveUndo').hidden = !localStorage.getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
+  try { $('#saveUndo').hidden = !SaveManager.getStorage().getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
 }
 function downloadHomeFile(text, filename) {
   const blob = new Blob([text], { type: 'application/json' }), url = URL.createObjectURL(blob), a = el('a');
@@ -11155,16 +11325,26 @@ $('#saveImport').onclick = () => {
 $('#saveUndo').onclick = () => {
   if (!confirm('回到上次导入前的小屋？导入后发生的事将不再保留。')) return;
   try {
-    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP), true);
+    const previous = readPortableHome(SaveManager.getStorage().getItem(HOME_IMPORT_BACKUP), true);
     importPortableHome(previous, true); refreshImportedHome(); $('#saveFeedback').textContent = '已经回到导入前的小屋。';
   } catch (error) { $('#saveFeedback').textContent = error.message; }
 };
 HOOK.saved = success => {
-  $('#btnSaveHome').textContent = success ? '💾 存档备份与恢复' : '⚠️ 保存失败，下载备份';
-  $('#btnSaveHome').classList.toggle('save-error', !success);
+  const kept = success && HouseStorage.kind !== 'memory';
+  $('#btnSaveHome').textContent = kept ? '💾 存档备份与恢复' : success ? '⚠️ 无法保存，下载备份' : '⚠️ 保存失败，下载备份';
+  $('#btnSaveHome').classList.toggle('save-error', !kept);
   if ($('#saveDialog').open) showHomeSaveStatus();
 };
 ensureHomeWishes(); updateHomeNow();
+// Nowhere to keep the house: play on, and say so once.
+// The toast waits for the month's opening notices, which would cover it.
+if (HouseStorage.kind === 'memory') {
+  HOOK.saved(G.saveOk !== false);
+  setTimeout(() => {
+    HOOK.toast('当前环境无法保存进度，本次游玩中仍可继续。', true);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 6000);
+  }, 1500);
+}
 </script>
 </body>
 </html>
