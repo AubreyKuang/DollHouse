@@ -100,13 +100,14 @@ function importPortableHome(data, undo = false) {
   const snapshotsKey = SAVE_KEY + ':snapshots';
   let alongside;
   try {
+    const storage = SaveManager.getStorage();
     if (undo) {
-      const backup = JSON.parse(localStorage.getItem(HOME_IMPORT_BACKUP));
-      const snapshots = backup?.snapshots ?? localStorage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
+      const backup = JSON.parse(storage.getItem(HOME_IMPORT_BACKUP));
+      const snapshots = backup?.snapshots ?? storage.getItem(HOME_IMPORT_BACKUP + ':snapshots') ?? '[]';
       alongside = [[snapshotsKey, snapshots]];
     } else {
       const backup = JSON.parse(exportHomeSave());
-      backup.snapshots = localStorage.getItem(snapshotsKey) || '[]';
+      backup.snapshots = storage.getItem(snapshotsKey) || '[]';
       alongside = [[HOME_IMPORT_BACKUP, JSON.stringify(backup)], [snapshotsKey, '[]']];
     }
   } catch { throw Error('无法读取备份，恢复已取消。'); }

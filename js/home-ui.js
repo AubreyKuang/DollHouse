@@ -188,9 +188,10 @@ function showHomeSaveStatus() {
   const status = SaveManager.status(SaveManager.getStorage(), SAVE_KEY);
   $('#saveState').textContent = status === 'newer' ? '此进度由新版游戏保存，请打开新版继续。'
     : status === 'conflict' ? '另一标签页已更新进度。本页已暂停保存。可先下载备份，再刷新读取最新进度。'
+    : HouseStorage.kind === 'memory' ? '⚠ 当前环境无法保存进度，关闭后小屋不会保留。可以先下载一份备份。'
     : G.saveOk === false ? '⚠ 这次没有存入浏览器。请下载备份，避免进度丢失。'
     : `✓ ${monthLabel(G.day)} · ${residents().length} 位住户 · ${TEST_MODE ? '测试小屋' : '正式小屋'}`;
-  try { $('#saveUndo').hidden = !localStorage.getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
+  try { $('#saveUndo').hidden = !SaveManager.getStorage().getItem(HOME_IMPORT_BACKUP); } catch { $('#saveUndo').hidden = true; }
 }
 function downloadHomeFile(text, filename) {
   const blob = new Blob([text], { type: 'application/json' }), url = URL.createObjectURL(blob), a = el('a');
@@ -239,13 +240,23 @@ $('#saveImport').onclick = () => {
 $('#saveUndo').onclick = () => {
   if (!confirm('回到上次导入前的小屋？导入后发生的事将不再保留。')) return;
   try {
-    const previous = readPortableHome(localStorage.getItem(HOME_IMPORT_BACKUP), true);
+    const previous = readPortableHome(SaveManager.getStorage().getItem(HOME_IMPORT_BACKUP), true);
     importPortableHome(previous, true); refreshImportedHome(); $('#saveFeedback').textContent = '已经回到导入前的小屋。';
   } catch (error) { $('#saveFeedback').textContent = error.message; }
 };
 HOOK.saved = success => {
-  $('#btnSaveHome').textContent = success ? '💾 存档备份与恢复' : '⚠️ 保存失败，下载备份';
-  $('#btnSaveHome').classList.toggle('save-error', !success);
+  const kept = success && HouseStorage.kind !== 'memory';
+  $('#btnSaveHome').textContent = kept ? '💾 存档备份与恢复' : success ? '⚠️ 无法保存，下载备份' : '⚠️ 保存失败，下载备份';
+  $('#btnSaveHome').classList.toggle('save-error', !kept);
   if ($('#saveDialog').open) showHomeSaveStatus();
 };
 ensureHomeWishes(); updateHomeNow();
+// Nowhere to keep the house: play on, and say so once.
+// The toast waits for the month's opening notices, which would cover it.
+if (HouseStorage.kind === 'memory') {
+  HOOK.saved(G.saveOk !== false);
+  setTimeout(() => {
+    HOOK.toast('当前环境无法保存进度，本次游玩中仍可继续。', true);
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => $('#toast').classList.remove('show'), 6000);
+  }, 1500);
+}

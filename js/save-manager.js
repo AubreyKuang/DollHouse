@@ -6,7 +6,7 @@ const SaveManager = (() => {
   const observed = new Map();
 
   function getStorage() {
-    try { return globalThis.localStorage; } catch { return null; }
+    try { return typeof HouseStorage === 'object' ? HouseStorage.storage : globalThis.localStorage; } catch { return null; }
   }
 
   function versionOf(raw) {

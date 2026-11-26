@@ -104,7 +104,7 @@ const OFFLINE_KEY = TEST_MODE ? 'house-test-offline' : 'house-offline';
 let catchingUp = false;
 
 function offlineEnabled() {
-  try { return localStorage.getItem(OFFLINE_KEY) !== 'off'; } catch { return false; }
+  try { return SaveManager.getStorage().getItem(OFFLINE_KEY) !== 'off'; } catch { return false; }
 }
 
 function catchUpOffline(since, now = Date.now()) {
