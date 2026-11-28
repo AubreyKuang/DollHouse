@@ -240,6 +240,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .shop-bar .spacer{flex:1}
 .shop-bar button:disabled{opacity:.5;cursor:default}
 #btnExpand.ready{background:var(--good);color:#fff}
+.ad-tag{display:inline-block;margin-right:6px;padding:0 5px;border:1px solid currentColor;border-radius:4px;font-size:11px;line-height:16px;opacity:.75;vertical-align:1px}
+#btnSponsor.nudge{animation:sponsor-nudge .5s ease 2}
+@keyframes sponsor-nudge{50%{transform:translateY(-4px);box-shadow:0 4px 0 var(--good)}}
 .fund-pill{font-size:13px}
 .item small.price{font-size:11px;font-family:var(--font-pixel);color:var(--muted)}
 .item small.price.own{color:#4f9a4a}
@@ -692,6 +695,7 @@ body{
       <span class="fund">🏦 家庭基金 <b id="fundAmt"></b></span>
       <span class="house" id="houseLv"></span>
       <span class="spacer"></span>
+      <button id="btnSponsor" class="btn small" hidden><span class="ad-tag">广告</span><span id="sponsorText"></span></button>
       <button id="btnCrowd" class="btn small">📣 号召大家凑钱</button>
       <button id="btnExpand" class="btn small"></button>
     </div>
@@ -2317,8 +2321,9 @@ const NPCMemory = (() => {
 <script>
 /* TapTap H5 host. TapTap injects a global `tap` object; in a normal browser it is
    absent and this file does nothing. DollHouse is a single-player game with no server
-   and no account: it never calls tap.login and sends nothing anywhere. Inside the
-   host it only marks the page; saving goes through HouseStorage. */
+   and no account: it never calls tap.login and sends nothing anywhere itself. Inside
+   the host it marks the page and, once an ad unit is configured, can play a rewarded
+   video the player asked for; saving goes through HouseStorage. */
 const TapTapHost = (() => {
   const host = () => {
     const tap = globalThis.tap;
@@ -2334,6 +2339,50 @@ const TapTapHost = (() => {
   // The host may inject `tap` after the first scripts run.
   globalThis.addEventListener?.('load', mark);
   return { get inHost() { return host(); } };
+})();
+
+/* Rewarded video (激励视频). The ad unit id comes from 开发者中心 → 广告变现 after ads are
+   opened for this game (`taptap-cli mini-app-ad get-config` prints it as
+   selected_space_id). While it is empty, or outside TapTap, `available` is false and
+   the game shows no ad entry at all.
+
+   The host keeps one rewarded-video instance per game, so one is created and reused.
+   show(done) calls done exactly once with:
+     'watched'  the video played to the end: give the reward
+     'closed'   the player closed it early: no reward
+     'none'     no ad could be shown */
+const AD_UNIT_ID = '';
+const TapTapAds = (() => {
+  let ad = null, pending = null, showing = false;
+  const ready = () => !!AD_UNIT_ID && typeof globalThis.tap?.createRewardedVideoAd === 'function';
+  function finish(result) {
+    const done = pending;
+    pending = null; showing = false;
+    if (done) done(result);
+  }
+  function instance() {
+    if (ad) return ad;
+    const created = globalThis.tap.createRewardedVideoAd({ adUnitId: AD_UNIT_ID });
+    created.onClose(res => finish(res && res.isEnded ? 'watched' : 'closed'));
+    // A failed load before the video opens is handled by show() below; this covers a
+    // video that breaks while it is on screen and never reports being closed.
+    created.onError?.(() => { if (showing) finish('none'); });
+    return ad = created;
+  }
+  function show(done) {
+    if (pending) return false;                       // one video at a time
+    if (!ready()) { done('none'); return true; }
+    let video;
+    try { video = instance(); } catch { done('none'); return true; }
+    pending = done;
+    Promise.resolve()
+      .then(() => video.show())
+      .catch(() => Promise.resolve(video.load()).then(() => video.show()))   // not loaded yet: load once, then play
+      .then(() => { if (pending) showing = true; })
+      .catch(() => finish('none'));
+    return true;
+  }
+  return { get available() { return ready(); }, get busy() { return !!pending; }, show };
 })();
 </script>
 <script>
@@ -3069,7 +3118,7 @@ function houseSaveData() {
     dolls: G.dolls.map(d => ({ guest: d.guest, pid: d.pid, name: d.name, gender: d.gender, heart: d.heart, zodiac: d.zodiac, mbti: d.mbti, persona: d.persona, job: d.job, money: d.money, look: d.look, needs: d.needs,
       tx:d.tx, ty:d.ty, dir:d.dir, routineTimes: d.routineTimes, vain: d.vain,
       away: d.state === 'away', awayUntil: d.awayUntil, lastWorkDay: d.lastWorkDay, leaveJitter: d.leaveJitter, overtime: d.overtime, nextJob: d.nextJob })),
-    npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
+    npcMemory: G.npcMemory, rel: G.rel, log: G.log, fund: G.fund, level: G.level, inv: G.inv, crowdDay: G.crowdDay, ads: G.ads, bedDoor: G.bedDoor, roomsV: 1, ageV: 1, weather: G.weather, wKey: G.wKey,
     studyQuiet: G.studyQuiet, studyQuietUntil: studyQuietTimed() ? G.studyQuietUntil : null,
     trust: G.trust, jealousy: G.jealousy, habits: G.habits, dayTrust: G.dayTrust, lastDaily: G.lastDaily, savedAt: Date.now(),
   };
@@ -3190,6 +3239,7 @@ function applySave(s) {
   G.furniture = []; G.dolls = []; G.rel = s.rel || {}; G.log = s.log || [];
   G.trust = s.trust || {}; G.jealousy = s.jealousy || {}; G.habits = s.habits || {}; G.dayTrust = s.dayTrust || { ...G.trust }; G.lastDaily = s.lastDaily || {};
   G.fund = s.fund ?? 800; G.level = TEST_MODE ? LEVELS.length - 1 : s.level || 1; G.inv = s.inv || {}; G.crowdDay = s.crowdDay || 0; G.bedDoor = s.bedDoor ?? true;
+  G.ads = s.ads && typeof s.ads.day === 'string' ? { day: s.ads.day, count: Math.max(0, s.ads.count | 0) } : null;
   G.studyQuiet = s.studyQuiet === true;
   G.thirdFloorReady = s.thirdFloorReady === true;
   const quietUntil = s.studyQuietUntil, now = absNow();
@@ -5143,6 +5193,7 @@ Object.assign(DRAW, {
 // 家庭基金、家具商店、仓库、扩建
 // 上班的人领工资时自动存 20% 进家庭基金；玩家每月还能号召一次大家凑钱。
 // 家具要用基金买，删掉的家具收进仓库可以再拿出来；扩建会让房子真的变宽，并解锁新家具。
+// 在 TapTap 里开通广告后，玩家还可以主动看一段激励视频换一笔「街坊赞助」。
 
 // [价格, 需要的房屋等级]
 const SHOP = {
@@ -5202,7 +5253,7 @@ function acquire(id) {
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }
   const [price, lv] = SHOP[id];
   if (lv > G.level) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${FURNITURE[id].name}`, true); return false; }
-  if (G.fund < price) { HOOK.toast(`🏦 家庭基金不够，${FURNITURE[id].name}要 ${yuan(price)}`, true); return false; }
+  if (G.fund < price) { HOOK.toast(`🏦 家庭基金不够，${FURNITURE[id].name}要 ${yuan(price)}`, true); HOOK.short?.(); return false; }
   G.fund -= price;
   addLog(`🛒 用家庭基金买了${FURNITURE[id].name}，花了 ${yuan(price)}`);
   return true;
@@ -5229,10 +5280,32 @@ function crowdfund() {
   HOOK.refresh();
 }
 
+// 街坊赞助：玩家自己点、看完一段激励视频才给，家庭基金加一笔。
+// 金额跟着房子等级走（扩建越往后越贵），次数按现实日期算，每天最多 5 次。
+const SPONSOR_PER_DAY = 5;
+const sponsorAmount = () => 200 + 100 * G.level;              // ¥300 / 400 / 500 / 600
+function realDay() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function sponsorLeft() { return G.ads?.day === realDay() ? Math.max(0, SPONSOR_PER_DAY - (G.ads.count || 0)) : SPONSOR_PER_DAY; }
+function sponsorOpen() { return !TEST_MODE && TapTapAds.available; }
+function sponsor() {
+  if (!sponsorOpen() || TapTapAds.busy) return;
+  if (!sponsorLeft()) { HOOK.toast('今天的街坊赞助已经领完了，明天再来吧', true); return; }
+  TapTapAds.show(result => {
+    if (result === 'closed') { HOOK.toast('看完整段广告才能拿到赞助', true); return; }
+    if (result !== 'watched') { HOOK.toast('暂时没有广告，稍后再试试', true); return; }
+    const amount = sponsorAmount(), day = realDay();
+    G.ads = { day, count: (G.ads?.day === day ? G.ads.count || 0 : 0) + 1 };
+    G.fund += amount;
+    addLog(`🎁 街坊赞助了小屋，家庭基金 +${yuan(amount)}`);
+    HOOK.toast(`🎁 街坊赞助到账，家庭基金 +${yuan(amount)}`, true); SFX.play('love');
+    HOOK.refresh(); save();
+  });
+}
+
 function expand() {
   const next = LEVELS[G.level + 1];
   if (!next) return;
-  if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); return; }
+  if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); HOOK.short?.(); return; }
   G.fund -= next.cost; G.level++;
   setWorldSize(next.cols);
   fitHouseFurniture();
@@ -10450,7 +10523,8 @@ HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette();
 let shopBarState = '';
 function renderShopBar() {
   const crowdDisabled = TEST_MODE || G.crowdDay === G.day;
-  const state = `${G.level}:${G.fund}:${crowdDisabled}`;
+  const sponsorOn = sponsorOpen(), left = sponsorOn ? sponsorLeft() : 0;
+  const state = `${G.level}:${G.fund}:${crowdDisabled}:${sponsorOn}:${left}`;
   if (state === shopBarState) return;
   shopBarState = state;
   const fund = TEST_MODE ? '∞' : yuan(G.fund);
@@ -10462,7 +10536,19 @@ function renderShopBar() {
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
   $('#btnCrowd').disabled = crowdDisabled;
+  // 街坊赞助（激励视频）：没开通广告、不在 TapTap 里时整个按钮不出现
+  const sp = $('#btnSponsor');
+  sp.hidden = !sponsorOn;
+  sp.disabled = !left;
+  $('#sponsorText').textContent = left ? `看一段视频，街坊赞助 ${yuan(sponsorAmount())}（今天还剩 ${left} 次）` : '今天的街坊赞助领完了';
 }
+$('#btnSponsor').onclick = () => sponsor();
+// 钱不够的时候，让赞助按钮跳一下，告诉玩家还有这条路；不弹窗，不自动播放
+HOOK.short = () => {
+  const sp = $('#btnSponsor');
+  if (sp.hidden || sp.disabled) return;
+  sp.classList.remove('nudge'); void sp.offsetWidth; sp.classList.add('nudge');
+};
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
 

@@ -788,7 +788,8 @@ HOOK.refresh = () => { renderShopBar(); if (G.mode === 'build') renderPalette();
 let shopBarState = '';
 function renderShopBar() {
   const crowdDisabled = TEST_MODE || G.crowdDay === G.day;
-  const state = `${G.level}:${G.fund}:${crowdDisabled}`;
+  const sponsorOn = sponsorOpen(), left = sponsorOn ? sponsorLeft() : 0;
+  const state = `${G.level}:${G.fund}:${crowdDisabled}:${sponsorOn}:${left}`;
   if (state === shopBarState) return;
   shopBarState = state;
   const fund = TEST_MODE ? '∞' : yuan(G.fund);
@@ -800,7 +801,19 @@ function renderShopBar() {
   ex.disabled = !next;
   ex.classList.toggle('ready', !!next && G.fund >= next.cost);
   $('#btnCrowd').disabled = crowdDisabled;
+  // 街坊赞助（激励视频）：没开通广告、不在 TapTap 里时整个按钮不出现
+  const sp = $('#btnSponsor');
+  sp.hidden = !sponsorOn;
+  sp.disabled = !left;
+  $('#sponsorText').textContent = left ? `看一段视频，街坊赞助 ${yuan(sponsorAmount())}（今天还剩 ${left} 次）` : '今天的街坊赞助领完了';
 }
+$('#btnSponsor').onclick = () => sponsor();
+// 钱不够的时候，让赞助按钮跳一下，告诉玩家还有这条路；不弹窗，不自动播放
+HOOK.short = () => {
+  const sp = $('#btnSponsor');
+  if (sp.hidden || sp.disabled) return;
+  sp.classList.remove('nudge'); void sp.offsetWidth; sp.classList.add('nudge');
+};
 $('#btnCrowd').onclick = () => crowdfund();
 $('#btnExpand').onclick = () => expand();
 

@@ -1,6 +1,7 @@
 // 家庭基金、家具商店、仓库、扩建
 // 上班的人领工资时自动存 20% 进家庭基金；玩家每月还能号召一次大家凑钱。
 // 家具要用基金买，删掉的家具收进仓库可以再拿出来；扩建会让房子真的变宽，并解锁新家具。
+// 在 TapTap 里开通广告后，玩家还可以主动看一段激励视频换一笔「街坊赞助」。
 
 // [价格, 需要的房屋等级]
 const SHOP = {
@@ -60,7 +61,7 @@ function acquire(id) {
   if ((G.inv[id] || 0) > 0) { G.inv[id]--; return true; }
   const [price, lv] = SHOP[id];
   if (lv > G.level) { HOOK.toast(`🔒 扩建成「${LEVELS[lv].name}」才能买${FURNITURE[id].name}`, true); return false; }
-  if (G.fund < price) { HOOK.toast(`🏦 家庭基金不够，${FURNITURE[id].name}要 ${yuan(price)}`, true); return false; }
+  if (G.fund < price) { HOOK.toast(`🏦 家庭基金不够，${FURNITURE[id].name}要 ${yuan(price)}`, true); HOOK.short?.(); return false; }
   G.fund -= price;
   addLog(`🛒 用家庭基金买了${FURNITURE[id].name}，花了 ${yuan(price)}`);
   return true;
@@ -87,10 +88,32 @@ function crowdfund() {
   HOOK.refresh();
 }
 
+// 街坊赞助：玩家自己点、看完一段激励视频才给，家庭基金加一笔。
+// 金额跟着房子等级走（扩建越往后越贵），次数按现实日期算，每天最多 5 次。
+const SPONSOR_PER_DAY = 5;
+const sponsorAmount = () => 200 + 100 * G.level;              // ¥300 / 400 / 500 / 600
+function realDay() { const d = new Date(); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function sponsorLeft() { return G.ads?.day === realDay() ? Math.max(0, SPONSOR_PER_DAY - (G.ads.count || 0)) : SPONSOR_PER_DAY; }
+function sponsorOpen() { return !TEST_MODE && TapTapAds.available; }
+function sponsor() {
+  if (!sponsorOpen() || TapTapAds.busy) return;
+  if (!sponsorLeft()) { HOOK.toast('今天的街坊赞助已经领完了，明天再来吧', true); return; }
+  TapTapAds.show(result => {
+    if (result === 'closed') { HOOK.toast('看完整段广告才能拿到赞助', true); return; }
+    if (result !== 'watched') { HOOK.toast('暂时没有广告，稍后再试试', true); return; }
+    const amount = sponsorAmount(), day = realDay();
+    G.ads = { day, count: (G.ads?.day === day ? G.ads.count || 0 : 0) + 1 };
+    G.fund += amount;
+    addLog(`🎁 街坊赞助了小屋，家庭基金 +${yuan(amount)}`);
+    HOOK.toast(`🎁 街坊赞助到账，家庭基金 +${yuan(amount)}`, true); SFX.play('love');
+    HOOK.refresh(); save();
+  });
+}
+
 function expand() {
   const next = LEVELS[G.level + 1];
   if (!next) return;
-  if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); return; }
+  if (G.fund < next.cost) { HOOK.toast(`🏦 扩建需要 ${yuan(next.cost)}，家庭基金还差 ${yuan(next.cost - G.fund)}`, true); SFX.play('deny'); HOOK.short?.(); return; }
   G.fund -= next.cost; G.level++;
   setWorldSize(next.cols);
   fitHouseFurniture();

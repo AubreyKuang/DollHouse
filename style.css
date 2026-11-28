@@ -233,6 +233,9 @@ h1,h2{font-family:var(--font-display);font-weight:400;margin:0}
 .shop-bar .spacer{flex:1}
 .shop-bar button:disabled{opacity:.5;cursor:default}
 #btnExpand.ready{background:var(--good);color:#fff}
+.ad-tag{display:inline-block;margin-right:6px;padding:0 5px;border:1px solid currentColor;border-radius:4px;font-size:11px;line-height:16px;opacity:.75;vertical-align:1px}
+#btnSponsor.nudge{animation:sponsor-nudge .5s ease 2}
+@keyframes sponsor-nudge{50%{transform:translateY(-4px);box-shadow:0 4px 0 var(--good)}}
 .fund-pill{font-size:13px}
 .item small.price{font-size:11px;font-family:var(--font-pixel);color:var(--muted)}
 .item small.price.own{color:#4f9a4a}
